@@ -139,10 +139,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="vCPU.cpp" />
+    <ClCompile Include="CPU.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Memory.h" />
     <ClInclude Include="Opcodes.h" />
+    <ClInclude Include="Stack.h" />
+    <ClInclude Include="Types.h" />
+    <ClInclude Include="Pointer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

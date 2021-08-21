@@ -110,7 +110,7 @@ enum vOpcode {
 	fmul = 106,
 	dmul = 107,
 	idiv = 108,
-	ldiv = 109,
+	ldiv_ = 109,
 	fdiv = 110,
 	ddiv = 111,
 	irem = 112,
