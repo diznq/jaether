@@ -15,17 +15,57 @@ typedef uint64_t	vCAT2;
 typedef float vFLOAT;
 typedef double vDOUBLE;
 
-union vCOMMON {
-	vCHAR c;
-	vBYTE b;
-	vSHORT si;
-	vUSHORT usi;
-	vJCHAR jc;
-	vINT i;
-	vUINT u;
-	vLONG l;
-	vULONG ul;
-	vREF a;
-	double d;
-	float f;
+struct vCOMMON {
+	union {
+		vCHAR c;
+		vBYTE b;
+		vSHORT si;
+		vUSHORT usi;
+		vJCHAR jc;
+		vINT i;
+		vUINT u;
+		vLONG l;
+		vULONG ul;
+		vREF a;
+		double d;
+		float f;
+	};
+	vBYTE type;
+};
+
+class vTypes {
+public:
+	template<class T> static vBYTE type() {
+		return 0;
+	}
+	template<> static vBYTE type<vCHAR>() {
+		return 4;
+	}
+	template<> static vBYTE type<vFLOAT>() {
+		return 6;
+	}
+	template<> static vBYTE type<vDOUBLE>() {
+		return 7;
+	}
+	template<> static vBYTE type<vBYTE>() {
+		return 8;
+	}
+	template<> static vBYTE type<vSHORT>() {
+		return 9;
+	}
+	template<> static vBYTE type<vUSHORT>() {
+		return 9;
+	}
+	template<> static vBYTE type<vINT>() {
+		return 10;
+	}
+	template<> static vBYTE type<vUINT>() {
+		return 10;
+	}
+	template<> static vBYTE type<vLONG>() {
+		return 11;
+	}
+	template<> static vBYTE type<vULONG>() {
+		return 11;
+	}
 };

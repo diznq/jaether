@@ -16,9 +16,9 @@ public:
 	}
 
 	~vStack() {
-		delete _index.Real();
-		delete _size.Real();
-		delete[] _memory.Real();
+		_index.Release();
+		_size.Release();
+		_memory.Release(true);
 	}
 
 	template<class T> vStack& push(const T& value) {
@@ -26,6 +26,10 @@ public:
 		vBYTE* ptr = &_memory[(size_t)*_index];
 		memset(ptr, 0, size);
 		memcpy(ptr, &value, sizeof(T));
+		if constexpr (!std::is_same_v<T, vCOMMON>) {
+			vCOMMON* vc = (vCOMMON*)ptr;
+			vc->type = vTypes::type<T>();
+		}
 		(*_index) += size;
 		assert(*_index >= 0 && *_index <= *_size);
 		return *this;

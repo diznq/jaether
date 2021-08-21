@@ -26,10 +26,10 @@ public:
 	}
 
 	~vFrame() {
-		delete _stack.Real();
-		delete _pc.Real();
-		delete _local.Real();
-		delete _constPool.Real();
+		_stack.Release();
+		_pc.Release();
+		_local.Release();
+		_constPool.Release();
 	}
 
 	vBYTE* fetch() const {
@@ -141,52 +141,52 @@ public:
 
 		case i2b:
 			_stack->push<vBYTE>((vBYTE)(_stack->pop<vUINT>() & 255));
-			break;
+			return 0;
 		case i2c:
 			_stack->push<vJCHAR>((vJCHAR)(_stack->pop<vUINT>() & 65535));
-			break;
+			return 0;
 		case i2s:
 			_stack->push<vUSHORT>((vUSHORT)(_stack->pop<vUINT>() & 65535));
-			break;
+			return 0;
 		case i2l:
 			_stack->push<vLONG>((vLONG)(_stack->pop<vINT>()));
-			break;
+			return 0;
 		case i2f:
 			_stack->push<vFLOAT>((vFLOAT)(_stack->pop<vINT>()));
-			break;
+			return 0;
 		case i2d:
 			_stack->push<vDOUBLE>((vDOUBLE)(_stack->pop<vINT>()));
-			break;
+			return 0;
 
 		case l2i:
 			_stack->push<vINT>((vINT)_stack->pop<vLONG>());
-			break;
+			return 0;
 		case l2f:
 			_stack->push<vFLOAT>((vFLOAT)_stack->pop<vLONG>());
-			break;
+			return 0;
 		case l2d:
 			_stack->push<vDOUBLE>((vDOUBLE)_stack->pop<vLONG>());
-			break;
+			return 0;
 
 		case f2d:
 			_stack->push<vDOUBLE>((vDOUBLE)_stack->pop<vFLOAT>());
-			break;
+			return 0;
 		case f2i:
 			_stack->push<vINT>((vINT)_stack->pop<vFLOAT>());
-			break;
+			return 0;
 		case f2l:
 			_stack->push<vLONG>((vLONG)_stack->pop<vFLOAT>());
-			break;
+			return 0;
 
 		case d2f:
 			_stack->push<vFLOAT>((vFLOAT)_stack->pop<vDOUBLE>());
-			break;
+			return 0;
 		case d2i:
 			_stack->push<vINT>((vINT)_stack->pop<vDOUBLE>());
-			break;
+			return 0;
 		case d2l:
 			_stack->push<vLONG>((vLONG)_stack->pop<vDOUBLE>());
-			break;
+			return 0;
 
 		case ineg:
 			op[0].i = _stack->pop<vINT>();
@@ -271,7 +271,6 @@ public:
 		case imul:
 			op[1].i = _stack->pop<vINT>();
 			op[0].i = _stack->pop<vINT>();
-			printf("imul %d, %d\n", op[1].i, op[0].i);
 			_stack->push<vINT>(op[0].i * op[1].i);
 			return 0;
 		case lmul:
@@ -776,5 +775,5 @@ int main() {
 	};
 	auto frame = VMAKE(vFrame, V<vBYTE>(bytecode));
 	vCOMMON retval = cpu->run(frame);
-	printf("%d\n", retval.i);
+	printf("%d, type: %d\n", retval.i, retval.type);
 }

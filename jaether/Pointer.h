@@ -12,6 +12,18 @@ public:
 	V() : _addr(0), _offset(0) {}
 	V(A* addr, void* offset = 0) : _addr(addr), _offset(offset) {}
 
+	bool Release(bool arr = false) {
+		if (!IsValid()) return false;
+		if (arr) delete[] Real();
+		else delete Real();
+		_addr = (A*)(uintptr_t)(-(intptr_t)_offset);
+		return true;
+	}
+
+	bool IsValid() const {
+		return Real() != 0;
+	}
+
 	A* Real() const {
 		return (A*)(((uintptr_t)_addr) + Offset());
 	}

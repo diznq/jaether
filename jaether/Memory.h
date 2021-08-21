@@ -1,6 +1,8 @@
 #pragma once
 #include "Pointer.h"
 #include "Types.h"
+#include <type_traits>
+
 class vMemory {
 	V<vCOMMON> _memory;
 	V<vULONG> _size;
@@ -13,8 +15,8 @@ public:
 	}
 
 	~vMemory() {
-		delete _size.Real();
-		delete[] _memory.Real();
+		_size.Release();
+		_memory.Release(true);
 	}
 
 	template<class T> vMemory& set(const size_t index, const T& value) {
@@ -23,10 +25,14 @@ public:
 		vBYTE* ptr = (vBYTE*)&_memory[index];
 		memset(ptr, 0, size);
 		memcpy(ptr, &value, sizeof(T));
+		if constexpr (!std::is_same_v<T, vCOMMON>) {
+			vCOMMON* vc = (vCOMMON*)ptr;
+			vc->type = vTypes::type<T>();
+		}
 		return *this;
 	}
 
-	template<class T> T get(const size_t index) {
+	template<class T> T get(const size_t index) const {
 		const size_t size = sizeof(vCOMMON);
 		assert(index < *_size);
 		T val = *(T*)&_memory[index];
