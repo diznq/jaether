@@ -7,16 +7,23 @@
 template<class A>
 class V {
 	A* _addr = 0;
-	void* _offset = 0;
 public:
-	V() : _addr(0), _offset(0) {}
-	V(A* addr, void* offset = 0) : _addr(addr), _offset(offset) {}
+	V() : _addr(0) {}
+	V(A* addr) : _addr(addr){ }
+
+	static V<A> NullPtr() {
+		return V<A>((A*)(uintptr_t)(-(intptr_t)Offset()));
+	}
+
+	static uintptr_t Offset() {
+		return (uintptr_t)0;
+	}
 
 	bool Release(bool arr = false) {
 		if (!IsValid()) return false;
 		if (arr) delete[] Real();
 		else delete Real();
-		_addr = (A*)(uintptr_t)(-(intptr_t)_offset);
+		_addr = (A*)(uintptr_t)(-(intptr_t)Offset());
 		return true;
 	}
 
@@ -32,9 +39,6 @@ public:
 		return (A*)_addr;
 	}
 	
-	uintptr_t Offset() const {
-		return (uintptr_t)_offset;
-	}
 
 	A* operator->() const {
 		return Real();
@@ -45,7 +49,7 @@ public:
 	}
 
 	V<A> operator+(const size_t index) const {
-		return V<A>(_addr + index, _offset);
+		return V<A>(_addr + index);
 	}
 
 	V<A>& operator+=(const size_t index) {

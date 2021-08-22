@@ -1,5 +1,5 @@
 #pragma once
-
+#include <string.h>
 typedef int8_t		vCHAR;
 typedef int16_t		vSHORT;
 typedef int32_t		vINT;
@@ -9,29 +9,58 @@ typedef uint16_t	vUSHORT;
 typedef uint16_t	vJCHAR;
 typedef uint32_t	vUINT;
 typedef uint64_t	vULONG;
-typedef uint64_t	vREF;
 typedef uint32_t	vCAT1;
 typedef uint64_t	vCAT2;
 typedef float vFLOAT;
 typedef double vDOUBLE;
 
-struct vCOMMON {
-	union {
-		vCHAR c;
-		vBYTE b;
-		vSHORT si;
-		vUSHORT usi;
-		vJCHAR jc;
-		vINT i;
-		vUINT u;
-		vLONG l;
-		vULONG ul;
-		vREF a;
-		double d;
-		float f;
-	};
-	vBYTE type;
+enum vClassTag {
+	vCT_UTF8 = 1,
+	vCT_INT = 3,
+	vCT_DOUBLE = 6,
+	vCT_CLASS = 7,
+	vCT_STRING = 8,
+	vCT_FIELDREF = 9,
+	vCT_METHODREF = 10,
+	vCT_NAMEANDTYPE = 12
 };
+
+struct vREF {
+	vULONG a;
+};
+
+struct vCLASS {
+	vUSHORT clsIndex;
+};
+
+struct vMETHODREF {
+	vUSHORT clsIndex;
+	vUSHORT nameIndex;
+};
+
+struct vNAMEANDTYPE {
+	vUSHORT nameIndex;
+	vUSHORT descIndex;
+};
+
+struct vUTF8BODY {
+	vUSHORT len;
+	V<vBYTE> s;
+};
+
+
+struct vSTRING {
+	vUSHORT strIndex;
+};
+
+struct vUTF8 {
+	vREF r;
+};
+
+struct vCONST {
+	vREF ref;
+};
+
 
 class vTypes {
 public:
@@ -67,5 +96,58 @@ public:
 	}
 	template<> static vBYTE type<vULONG>() {
 		return 11;
+	}
+	template<> static vBYTE type<vREF>() {
+		return 12;
+	}
+	template<> static vBYTE type<vCONST>() {
+		return 13;
+	}
+	template<> static vBYTE type<vUTF8>() {
+		return 14;
+	}
+	template<> static vBYTE type<vMETHODREF>() {
+		return 15;
+	}
+	template<> static vBYTE type<vCLASS>() {
+		return 16;
+	}
+	template<> static vBYTE type<vSTRING>() {
+		return 17;
+	}
+	template<> static vBYTE type<vNAMEANDTYPE>() {
+		return 18;
+	}
+};
+
+struct vCOMMON {
+	union {
+		vCHAR c;
+		vBYTE b;
+		vSHORT si;
+		vUSHORT usi;
+		vJCHAR jc;
+		vINT i;
+		vUINT u;
+		vLONG l;
+		vULONG ul;
+		vREF a;
+		vUTF8 s;
+		vCLASS cls;
+		vSTRING str;
+		vUTF8 utf8;
+		vMETHODREF mr;
+		vNAMEANDTYPE nt;
+		double d;
+		float f;
+	};
+	vBYTE type;
+
+	template<class T> static vCOMMON create(T value) {
+		vCOMMON var;
+		memset(&var, 0, sizeof(vCOMMON));
+		memcpy(&var, &value, sizeof(T));
+		var.type = vTypes::type<T>();
+		return var;
 	}
 };
