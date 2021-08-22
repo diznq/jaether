@@ -140,9 +140,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Class.cpp" />
     <ClCompile Include="CPU.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Class.h" />
+    <ClInclude Include="Frame.h" />
     <ClInclude Include="Memory.h" />
     <ClInclude Include="Opcodes.h" />
     <ClInclude Include="Stack.h" />

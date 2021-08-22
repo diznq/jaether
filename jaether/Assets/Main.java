@@ -1,9 +1,9 @@
 class Main {
-    public static void main(String[] args){
+    public static int calc(){
         int i = 0;
         for(int j = 0; j < 50; j++){
             i += j;
         }
-        System.out.println(i);
+        return i;
     }
 }

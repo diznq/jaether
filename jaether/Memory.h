@@ -1,6 +1,7 @@
 #pragma once
 #include "Pointer.h"
 #include "Types.h"
+#include <assert.h>
 #include <iostream>
 #include <type_traits>
 

@@ -1,6 +1,7 @@
 #pragma once
 #include "Pointer.h"
 #include "Types.h"
+#include <assert.h>
 
 class vStack {
 	V<vBYTE> _memory;
@@ -27,6 +28,7 @@ public:
 			vc->type = vTypes::type<T>();
 		}
 		_index += size;
+		dbgStack();
 		assert(_index >= 0 && _index <= _size);
 		return *this;
 	}
@@ -34,8 +36,19 @@ public:
 	template<class T> T pop() {
 		const size_t size = sizeof(vCOMMON);
 		_index -= size;
+		dbgStack();
 		T val = *(T*)&_memory[(size_t)_index];
 		assert(_index >= 0 && _index <= _size);
 		return val;
+	}
+
+	void dbgStack() {
+		printf("--------Stack (%5d)--------\n", (int)_index);
+		for (vLONG i = 0; i < (vLONG)_index; i++) {
+			if (i > 0 && i % (sizeof(vCOMMON)) == 0)
+				printf("\n");
+			printf("%02X ", _memory[i]);
+		}
+		printf("\n");
 	}
 };

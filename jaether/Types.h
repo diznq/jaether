@@ -1,5 +1,7 @@
 #pragma once
 #include <string.h>
+#include "Pointer.h"
+
 typedef int8_t		vCHAR;
 typedef int16_t		vSHORT;
 typedef int32_t		vINT;
@@ -61,6 +63,21 @@ struct vCONST {
 	vREF ref;
 };
 
+struct vATTRIBUTE {
+	vUSHORT name;
+	vUINT length;
+	V<vBYTE> info;
+};
+
+struct vFIELD {
+	vUSHORT access;
+	vUSHORT name;
+	vUSHORT desc;
+	vUSHORT attributeCount;
+	V<vATTRIBUTE> attributes;
+};
+
+typedef vFIELD vMETHOD;
 
 class vTypes {
 public:

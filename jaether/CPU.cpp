@@ -9,187 +9,8 @@
 #include "Types.h"
 #include "Stack.h"
 #include "Memory.h"
-
-class vClass {
-public:
-	V<vMemory> _constPool;
-	vUSHORT _name = 0;
-	vUSHORT _super = 0;
-	vUSHORT _accessFlags = 0;
-
-	vClass(const char* name) {
-		std::ifstream f(name, std::ios::binary);
-		if (f) {
-			vUINT magic = readUI(f);
-			vUSHORT minor = readUSI(f), major = readUSI(f);
-			vUSHORT consts = readUSI(f);
-			vCOMMON ops[8];
-			_constPool = VMAKE(vMemory, (size_t)consts);
-			// Parse const pool
-			for (vUSHORT i = 1; i < consts; i++) {
-				vBYTE type = (vBYTE)f.get();
-				switch (type) {
-				case vCT_UTF8:
-				{
-					ops[0].usi = readUSI(f);
-					V<vUTF8BODY> str = VMAKE(vUTF8BODY);
-					str->len = ops[0].usi;
-					str->s = VMAKEARRAY(vBYTE, (size_t)str->len + 1);
-					memset(str->s.Real(), 0, (size_t)str->len + 1);
-					for (vUSHORT i = 0; i < ops[0].usi; i++) str->s[i] = (vBYTE)f.get();
-					vUTF8 wrap;
-					wrap.r.a = (vULONG)str.Virtual();
-					_constPool->set<vUTF8>(i, wrap);
-					break;
-				}
-				case vCT_STRING:
-					ops[0].str.strIndex = readUSI(f);
-					_constPool->set<vSTRING>(i, ops[0].str);
-					break;
-				case vCT_CLASS:
-					ops[0].cls.clsIndex = readUSI(f);
-					_constPool->set<vCLASS>(i, ops[0].cls);
-					break;
-				case vCT_METHODREF:
-				case vCT_FIELDREF:
-					ops[0].mr.clsIndex = readUSI(f);
-					ops[0].mr.nameIndex = readUSI(f);
-					_constPool->set<vMETHODREF>(i, ops[0].mr);
-					break;
-				case vCT_NAMEANDTYPE:
-					ops[0].nt.nameIndex = readUSI(f);
-					ops[0].nt.descIndex = readUSI(f);
-					_constPool->set<vNAMEANDTYPE>(i, ops[0].nt);
-					break;
-				case vCT_INT:
-					_constPool->set<vUINT>(i, readUI(f));
-					break;
-				case vCT_DOUBLE:
-					_constPool->set<vDOUBLE>(i, readDouble(f));
-					break;
-				default:
-					fprintf(stderr, "[vClass::ctor] Unhandled tag type: %d\n", type);
-					break;
-				}
-			}
-			// Parse class info
-			_accessFlags = readUSI(f);
-			_name = readUSI(f);
-			_super = readUSI(f);
-		}
-	}
-
-	~vClass() {
-		_constPool.Release();
-	}
-
-	const char* getName() {
-		return (const char*)toString(_name)->s.Real();
-	}
-
-	const char* getSuperName() {
-		if (_super == 0) return 0;
-		return (const char*)toString(_super)->s.Real();
-	}
-
-	template<class T> T read(vBYTE* ip) const {
-		return *(T*)ip;
-	}
-
-	vUSHORT readUSI(vBYTE* ip) const {
-		vUSHORT usi = read<vBYTE>(ip);
-		usi <<= 8;
-		usi |= read<vBYTE>(ip + 1);
-		return usi;
-	}
-
-	vUINT readUI(vBYTE* ip) const {
-		vUINT ui = read<vBYTE>(ip);
-		ui <<= 8; ui |= read<vBYTE>(ip + 1);
-		ui <<= 8; ui |= read<vBYTE>(ip + 2);
-		ui <<= 8; ui |= read<vBYTE>(ip + 3);
-		return ui;
-	}
-
-	vDOUBLE readDouble(vBYTE* ip) const {
-		vBYTE mirror[8];
-		for (int i = 0; i < 8; i++) {
-			mirror[7 - i] = ip[i];
-		}
-		return *(vDOUBLE*)mirror;
-	}
-
-	vUSHORT readUSI(std::ifstream& stream) const {
-		vBYTE buff[2];
-		stream.read((char*)buff, 2);
-		return readUSI(buff);
-	}
-
-	vUINT readUI(std::ifstream& stream) const {
-		vBYTE buff[4];
-		stream.read((char*)buff, 4);
-		return readUI(buff);
-	}
-
-	vDOUBLE readDouble(std::ifstream& stream) const {
-		vBYTE buff[8];
-		stream.read((char*)buff, 8);
-		return readDouble(buff);
-	}
-
-	V<vUTF8BODY> toString(vUSHORT index, int selector = 0) const {
-		vCOMMON str = _constPool->get<vCOMMON>(index);
-		if (str.type == vTypes::type<vCLASS>()) {
-			return toString(str.cls.clsIndex);
-		} else if (str.type == vTypes::type<vNAMEANDTYPE>()) {
-			return toString(selector == 0 ? str.nt.nameIndex : str.nt.descIndex);
-		} else if (str.type == vTypes::type<vSTRING>()) {
-			return toString(str.str.strIndex);
-		} else if (str.type == vTypes::type<vUTF8>()) {
-			return V<vUTF8BODY>((vUTF8BODY*)str.utf8.r.a);
-		}
-		return V<vUTF8BODY>::NullPtr();
-	}
-};
-
-class vFrame {
-public:
-	V<vBYTE>	_program;
-	V<vStack>	_stack;
-	V<vMemory>	_local;
-	V<vClass>	_class;
-	vULONG		_pc;
-
-	vFrame(
-		const V<vBYTE>& program,
-		const V<vClass>& classFile,
-		size_t maxStackItems = 512,
-		size_t maxLocals = 512
-	) {
-		_stack = VMAKE(vStack, maxStackItems * sizeof(vCOMMON));
-		_local = VMAKE(vMemory, maxLocals);
-		_pc = 0;
-		_class = classFile;
-		_program = program;
-	}
-
-	~vFrame() {
-		_stack.Release();
-		_local.Release();
-	}
-
-	vBYTE* fetch() {
-		return _program.Real() + pc();
-	}
-
-	vULONG& pc() {
-		return _pc;
-	}
-
-	vULONG incrpc(size_t step) {
-		return (_pc) += step;
-	}
-};
+#include "Frame.h"
+#include "Class.h"
 
 class vCPU {
 	bool _running = true;
@@ -224,6 +45,7 @@ public:
 		V<vClass>& _class = frame->_class;
 		V<vMemory>& _constPool = frame->_class->_constPool;
 		vBYTE* ip = frame->fetch();
+		printf("Execute instruction %d (%s)\n", *ip, Opcodes[*ip]);
 		vBYTE& opcode = *ip;
 		vCOMMON op[8];
 		switch (opcode) {
@@ -551,68 +373,68 @@ public:
 			return 1;
 
 		case aload_0:
-			_local->set<vREF>((size_t)0, _stack->pop<vREF>());
+			_stack->push<vREF>(_local->get<vREF>((size_t)0));
 			return 0;
 		case aload_1:
-			_local->set<vREF>((size_t)1, _stack->pop<vREF>());
+			_stack->push<vREF>(_local->get<vREF>((size_t)1));
 			return 0;
 		case aload_2:
-			_local->set<vREF>((size_t)2, _stack->pop<vREF>());
+			_stack->push<vREF>(_local->get<vREF>((size_t)2));
 			return 0;
 		case aload_3:
-			_local->set<vREF>((size_t)3, _stack->pop<vREF>());
+			_stack->push<vREF>(_local->get<vREF>((size_t)3));
 			return 0;
 
 		case iload_0:
-			_local->set<vINT>((size_t)0, _stack->pop<vINT>());
+			_stack->push<vINT>(_local->get<vINT>((size_t)0));
 			return 0;
 		case iload_1:
-			_local->set<vINT>((size_t)1, _stack->pop<vINT>());
+			_stack->push<vINT>(_local->get<vINT>((size_t)1));
 			return 0;
 		case iload_2:
-			_local->set<vINT>((size_t)2, _stack->pop<vINT>());
+			_stack->push<vINT>(_local->get<vINT>((size_t)2));
 			return 0;
 		case iload_3:
-			_local->set<vINT>((size_t)3, _stack->pop<vINT>());
+			_stack->push<vINT>(_local->get<vINT>((size_t)3));
 			return 0;
 
 		case lload_0:
-			_local->set<vLONG>((size_t)0, _stack->pop<vLONG>());
+			_stack->push<vLONG>(_local->get<vLONG>((size_t)0));
 			return 0;
 		case lload_1:
-			_local->set<vLONG>((size_t)1, _stack->pop<vLONG>());
+			_stack->push<vLONG>(_local->get<vLONG>((size_t)1));
 			return 0;
 		case lload_2:
-			_local->set<vLONG>((size_t)2, _stack->pop<vLONG>());
+			_stack->push<vLONG>(_local->get<vLONG>((size_t)2));
 			return 0;
 		case lload_3:
-			_local->set<vLONG>((size_t)3, _stack->pop<vLONG>());
+			_stack->push<vLONG>(_local->get<vLONG>((size_t)3));
 			return 0;
 
 		case fload_0:
-			_local->set<vFLOAT>((size_t)0, _stack->pop<vFLOAT>());
+			_stack->push<vFLOAT>(_local->get<vFLOAT>((size_t)0));
 			return 0;
 		case fload_1:
-			_local->set<vFLOAT>((size_t)1, _stack->pop<vFLOAT>());
+			_stack->push<vFLOAT>(_local->get<vFLOAT>((size_t)1));
 			return 0;
 		case fload_2:
-			_local->set<vFLOAT>((size_t)2, _stack->pop<vFLOAT>());
+			_stack->push<vFLOAT>(_local->get<vFLOAT>((size_t)2));
 			return 0;
 		case fload_3:
-			_local->set<vFLOAT>((size_t)3, _stack->pop<vFLOAT>());
+			_stack->push<vFLOAT>(_local->get<vFLOAT>((size_t)3));
 			return 0;
 
 		case dload_0:
-			_local->set<vDOUBLE>((size_t)0, _stack->pop<vDOUBLE>());
+			_stack->push<vDOUBLE>(_local->get<vDOUBLE>((size_t)0));
 			return 0;
 		case dload_1:
-			_local->set<vDOUBLE>((size_t)1, _stack->pop<vDOUBLE>());
+			_stack->push<vDOUBLE>(_local->get<vDOUBLE>((size_t)1));
 			return 0;
 		case dload_2:
-			_local->set<vDOUBLE>((size_t)2, _stack->pop<vDOUBLE>());
+			_stack->push<vDOUBLE>(_local->get<vDOUBLE>((size_t)2));
 			return 0;
 		case dload_3:
-			_local->set<vDOUBLE>((size_t)3, _stack->pop<vDOUBLE>());
+			_stack->push<vDOUBLE>(_local->get<vDOUBLE>((size_t)3));
 			return 0;
 
 		// Store
@@ -863,6 +685,8 @@ public:
 			return 0;
 
 		default:
+			fprintf(stderr, "[vCPU::sub_execute] Executing undefined instruction with opcode %d (%s)\n", *ip, Opcodes[*ip]);
+			_running = false;
 			return 0;
 		}
 	}
@@ -895,39 +719,8 @@ public:
 
 int main() {
 	auto cpu = VMAKE(vCPU);
-	auto stk = VMAKE(vStack);
-	vBYTE bytecode[] = {
-		iconst_m1,
-		
-		istore,
-		0,
-
-		iinc,
-		0,
-		1,
-
-		iload,
-		0,
-
-		iconst_5,
-
-		if_icmplt,
-		0xFF,
-		0xFA,
-
-		iload,
-		0,
-
-		iload,
-		0,
-
-		imul,
-		ireturn
-	};
 	auto cls = VMAKE(vClass, "Assets/Main.class");
-	printf("Class name: %s\n", cls->getName());
-	printf("Super class: %s\n", cls->getSuperName());
-	auto frame = VMAKE(vFrame, V<vBYTE>(bytecode), cls);
+	auto frame = VMAKE(vFrame, cls->getCode("calc"), cls);
 	vCOMMON retval = cpu->run(frame);
 	printf("Result: %d, type: %d\n", retval.i, retval.type);
 }
