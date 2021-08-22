@@ -28,7 +28,7 @@ public:
 			vc->type = vTypes::type<T>();
 		}
 		_index += size;
-		dbgStack();
+		//dbgStack();
 		assert(_index >= 0 && _index <= _size);
 		return *this;
 	}
@@ -36,7 +36,7 @@ public:
 	template<class T> T pop() {
 		const size_t size = sizeof(vCOMMON);
 		_index -= size;
-		dbgStack();
+		//dbgStack();
 		T val = *(T*)&_memory[(size_t)_index];
 		assert(_index >= 0 && _index <= _size);
 		return val;

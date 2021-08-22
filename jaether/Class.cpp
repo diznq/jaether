@@ -189,7 +189,6 @@ vMETHOD* vClass::getMethod(const char* name, const char* desc) {
 		if (!strcmp((const char*)str->s.Real(), name)) {
 			if (desc != 0) {
 				V<vUTF8BODY> descstr = toString(_methods[i].desc);
-				printf("Mtd: %s, %s\n", str->s.Real(), descstr->s.Real());
 				if (!descstr.IsValid()) continue;
 				if (strcmp(desc, (const char*)descstr->s.Real())) continue;
 			}
