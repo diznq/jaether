@@ -43,7 +43,7 @@ public:
 	}
 
 	void dbgStack() {
-		printf("--------Stack (%5d)--------\n", (int)_index);
+		printf("--------Stack (%5d, %p)--------\n", (int)_index, this);
 		for (vLONG i = 0; i < (vLONG)_index; i++) {
 			if (i > 0 && i % (sizeof(vCOMMON)) == 0)
 				printf("\n");

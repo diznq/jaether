@@ -145,6 +145,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Class.h" />
+    <ClInclude Include="CPU.h" />
     <ClInclude Include="Frame.h" />
     <ClInclude Include="Memory.h" />
     <ClInclude Include="Opcodes.h" />

@@ -182,11 +182,17 @@ vFIELD* vClass::getField(const char* name) {
 	return 0;
 }
 
-vMETHOD* vClass::getMethod(const char* name) {
+vMETHOD* vClass::getMethod(const char* name, const char* desc) {
 	for (vUSHORT i = 0; i < _methodCount; i++) {
 		V<vUTF8BODY> str = toString(_methods[i].name);
 		if (!str.IsValid()) continue;
 		if (!strcmp((const char*)str->s.Real(), name)) {
+			if (desc != 0) {
+				V<vUTF8BODY> descstr = toString(_methods[i].desc);
+				printf("Mtd: %s, %s\n", str->s.Real(), descstr->s.Real());
+				if (!descstr.IsValid()) continue;
+				if (strcmp(desc, (const char*)descstr->s.Real())) continue;
+			}
 			return &_methods[i];
 		}
 	}
@@ -210,10 +216,33 @@ V<vUTF8BODY> vClass::toString(vUSHORT index, int selector) const {
 	return V<vUTF8BODY>::NullPtr();
 }
 
-V<vBYTE> vClass::getCode(const char* methodName) {
-	vMETHOD* method = getMethod(methodName);
+V<vBYTE> vClass::getCode(vMETHOD* method) {
 	if (!method) return V<vBYTE>::NullPtr();
 	vATTRIBUTE* attrib = getAttribute(method, "Code");
 	if (!attrib) return V<vBYTE>::NullPtr();
 	return attrib->info;
+}
+
+vUINT vClass::argsCount(vMETHOD* method) {
+	if (!method) return 0;
+	V<vUTF8BODY> desc = toString(method->desc);
+	if (!desc.IsValid()) return 0;
+	const char* str = (const char*)desc->s.Real();
+	vUINT count = 0;
+	bool className = false;
+	while (*str != ')') {
+		char c = *str;
+		if (c != '(') {
+			if (!className && c == 'L') {
+				className = true;
+				count++;
+			} else if (className && c == ';') {
+				className = false;
+			} else if(!className) {
+				count++;
+			}
+		}
+		str++;
+	}
+	return count;
 }
