@@ -5,7 +5,7 @@ class Main {
     public int start = 0;
 
     Main(){
-        this.count = calc(1000);
+        this.count = calc(10);
         this.alt = this.count / 10;
     }
 
@@ -25,7 +25,9 @@ class Main {
     public static void main(String[] args){
         Main obj = new Main();
         obj.start = 123;
+        int result = obj.calc(10);
         System.out.println(obj.count + obj.start);
         System.out.println(obj.alt);
+        System.out.println(result);
     }
 }

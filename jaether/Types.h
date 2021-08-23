@@ -141,7 +141,7 @@ public:
 		return 18;
 	}
 	template<> static vBYTE type<vOBJECTREF>() {
-		return 19;
+		return 12;
 	}
 };
 
@@ -181,5 +181,5 @@ struct vCOMMON {
 struct vOBJECT {
 	V<vCOMMON> fields;
 	V<vClass> cls;
-	vOBJECT(V<vClass>);
+	vOBJECT(const V<vClass>& klass);
 };

@@ -14,6 +14,7 @@ public:
 		_memory = VMAKEARRAY(vBYTE, size);
 		_index = 0;
 		_size = size;
+		memset(_memory.Real(), 0, size);
 	}
 
 	~vStack() {
@@ -30,7 +31,7 @@ public:
 			vc->type = vTypes::type<T>();
 		}
 		_index += size;
-		dbgStack("push");
+		//dbgStack("push");
 		assert(_index >= 0 && _index <= _size);
 		return *this;
 	}
@@ -38,7 +39,7 @@ public:
 	template<class T> T pop() {
 		const size_t size = sizeof(vCOMMON);
 		_index -= size;
-		dbgStack("pop");
+		//dbgStack("pop");
 		T val = *(T*)&_memory[(size_t)_index];
 		assert(_index >= 0 && _index <= _size);
 		return val;

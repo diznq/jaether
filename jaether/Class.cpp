@@ -202,6 +202,7 @@ vMETHOD* vClass::getMethod(const char* name, const char* desc) {
 
 V<vUTF8BODY> vClass::toString(vUSHORT index, int selector) const {
 	vCOMMON str = _constPool->get<vCOMMON>(index);
+	// printf("to string %d, type: %d\n", index, str.type);
 	if (str.type == vTypes::type<vCLASS>()) {
 		return toString(str.cls.clsIndex);
 	} else if (str.type == vTypes::type<vNAMEANDTYPE>()) {
@@ -218,7 +219,7 @@ V<vBYTE> vClass::getCode(vMETHOD* method) {
 	if (!method) return V<vBYTE>::NullPtr();
 	vATTRIBUTE* attrib = getAttribute(method, "Code");
 	if (!attrib) return V<vBYTE>::NullPtr();
-	return attrib->info;
+	return attrib->info + (size_t)8;
 }
 
 vUINT vClass::argsCount(vMETHOD* method) {
@@ -272,5 +273,7 @@ std::tuple<bool, vCOMMON> vClass::invoke(
 		nFrame.Release();
 		return std::make_tuple(true, subret);
 	}
-	return std::make_tuple(false, vCOMMON{});
+	vCOMMON empty;
+	memset(&empty, 0, sizeof(vCOMMON));
+	return std::make_tuple(false, empty);
 }

@@ -691,6 +691,7 @@ size_t vCPU::sub_execute(const V<vFrame>& frame) {
 		std::string path = std::string((const char*)_class->toString(op[1].mr.clsIndex)->s.Real());
 		std::string methodName = (const char*)_class->toString(op[1].mr.nameIndex)->s.Real();
 		std::string desc = (const char*)_class->toString(op[1].mr.nameIndex, 1)->s.Real();
+		//printf("%s: %s\n", Opcodes[opcode], (path + "/" + methodName + desc).c_str());
 		auto nit = _natives.find(path + "/" + methodName + ":" + desc);
 		bool found = false;
 		if (nit != _natives.end()) {
@@ -705,7 +706,7 @@ size_t vCPU::sub_execute(const V<vFrame>& frame) {
 			}
 		}
 		if(!found) {
-			fprintf(stderr, "[vCPU::sub_execute] Couldn't find virtual %s (%s)\n", (path + "/" + methodName).c_str(), desc.c_str());
+			fprintf(stderr, "[vCPU::sub_execute/%s] Couldn't find virtual %s (%s)\n", Opcodes[opcode], (path + "/" + methodName).c_str(), desc.c_str());
 			_running = false;
 		}
 		return 2;
@@ -725,7 +726,7 @@ size_t vCPU::sub_execute(const V<vFrame>& frame) {
 			found = true;
 		}
 		if (!found) {
-			fprintf(stderr, "[vCPU::sub_execute] Couldn't find class %s\n", path.c_str());
+			fprintf(stderr, "[vCPU::sub_execute/%s] Couldn't find class %s\n", Opcodes[opcode], path.c_str());
 			_running = false;
 		}
 		return 2;
@@ -734,17 +735,59 @@ size_t vCPU::sub_execute(const V<vFrame>& frame) {
 	{
 		op[0].usi = readUSI(ip + 1);
 		op[1].objref = _stack->pop<vOBJECTREF>();
+		op[3].mr = _constPool->get<vMETHODREF>((size_t)op[0].usi);
 		V<vOBJECT> obj((vOBJECT*)op[1].objref.r.a);
-		_stack->push<vCOMMON>(obj->fields[op[0].usi]);
+		V<vUTF8BODY> fieldName = obj->cls->toString(op[3].mr.nameIndex);
+		bool found = false;
+		vUSHORT fieldIdx = 0;
+		for (vUSHORT i = 0; i < obj->cls->_fieldCount; i++) {
+			if (
+				!strcmp(
+					(const char*)obj->cls->toString(obj->cls->_fields[i].name)->s.Real(),
+					(const char*)obj->cls->toString(op[3].mr.nameIndex)->s.Real()
+				)
+			) {
+				fieldIdx = i;
+				found = true;
+				break;
+			}
+		}
+		if (found) {
+			_stack->push<vCOMMON>(obj->fields[fieldIdx]);
+		} else {
+			fprintf(stderr, "[vCPU::sub_execute/%s] Couldn't find field index %d\n", Opcodes[opcode], op[3].mr.nameIndex);
+			_running = false;
+		}
 		return 2;
 	}
 	case putfield:
 	{
 		op[0].usi = readUSI(ip + 1);
-		op[1] = _stack->pop<vCOMMON>();
-		op[2].objref = _stack->pop<vOBJECTREF>();
-		V<vOBJECT> obj((vOBJECT*)op[2].objref.r.a);
-		obj->fields[op[0].usi] = op[1];
+		op[2] = _stack->pop<vCOMMON>();
+		op[1].objref = _stack->pop<vOBJECTREF>();
+		op[3].mr = _constPool->get<vMETHODREF>((size_t)op[0].usi);
+		V<vOBJECT> obj((vOBJECT*)op[1].objref.r.a);
+		V<vUTF8BODY> fieldName = obj->cls->toString(op[3].mr.nameIndex);
+		bool found = false;
+		vUSHORT fieldIdx = 0;
+		for (vUSHORT i = 0; i < obj->cls->_fieldCount; i++) {
+			if (
+				!strcmp(
+					(const char*)obj->cls->toString(obj->cls->_fields[i].name)->s.Real(),
+					(const char*)obj->cls->toString(op[3].mr.nameIndex)->s.Real()
+				)
+			) {
+				fieldIdx = i;
+				found = true;
+				break;
+			}
+		}
+		if (found) {
+			obj->fields[fieldIdx] = op[2];
+		} else {
+			fprintf(stderr, "[vCPU::sub_execute/%s] Couldn't find field index %d\n", Opcodes[opcode], op[3].mr.nameIndex);
+			_running = false;
+		}
 		return 2;
 	}
 	case pop:
@@ -778,13 +821,13 @@ int main() {
 	auto frame = VMAKE(vFrame, cls->getMethod("main"), cls);
 
 	cpu->addNative("java/lang/Object/<init>", "()V", [](const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-		printf("init class %s, opcode: %d\n", cls.c_str(), opcode);
-		if (opcode == invokevirtual) stack->pop<vCOMMON>();
+		printf("Initialize class %s, opcode: %s\n", cls.c_str(), Opcodes[opcode]);
+		if (opcode != invokestatic) stack->pop<vCOMMON>();
 	});
 
 	cpu->addNative("java/io/PrintStream/println", "(I)V", [](const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 		vINT arg = stack->pop<vINT>();
-		if(opcode == invokevirtual) stack->pop<vCOMMON>();
+		if(opcode != invokestatic) stack->pop<vCOMMON>();
 		printf("%d\n", arg);
 	});
 
