@@ -204,14 +204,11 @@ V<vUTF8BODY> vClass::toString(vUSHORT index, int selector) const {
 	vCOMMON str = _constPool->get<vCOMMON>(index);
 	if (str.type == vTypes::type<vCLASS>()) {
 		return toString(str.cls.clsIndex);
-	}
-	else if (str.type == vTypes::type<vNAMEANDTYPE>()) {
+	} else if (str.type == vTypes::type<vNAMEANDTYPE>()) {
 		return toString(selector == 0 ? str.nt.nameIndex : str.nt.descIndex);
-	}
-	else if (str.type == vTypes::type<vSTRING>()) {
+	} else if (str.type == vTypes::type<vSTRING>()) {
 		return toString(str.str.strIndex);
-	}
-	else if (str.type == vTypes::type<vUTF8>()) {
+	} else if (str.type == vTypes::type<vUTF8>()) {
 		return V<vUTF8BODY>((vUTF8BODY*)str.utf8.r.a);
 	}
 	return V<vUTF8BODY>::NullPtr();
@@ -265,10 +262,14 @@ std::tuple<bool, vCOMMON> vClass::invoke(
 			nFrame->_local->set<vCOMMON>((size_t)j, _stack->pop<vCOMMON>());
 		}
 		if (opcode != invokestatic) nFrame->_local->set<vCOMMON>(0, _stack->pop<vCOMMON>());
-		vCOMMON subret = cpu->run(nFrame);
-		if (nFrame->_hasRet) {
+		cpu->run(nFrame);
+		vCOMMON subret;
+		memset(&subret, 0, sizeof(subret));
+		if (nFrame->_returns) {
+			subret = nFrame->_stack->pop<vCOMMON>();
 			_stack->push<vCOMMON>(subret);
 		}
+		nFrame.Release();
 		return std::make_tuple(true, subret);
 	}
 	return std::make_tuple(false, vCOMMON{});

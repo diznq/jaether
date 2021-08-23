@@ -27,7 +27,7 @@ public:
 
 	bool active() const;
 
-	vCOMMON run(const  V<vFrame>& frame);
+	void run(const  V<vFrame>& frame);
 
 	size_t execute(const V<vFrame>& frame);
 	size_t sub_execute(const V<vFrame>& frame);

@@ -1,10 +1,19 @@
 class Main {
 
-    public static int sq(int i){
+    public int count = 0;
+    public int alt = 0;
+    public int start = 0;
+
+    Main(){
+        this.count = calc(1000);
+        this.alt = this.count / 10;
+    }
+
+    public int sq(int i){
         return i*i;
     }
 
-    public static int calc(int p){
+    public int calc(int p){
         int i = 0;
         for(int j = 0; j < p; j++){
             i += j;
@@ -14,6 +23,9 @@ class Main {
     }
 
     public static void main(String[] args){
-        System.out.println(calc(100));
+        Main obj = new Main();
+        obj.start = 123;
+        System.out.println(obj.count + obj.start);
+        System.out.println(obj.alt);
     }
 }

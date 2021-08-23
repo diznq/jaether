@@ -142,6 +142,7 @@
   <ItemGroup>
     <ClCompile Include="Class.cpp" />
     <ClCompile Include="CPU.cpp" />
+    <ClCompile Include="Types.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Class.h" />

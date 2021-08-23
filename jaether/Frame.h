@@ -12,7 +12,7 @@ public:
 	V<vMemory>	_local;
 	V<vClass>	_class;
 	vULONG		_pc;
-	bool		_hasRet;
+	bool		_returns;
 
 	vFrame(
 		vMETHOD* method,
@@ -26,10 +26,10 @@ public:
 		_class = classFile;
 		_program = classFile->getCode(method);
 		V<vUTF8BODY> desc = classFile->toString(method->desc);
-		_hasRet = false;
+		_returns = false;
 		if (desc.IsValid()) {
 			size_t len = strlen((const char*)desc->s.Real());
-			_hasRet = desc->s[len - 1] != 'V';
+			_returns = desc->s[len - 1] != 'V';
 		}
 	}
 

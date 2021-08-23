@@ -19,16 +19,12 @@ void vCPU::addNative(const std::string& path, const std::string& desc, const vNA
 	_natives[path + ":" + desc] = native;
 }
 
-vCOMMON vCPU::run(const V<vFrame>& frame) {
+void vCPU::run(const V<vFrame>& frame) {
 	_running = true;
 	while (active()) {
 		execute(frame);
 	}
 	_running = true;
-	if(frame->_hasRet)
-		return frame->_stack->pop<vCOMMON>();
-	vCOMMON v; memset(&v, 0, sizeof(v));
-	return v;
 }
 
 size_t vCPU::execute(const V<vFrame>& frame) {
@@ -43,7 +39,7 @@ size_t vCPU::sub_execute(const V<vFrame>& frame) {
 	V<vClass>& _class = frame->_class;
 	V<vMemory>& _constPool = frame->_class->_constPool;
 	vBYTE* ip = frame->fetch();
-	//printf("Execute instruction %d (%s)\n", *ip, Opcodes[*ip]);
+	printf("Execute instruction %d (%s)\n", *ip, Opcodes[*ip]);
 	vBYTE& opcode = *ip;
 	vCOMMON op[8];
 	switch (opcode) {
@@ -688,6 +684,7 @@ size_t vCPU::sub_execute(const V<vFrame>& frame) {
 
 	case invokevirtual:
 	case invokestatic:
+	case invokespecial:
 	{
 		op[0].usi = readUSI(ip + 1);
 		op[1].mr = _constPool->get<vMETHODREF>((size_t)op[0].usi);
@@ -713,6 +710,46 @@ size_t vCPU::sub_execute(const V<vFrame>& frame) {
 		}
 		return 2;
 	}
+	case new_:
+	{
+		op[0].usi = readUSI(ip + 1);
+		op[1].mr = _constPool->get<vMETHODREF>((size_t)op[0].usi);
+		std::string path = std::string((const char*)_class->toString(op[1].mr.clsIndex)->s.Real());
+		auto it = _classes.find(path);
+		bool found = false;
+		if (it != _classes.end()) {
+			V<vClass> cls = it->second;
+			V<vOBJECT> obj = VMAKE(vOBJECT, cls);
+			vOBJECTREF ref; ref.r.a = (vULONG)obj.Virtual();
+			_stack->push<vOBJECTREF>(ref);
+			found = true;
+		}
+		if (!found) {
+			fprintf(stderr, "[vCPU::sub_execute] Couldn't find class %s\n", path.c_str());
+			_running = false;
+		}
+		return 2;
+	}
+	case getfield:
+	{
+		op[0].usi = readUSI(ip + 1);
+		op[1].objref = _stack->pop<vOBJECTREF>();
+		V<vOBJECT> obj((vOBJECT*)op[1].objref.r.a);
+		_stack->push<vCOMMON>(obj->fields[op[0].usi]);
+		return 2;
+	}
+	case putfield:
+	{
+		op[0].usi = readUSI(ip + 1);
+		op[1] = _stack->pop<vCOMMON>();
+		op[2].objref = _stack->pop<vOBJECTREF>();
+		V<vOBJECT> obj((vOBJECT*)op[2].objref.r.a);
+		obj->fields[op[0].usi] = op[1];
+		return 2;
+	}
+	case pop:
+		_stack->pop<vCOMMON>();
+		return 0;
 	default:
 		fprintf(stderr, "[vCPU::sub_execute] Executing undefined instruction with opcode %d (%s)\n", *ip, Opcodes[*ip]);
 		_running = false;
@@ -740,12 +777,17 @@ int main() {
 	auto cls = cpu->load("Main", "Assets/");
 	auto frame = VMAKE(vFrame, cls->getMethod("main"), cls);
 
+	cpu->addNative("java/lang/Object/<init>", "()V", [](const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+		printf("init class %s, opcode: %d\n", cls.c_str(), opcode);
+		if (opcode == invokevirtual) stack->pop<vCOMMON>();
+	});
+
 	cpu->addNative("java/io/PrintStream/println", "(I)V", [](const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 		vINT arg = stack->pop<vINT>();
-		if(opcode != invokestatic) stack->pop<vCOMMON>();
+		if(opcode == invokevirtual) stack->pop<vCOMMON>();
 		printf("%d\n", arg);
 	});
 
-	vCOMMON retval = cpu->run(frame);
-	printf("Result: %d, type: %d\n", retval.i, retval.type);
+	cpu->run(frame);
+	//printf("Result: %d, type: %d\n", retval.i, retval.type);
 }

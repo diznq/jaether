@@ -16,6 +16,8 @@ typedef uint64_t	vCAT2;
 typedef float vFLOAT;
 typedef double vDOUBLE;
 
+class vClass;
+
 enum vClassTag {
 	vCT_UTF8 = 1,
 	vCT_INT = 3,
@@ -50,14 +52,9 @@ struct vUTF8BODY {
 	V<vBYTE> s;
 };
 
-struct vOBJECT {
-
-};
-
 struct vOBJECTREF {
 	vREF r;
 };
-
 
 struct vSTRING {
 	vUSHORT strIndex;
@@ -166,6 +163,7 @@ struct vCOMMON {
 		vUTF8 utf8;
 		vMETHODREF mr;
 		vNAMEANDTYPE nt;
+		vOBJECTREF objref;
 		double d;
 		float f;
 	};
@@ -178,4 +176,10 @@ struct vCOMMON {
 		var.type = vTypes::type<T>();
 		return var;
 	}
+};
+
+struct vOBJECT {
+	V<vCOMMON> fields;
+	V<vClass> cls;
+	vOBJECT(V<vClass>);
 };

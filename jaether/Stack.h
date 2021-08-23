@@ -30,7 +30,7 @@ public:
 			vc->type = vTypes::type<T>();
 		}
 		_index += size;
-		//dbgStack();
+		dbgStack("push");
 		assert(_index >= 0 && _index <= _size);
 		return *this;
 	}
@@ -38,14 +38,14 @@ public:
 	template<class T> T pop() {
 		const size_t size = sizeof(vCOMMON);
 		_index -= size;
-		//dbgStack();
+		dbgStack("pop");
 		T val = *(T*)&_memory[(size_t)_index];
 		assert(_index >= 0 && _index <= _size);
 		return val;
 	}
 
-	void dbgStack() {
-		printf("--------Stack (%5d, %p)--------\n", (int)_index, this);
+	void dbgStack(const char* op) {
+		printf("--------Stack %4s (%5d, %p)--------\n", op, (int)_index, this);
 		for (vLONG i = 0; i < (vLONG)_index; i++) {
 			if (i > 0 && i % (sizeof(vCOMMON)) == 0)
 				printf("\n");
