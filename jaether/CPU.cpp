@@ -742,7 +742,7 @@ int main() {
 
 	cpu->addNative("java/io/PrintStream/println", "(I)V", [](const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 		vINT arg = stack->pop<vINT>();
-		stack->pop<vCOMMON>();
+		if(opcode != invokestatic) stack->pop<vCOMMON>();
 		printf("%d\n", arg);
 	});
 
