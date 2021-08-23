@@ -4,6 +4,8 @@ class Main {
     public int alt = 0;
     public int start = 0;
 
+    public static int ops = 10;
+
     Main(){
         this.count = calc(10);
         this.alt = this.count / 10;
@@ -18,6 +20,7 @@ class Main {
         for(int j = 0; j < p; j++){
             i += j;
             System.out.println(sq(j));
+            Main.ops += 1;
         }
         return sq(i);
     }
@@ -29,5 +32,7 @@ class Main {
         System.out.println(obj.count + obj.start);
         System.out.println(obj.alt);
         System.out.println(result);
+
+        System.out.println(Main.ops);
     }
 }

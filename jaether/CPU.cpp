@@ -39,7 +39,7 @@ size_t vCPU::sub_execute(const V<vFrame>& frame) {
 	V<vClass>& _class = frame->_class;
 	V<vMemory>& _constPool = frame->_class->_constPool;
 	vBYTE* ip = frame->fetch();
-	printf("Execute instruction %d (%s)\n", *ip, Opcodes[*ip]);
+	// printf("Execute instruction %d (%s)\n", *ip, Opcodes[*ip]);
 	vBYTE& opcode = *ip;
 	vCOMMON op[8];
 	switch (opcode) {
@@ -677,11 +677,6 @@ size_t vCPU::sub_execute(const V<vFrame>& frame) {
 		_running = false;
 		return 0;
 
-	case getstatic:
-		op[0].usi = readUSI(ip + 1);
-		_stack->push(_constPool->get<vCOMMON>(op[0].usi));
-		return 2;
-
 	case invokevirtual:
 	case invokestatic:
 	case invokespecial:
@@ -728,6 +723,58 @@ size_t vCPU::sub_execute(const V<vFrame>& frame) {
 		if (!found) {
 			fprintf(stderr, "[vCPU::sub_execute/%s] Couldn't find class %s\n", Opcodes[opcode], path.c_str());
 			_running = false;
+		}
+		return 2;
+	}
+	case getstatic:
+	{
+		op[0].usi = readUSI(ip + 1);
+		op[3].mr = _constPool->get<vMETHODREF>(op[0].usi);
+		std::string path = std::string((const char*)_class->toString(op[3].mr.clsIndex)->s.Real());
+		std::string field = std::string((const char*)_class->toString(op[3].mr.nameIndex)->s.Real());
+		auto it = _classes.find(path);
+		bool found = false;
+		if (it != _classes.end()) {
+			V<vClass> cls = it->second;
+			if (!cls->_initialized) {
+				cls->_initialized = true;
+				cls->invoke(cls, this, _stack.Real(), invokestatic, "<clinit>", "()V");
+			}
+			vFIELD* fld = cls->getField(field.c_str());
+			if (fld) {
+				_stack->push<vCOMMON>(fld->value);
+				found = true;
+			}
+		}
+		if(!found){
+			vCOMMON dummy;
+			memset(&dummy, 0, sizeof(vCOMMON));
+			_stack->push<vCOMMON>(dummy);
+		}
+		return 2;
+	}
+	case putstatic:
+	{
+		op[0].usi = readUSI(ip + 1);
+		op[3].mr = _constPool->get<vMETHODREF>(op[0].usi);
+		std::string path = std::string((const char*)_class->toString(op[3].mr.clsIndex)->s.Real());
+		std::string field = std::string((const char*)_class->toString(op[3].mr.nameIndex)->s.Real());
+		auto it = _classes.find(path);
+		bool found = false;
+		if (it != _classes.end()) {
+			V<vClass> cls = it->second;
+			if (!cls->_initialized) {
+				cls->_initialized = true;
+				cls->invoke(cls, this, _stack.Real(), invokestatic, "<clinit>", "()V");
+			}
+			vFIELD* fld = cls->getField(field.c_str());
+			if (fld) {
+				fld->value = _stack->pop<vCOMMON>();
+				found = true;
+			}
+		}
+		if (!found) {
+			_stack->pop<vCOMMON>();
 		}
 		return 2;
 	}

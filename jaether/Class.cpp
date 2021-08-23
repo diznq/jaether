@@ -157,6 +157,7 @@ void vClass::readField(std::ifstream& f, vFIELD& field) {
 	field.desc = readUSI(f);
 	field.attributeCount = readUSI(f);
 	field.attributes = VMAKEARRAY(vATTRIBUTE, (size_t)field.attributeCount);
+	memset(&field.value, 0, sizeof(vCOMMON));
 	for (vUSHORT i = 0; i < field.attributeCount; i++) {
 		readAttribute(f, field.attributes[i]);
 	}

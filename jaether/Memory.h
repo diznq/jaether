@@ -27,7 +27,8 @@ public:
 		memcpy(ptr, &value, sizeof(T));
 		if constexpr (!std::is_same_v<T, vCOMMON>) {
 			vCOMMON* vc = (vCOMMON*)ptr;
-			vc->type = vTypes::type<T>();
+			if (!(vc->type == vTypes::type<vOBJECTREF>() && vTypes::type<T>() == vTypes::type<vREF>()))
+				vc->type = vTypes::type<T>();
 		}
 		return *this;
 	}

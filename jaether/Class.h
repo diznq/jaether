@@ -27,6 +27,7 @@ public:
 	vUSHORT _methodCount = 0;
 	vUSHORT _interfaceCount = 0;
 	vUSHORT _attributeCount = 0;
+	vBYTE _initialized = 0;
 
 	vClass(const char* name);
 	~vClass();

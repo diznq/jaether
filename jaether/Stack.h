@@ -26,9 +26,10 @@ public:
 		vBYTE* ptr = &_memory[(size_t)_index];
 		memset(ptr, 0, size);
 		memcpy(ptr, &value, sizeof(T));
-		if (!std::is_same_v<T, vCOMMON>) {
+		if constexpr (!(std::is_same_v<T, vCOMMON>)) {
 			vCOMMON* vc = (vCOMMON*)ptr;
-			vc->type = vTypes::type<T>();
+			if(!(vc->type == vTypes::type<vOBJECTREF>() && vTypes::type<T>() == vTypes::type<vREF>()))
+				vc->type = vTypes::type<T>();
 		}
 		_index += size;
 		//dbgStack("push");

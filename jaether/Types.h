@@ -68,22 +68,6 @@ struct vCONST {
 	vREF ref;
 };
 
-struct vATTRIBUTE {
-	vUSHORT name;
-	vUINT length;
-	V<vBYTE> info;
-};
-
-struct vFIELD {
-	vUSHORT access;
-	vUSHORT name;
-	vUSHORT desc;
-	vUSHORT attributeCount;
-	V<vATTRIBUTE> attributes;
-};
-
-typedef vFIELD vMETHOD;
-
 class vTypes {
 public:
 	template<class T> static vBYTE type() {
@@ -177,6 +161,23 @@ struct vCOMMON {
 		return var;
 	}
 };
+
+struct vATTRIBUTE {
+	vUSHORT name;
+	vUINT length;
+	V<vBYTE> info;
+};
+
+struct vFIELD {
+	vUSHORT access;
+	vUSHORT name;
+	vUSHORT desc;
+	vUSHORT attributeCount;
+	V<vATTRIBUTE> attributes;
+	vCOMMON value;
+};
+
+typedef vFIELD vMETHOD;
 
 struct vOBJECT {
 	V<vCOMMON> fields;
