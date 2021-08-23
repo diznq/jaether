@@ -95,9 +95,7 @@ size_t vCPU::sub_execute(const V<vFrame>& frame) {
 		_stack->push<vBYTE>(read<vBYTE>(ip + 1));
 		return 1;
 	case sipush:
-		op[0].usi = read<vBYTE>(ip + 1);
-		op[0].usi <<= 8;
-		op[0].usi |= read<vBYTE>(ip + 2);
+		op[0].usi = readUSI(ip + 1);
 		_stack->push<vUSHORT>(op[0].usi);
 		return 2;
 	case dup:
