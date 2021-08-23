@@ -17,7 +17,7 @@ public:
 	vFrame(
 		vMETHOD* method,
 		const V<vClass>& classFile,
-		size_t maxStackItems = 512,
+		size_t maxStackItems = 64,
 		size_t maxLocals = 512
 	) {
 		_stack = VMAKE(vStack, maxStackItems * sizeof(vCOMMON));

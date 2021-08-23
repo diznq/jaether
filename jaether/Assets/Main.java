@@ -4,20 +4,16 @@ class Main {
         return i*i;
     }
 
-    public static int calc(){
+    public static int calc(int p){
         int i = 0;
-        for(int j = 0; j < 50; j++){
+        for(int j = 0; j < p; j++){
             i += j;
-            System.out.println(i);
+            System.out.println(sq(j));
         }
         return sq(i);
     }
 
     public static void main(String[] args){
-        int i = 0;
-        for(int j = 0; j < 50; j++){
-            i += j;
-        }
-        System.out.println(i);
+        System.out.println(calc(100));
     }
 }

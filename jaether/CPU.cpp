@@ -24,6 +24,7 @@ vCOMMON vCPU::run(const V<vFrame>& frame) {
 	while (active()) {
 		execute(frame);
 	}
+	_running = true;
 	if(frame->_hasRet)
 		return frame->_stack->pop<vCOMMON>();
 	vCOMMON v; memset(&v, 0, sizeof(v));
@@ -737,11 +738,11 @@ vUINT vCPU::readUI(vBYTE* ip) const {
 int main() {
 	auto cpu = VMAKE(vCPU);
 	auto cls = cpu->load("Main", "Assets/");
-	auto frame = VMAKE(vFrame, cls->getMethod("calc"), cls);
+	auto frame = VMAKE(vFrame, cls->getMethod("main"), cls);
 
 	cpu->addNative("java/io/PrintStream/println", "(I)V", [](const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 		vINT arg = stack->pop<vINT>();
-		if (opcode != invokestatic) stack->pop<vCOMMON>();
+		stack->pop<vCOMMON>();
 		printf("%d\n", arg);
 	});
 
