@@ -6,6 +6,12 @@ class Main {
 
     public static int ops = 10;
 
+    public static Main instance = new Main();
+
+    public static Main getInstance(){
+        return instance;
+    }
+
     Main(){
         this.count = calc(10);
         this.alt = this.count / 10;
@@ -26,13 +32,12 @@ class Main {
     }
 
     public static void main(String[] args){
-        Main obj = new Main();
+        Main obj = Main.getInstance();
         obj.start = 123;
         int result = obj.calc(10);
         System.out.println(obj.count + obj.start);
         System.out.println(obj.alt);
         System.out.println(result);
-
         System.out.println(Main.ops);
     }
 }
