@@ -3,12 +3,12 @@
 #include "Pointer.h"
 
 typedef int8_t		vCHAR;
+typedef wchar_t		vJCHAR;
 typedef int16_t		vSHORT;
 typedef int32_t		vINT;
 typedef int64_t		vLONG;
 typedef uint8_t		vBYTE;
 typedef uint16_t	vUSHORT;
-typedef uint16_t	vJCHAR;
 typedef uint32_t	vUINT;
 typedef uint64_t	vULONG;
 typedef uint32_t	vCAT1;
@@ -50,6 +50,14 @@ struct vUTF8BODY {
 	V<vBYTE> s;
 };
 
+struct vOBJECT {
+
+};
+
+struct vOBJECTREF {
+	vREF r;
+};
+
 
 struct vSTRING {
 	vUSHORT strIndex;
@@ -84,7 +92,7 @@ public:
 	template<class T> static vBYTE type() {
 		return 0;
 	}
-	template<> static vBYTE type<vCHAR>() {
+	template<> static vBYTE type<vJCHAR>() {
 		return 4;
 	}
 	template<> static vBYTE type<vFLOAT>() {
@@ -134,6 +142,9 @@ public:
 	}
 	template<> static vBYTE type<vNAMEANDTYPE>() {
 		return 18;
+	}
+	template<> static vBYTE type<vOBJECTREF>() {
+		return 19;
 	}
 };
 

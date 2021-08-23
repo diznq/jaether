@@ -1,16 +1,25 @@
 #pragma once
 #include "Types.h"
 #include "Pointer.h"
+#include "Stack.h"
 #include "Memory.h"
+#include <map>
+#include <functional>
 #include <fstream>
+#include <tuple>
+
+class vCPU;
+class vClass;
+
+typedef std::function<void(const std::string& className, vCPU* cpu, vStack* stack, vBYTE opcode)> vNATIVE;
 
 class vClass {
 public:
-	V<vMemory> _constPool;
-	V<vFIELD> _methods;
-	V<vFIELD> _fields;
-	V<vATTRIBUTE> _attributes;
-	V<vUSHORT> _interfaces;
+	V<vMemory> _constPool = V<vMemory>::NullPtr();
+	V<vFIELD> _methods = V<vFIELD>::NullPtr();
+	V<vFIELD> _fields = V<vFIELD>::NullPtr();
+	V<vATTRIBUTE> _attributes = V<vATTRIBUTE>::NullPtr();
+	V<vUSHORT> _interfaces = V<vUSHORT>::NullPtr();
 	vUSHORT _name = 0;
 	vUSHORT _super = 0;
 	vUSHORT _accessFlags = 0;
@@ -44,4 +53,10 @@ public:
 	V<vUTF8BODY> toString(vUSHORT index, int selector = 0) const;
 	V<vBYTE>	getCode(vMETHOD* method);
 	vUINT		argsCount(vMETHOD* method);
+	std::tuple<bool, vCOMMON> invoke(	V<vClass> self,
+					vCPU* cpu,
+					vStack* _stack,
+					vBYTE opcode,
+					const std::string& methodName,
+					const std::string& desc);
 };

@@ -1,6 +1,8 @@
 #pragma once
 #include "Pointer.h"
 #include "Types.h"
+#include <type_traits>
+#include <stdio.h>
 #include <assert.h>
 
 class vStack {
@@ -23,7 +25,7 @@ public:
 		vBYTE* ptr = &_memory[(size_t)_index];
 		memset(ptr, 0, size);
 		memcpy(ptr, &value, sizeof(T));
-		if constexpr (!std::is_same_v<T, vCOMMON>) {
+		if (!std::is_same_v<T, vCOMMON>) {
 			vCOMMON* vc = (vCOMMON*)ptr;
 			vc->type = vTypes::type<T>();
 		}

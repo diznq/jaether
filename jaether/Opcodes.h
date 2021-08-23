@@ -1,7 +1,6 @@
 #pragma once
 
 enum vOpcode {
-
 	nop = 0,
 	aconst_null = 1,
 	iconst_m1 = 2,

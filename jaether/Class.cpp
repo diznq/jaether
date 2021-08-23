@@ -1,4 +1,6 @@
 #include "Class.h"
+#include "Frame.h"
+#include "CPU.h"
 
 vClass::vClass(const char* name) {
 	std::ifstream f(name, std::ios::binary);
@@ -244,4 +246,30 @@ vUINT vClass::argsCount(vMETHOD* method) {
 		str++;
 	}
 	return count;
+}
+
+std::tuple<bool, vCOMMON> vClass::invoke(
+	V<vClass> self,
+	vCPU* cpu,
+	vStack* _stack,
+	vBYTE opcode,
+	const std::string& methodName,
+	const std::string& desc) {
+	vMETHOD* method = getMethod(methodName.c_str(), desc.c_str());
+	if (method) {
+		V<vFrame> nFrame = VMAKE(vFrame, method, self);
+		vUINT args = argsCount(method);
+		for (vUINT i = 0; i < args; i++) {
+			vUINT j = args - i;
+			if (opcode == invokestatic) j--;
+			nFrame->_local->set<vCOMMON>((size_t)j, _stack->pop<vCOMMON>());
+		}
+		if (opcode != invokestatic) nFrame->_local->set<vCOMMON>(0, _stack->pop<vCOMMON>());
+		vCOMMON subret = cpu->run(nFrame);
+		if (nFrame->_hasRet) {
+			_stack->push<vCOMMON>(subret);
+		}
+		return std::make_tuple(true, subret);
+	}
+	return std::make_tuple(false, vCOMMON{});
 }

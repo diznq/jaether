@@ -8,6 +8,7 @@ class Main {
         int i = 0;
         for(int j = 0; j < 50; j++){
             i += j;
+            System.out.println(i);
         }
         return sq(i);
     }

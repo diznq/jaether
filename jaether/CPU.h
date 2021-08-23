@@ -18,10 +18,12 @@
 class vCPU {
 	bool _running = true;
 	std::map<std::string, V<vClass>> _classes;
+	std::map<std::string, vNATIVE> _natives;
 public:
 	vCPU();
 
 	V<vClass> load(const std::string& s, const std::string& parent = "");
+	void addNative(const std::string& path, const std::string& desc, const vNATIVE& native);
 
 	bool active() const;
 

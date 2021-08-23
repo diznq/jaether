@@ -14,6 +14,11 @@ bool vCPU::active() const {
 	return _running;
 }
 
+void vCPU::addNative(const std::string& path, const std::string& desc, const vNATIVE& native)
+{
+	_natives[path + ":" + desc] = native;
+}
+
 vCOMMON vCPU::run(const V<vFrame>& frame) {
 	_running = true;
 	while (active()) {
@@ -37,7 +42,7 @@ size_t vCPU::sub_execute(const V<vFrame>& frame) {
 	V<vClass>& _class = frame->_class;
 	V<vMemory>& _constPool = frame->_class->_constPool;
 	vBYTE* ip = frame->fetch();
-	printf("Execute instruction %d (%s)\n", *ip, Opcodes[*ip]);
+	//printf("Execute instruction %d (%s)\n", *ip, Opcodes[*ip]);
 	vBYTE& opcode = *ip;
 	vCOMMON op[8];
 	switch (opcode) {
@@ -688,25 +693,17 @@ size_t vCPU::sub_execute(const V<vFrame>& frame) {
 		std::string path = std::string((const char*)_class->toString(op[1].mr.clsIndex)->s.Real());
 		std::string methodName = (const char*)_class->toString(op[1].mr.nameIndex)->s.Real();
 		std::string desc = (const char*)_class->toString(op[1].mr.nameIndex, 1)->s.Real();
-		auto it = _classes.find(path);
+		auto nit = _natives.find(path + "/" + methodName + ":" + desc);
 		bool found = false;
-		if (it != _classes.end()) {
-			V<vClass> cls = it->second;
-			vMETHOD* method = cls->getMethod(methodName.c_str(), desc.c_str());
-			if (method) {
-				V<vFrame> nFrame = VMAKE(vFrame, method, cls);
-				vUINT args = cls->argsCount(method);
-				for (vUINT i = 0; i < args; i++) {
-					vUINT j = args - i;
-					if (opcode == invokestatic) j--;
-					nFrame->_local->set<vCOMMON>((size_t)j, _stack->pop<vCOMMON>());
-				}
-				if(opcode != invokestatic) nFrame->_local->set<vCOMMON>(0, _stack->pop<vCOMMON>());
-				vCOMMON subret = run(nFrame);
-				if (nFrame->_hasRet) {
-					_stack->push<vCOMMON>(subret);
-				}
-				found = true;
+		if (nit != _natives.end()) {
+			nit->second(path, this, _stack.Real(), opcode);
+			found = true;
+		} else {
+			auto it = _classes.find(path);
+			if (it != _classes.end()) {
+				V<vClass> cls = it->second;
+				auto [methodFound, ret] = cls->invoke(cls, this, _stack.Real(), opcode, methodName, desc);
+				found = methodFound;
 			}
 		}
 		if(!found) {
@@ -741,6 +738,13 @@ int main() {
 	auto cpu = VMAKE(vCPU);
 	auto cls = cpu->load("Main", "Assets/");
 	auto frame = VMAKE(vFrame, cls->getMethod("calc"), cls);
+
+	cpu->addNative("java/io/PrintStream/println", "(I)V", [](const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+		vINT arg = stack->pop<vINT>();
+		if (opcode != invokestatic) stack->pop<vCOMMON>();
+		printf("%d\n", arg);
+	});
+
 	vCOMMON retval = cpu->run(frame);
 	printf("Result: %d, type: %d\n", retval.i, retval.type);
 }
