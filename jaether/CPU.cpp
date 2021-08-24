@@ -783,21 +783,8 @@ size_t vCPU::sub_execute(const V<vFrame>& frame) {
 		op[1].objref = _stack->pop<vOBJECTREF>();
 		op[3].mr = _constPool->get<vMETHODREF>((size_t)op[0].usi);
 		V<vOBJECT> obj((vOBJECT*)op[1].objref.r.a);
-		V<vUTF8BODY> fieldName = obj->cls->toString(op[3].mr.nameIndex);
-		bool found = false;
-		vUSHORT fieldIdx = 0;
-		for (vUSHORT i = 0; i < obj->cls->_fieldCount; i++) {
-			if (
-				!strcmp(
-					(const char*)obj->cls->toString(obj->cls->_fields[i].name)->s.Real(),
-					(const char*)obj->cls->toString(op[3].mr.nameIndex)->s.Real()
-				)
-			) {
-				fieldIdx = i;
-				found = true;
-				break;
-			}
-		}
+		vUSHORT fieldIdx = obj->cls->_fieldLookup[op[3].mr.nameIndex];
+		bool found = fieldIdx != 0xFFFF;
 		if (found) {
 			_stack->push<vCOMMON>(obj->fields[fieldIdx]);
 		} else {
@@ -814,20 +801,8 @@ size_t vCPU::sub_execute(const V<vFrame>& frame) {
 		op[3].mr = _constPool->get<vMETHODREF>((size_t)op[0].usi);
 		V<vOBJECT> obj((vOBJECT*)op[1].objref.r.a);
 		V<vUTF8BODY> fieldName = obj->cls->toString(op[3].mr.nameIndex);
-		bool found = false;
-		vUSHORT fieldIdx = 0;
-		for (vUSHORT i = 0; i < obj->cls->_fieldCount; i++) {
-			if (
-				!strcmp(
-					(const char*)obj->cls->toString(obj->cls->_fields[i].name)->s.Real(),
-					(const char*)obj->cls->toString(op[3].mr.nameIndex)->s.Real()
-				)
-			) {
-				fieldIdx = i;
-				found = true;
-				break;
-			}
-		}
+		vUSHORT fieldIdx = obj->cls->_fieldLookup[op[3].mr.nameIndex];
+		bool found = fieldIdx != 0xFFFF;
 		if (found) {
 			obj->fields[fieldIdx] = op[2];
 		} else {
@@ -861,13 +836,22 @@ vUINT vCPU::readUI(vBYTE* ip) const {
 	return ui;
 }
 
-int main() {
+int main(int argc, const char** argv) {
+
+	const char* DirPath = "Assets/";
+	const char* ClsPath = "Main";
+	const char* MethodPath = "main";
+
+	if (argc >= 2) ClsPath = argv[1];
+	if (argc >= 3) DirPath = argv[2];
+	if (argc >= 4) MethodPath = argv[3];
+
 	auto cpu = VMAKE(vCPU);
-	auto cls = cpu->load("Main", "Assets/");
-	auto frame = VMAKE(vFrame, cls->getMethod("main"), cls);
+	auto cls = cpu->load(ClsPath, DirPath);
+	auto frame = VMAKE(vFrame, cls->getMethod(MethodPath), cls);
 
 	cpu->addNative("java/lang/Object/<init>", "()V", [](const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-		printf("Initialize class %s, opcode: %s\n", cls.c_str(), Opcodes[opcode]);
+		//printf("Initialize class %s, opcode: %s\n", cls.c_str(), Opcodes[opcode]);
 		if (opcode != invokestatic) stack->pop<vCOMMON>();
 	});
 

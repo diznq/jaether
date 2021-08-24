@@ -4,15 +4,17 @@
 #define VMAKE(type, ...) V<type>(new type(__VA_ARGS__))
 #define VMAKEARRAY(type, i) V<type>(new type[i])
 
+constexpr size_t VPTR_OFFSET = 1;
+
 template<class A>
 class V {
 	A* _addr = 0;
 public:
 	V() : _addr(0) {}
-	V(A* addr) : _addr(addr){ }
+	V(A* addr) : _addr((A*)((uintptr_t)addr + VPTR_OFFSET)){ }
 
 	static V<A> NullPtr() {
-		return V<A>((A*)(uintptr_t)(-(intptr_t)Offset()));
+		return V<A>();
 	}
 
 	static uintptr_t Offset() {
@@ -23,22 +25,21 @@ public:
 		if (!IsValid()) return false;
 		if (arr) delete[] Real();
 		else delete Real();
-		_addr = (A*)(uintptr_t)(-(intptr_t)Offset());
+		_addr = (A*)0;
 		return true;
 	}
 
 	bool IsValid() const {
-		return Real() != 0;
+		return _addr != 0;
 	}
 
 	A* Real() const {
-		return (A*)(((uintptr_t)_addr) + Offset());
+		return (A*)(((uintptr_t)_addr - VPTR_OFFSET) + Offset());
 	}
 
 	A* Virtual() const {
-		return (A*)_addr;
+		return (A*)((uintptr_t)_addr - VPTR_OFFSET);
 	}
-	
 
 	A* operator->() const {
 		return Real();
@@ -49,7 +50,7 @@ public:
 	}
 
 	V<A> operator+(const size_t index) const {
-		return V<A>(_addr + index);
+		return V<A>(Virtual() + index);
 	}
 
 	V<A>& operator+=(const size_t index) {

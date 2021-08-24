@@ -10,6 +10,8 @@ vClass::vClass(const char* name) {
 		vUSHORT consts = readUSI(f);
 		vCOMMON ops[8];
 		_constPool = VMAKE(vMemory, (size_t)consts);
+		_fieldLookup = VMAKEARRAY(vUSHORT, (size_t)consts);
+		memset(_fieldLookup.Real(), 0xFF, consts * sizeof(vUSHORT));
 		// Parse const pool
 		for (vUSHORT i = 1; i < consts; i++) {
 			vBYTE type = (vBYTE)f.get();
@@ -87,11 +89,29 @@ vClass::vClass(const char* name) {
 			readAttribute(f, _attributes[i]);
 		}
 
+		for (vUSHORT i = 0; i < consts; i++) {
+			vCOMMON item = _constPool->get<vCOMMON>(i);
+			if (item.type == vTypes::type<vMETHODREF>()) {
+				for (vUSHORT i = 0; i < _fieldCount; i++) {
+					if (
+						!strcmp(
+							(const char*)toString(_fields[i].name)->s.Real(),
+							(const char*)toString(item.mr.nameIndex)->s.Real()
+						)
+						) {
+						_fieldLookup[item.mr.nameIndex] = i;
+						break;
+					}
+				}
+			}
+		}
+
 	}
 }
 
 vClass::~vClass() {
 	_constPool.Release();
+	_fieldLookup.Release(true);
 }
 
 const char* vClass::getName() {

@@ -20,6 +20,7 @@ public:
 	V<vFIELD> _fields = V<vFIELD>::NullPtr();
 	V<vATTRIBUTE> _attributes = V<vATTRIBUTE>::NullPtr();
 	V<vUSHORT> _interfaces = V<vUSHORT>::NullPtr();
+	V<vUSHORT> _fieldLookup = V<vUSHORT>::NullPtr();
 	vUSHORT _name = 0;
 	vUSHORT _super = 0;
 	vUSHORT _accessFlags = 0;
