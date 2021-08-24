@@ -1,4 +1,5 @@
 #include "CPU.h"
+#include <chrono>
 
 vCPU::vCPU() {
 	// ...
@@ -872,8 +873,24 @@ int main() {
 
 	cpu->addNative("java/io/PrintStream/println", "(I)V", [](const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 		vINT arg = stack->pop<vINT>();
-		if(opcode != invokestatic) stack->pop<vCOMMON>();
+		if (opcode != invokestatic) stack->pop<vCOMMON>();
 		printf("%d\n", arg);
+	});
+
+
+	cpu->addNative("java/io/PrintStream/println", "(J)V", [](const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+		vLONG arg = stack->pop<vLONG>();
+		if (opcode != invokestatic) stack->pop<vCOMMON>();
+		printf("%lld\n", arg);
+	});
+
+	cpu->addNative("java/lang/System/currentTimeMillis", "()J", [](const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+		if (opcode != invokestatic) stack->pop<vCOMMON>();
+		std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::system_clock::now().time_since_epoch()
+		);
+		vLONG millis = (vLONG)ms.count();
+		stack->push<vLONG>(millis);
 	});
 
 	cpu->run(frame);
