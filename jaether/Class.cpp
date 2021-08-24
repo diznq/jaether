@@ -2,16 +2,16 @@
 #include "Frame.h"
 #include "CPU.h"
 
-vClass::vClass(const char* name) {
+vClass::vClass(vContext* ctx, const char* name) {
 	std::ifstream f(name, std::ios::binary);
 	if (f) {
 		vUINT magic = readUI(f);
 		vUSHORT minor = readUSI(f), major = readUSI(f);
 		vUSHORT consts = readUSI(f);
 		vCOMMON ops[8];
-		_constPool = VMAKE(vMemory, (size_t)consts);
-		_fieldLookup = VMAKEARRAY(vUSHORT, (size_t)consts);
-		memset(_fieldLookup.Real(), 0xFF, consts * sizeof(vUSHORT));
+		_constPool = VMAKE(vMemory, ctx, ctx, (size_t)consts);
+		_fieldLookup = VMAKEARRAY(vUSHORT, ctx, (size_t)consts);
+		memset(_fieldLookup.Real(ctx), 0xFF, consts * sizeof(vUSHORT));
 		// Parse const pool
 		for (vUSHORT i = 1; i < consts; i++) {
 			vBYTE type = (vBYTE)f.get();
@@ -19,40 +19,40 @@ vClass::vClass(const char* name) {
 			case vCT_UTF8:
 			{
 				ops[0].usi = readUSI(f);
-				V<vUTF8BODY> str = VMAKE(vUTF8BODY);
-				str->len = ops[0].usi;
-				str->s = VMAKEARRAY(vBYTE, (size_t)str->len + 1);
-				memset(str->s.Real(), 0, (size_t)str->len + 1);
-				for (vUSHORT i = 0; i < ops[0].usi; i++) str->s[i] = (vBYTE)f.get();
+				V<vUTF8BODY> str = VMAKE(vUTF8BODY, ctx);
+				str.Ptr(ctx)->len = ops[0].usi;
+				str.Ptr(ctx)->s = VMAKEARRAY(vBYTE, ctx, (size_t)str.Ptr(ctx)->len + 1);
+				memset(str.Ptr(ctx)->s.Real(ctx), 0, (size_t)str.Ptr(ctx)->len + 1);
+				for (vUSHORT i = 0; i < ops[0].usi; i++) str.Ptr(ctx)->s[VCtxIdx{ ctx, i }] = (vBYTE)f.get();
 				vUTF8 wrap;
-				wrap.r.a = (vULONG)str.Virtual();
-				_constPool->set<vUTF8>(i, wrap);
+				wrap.r.a = (vULONG)str.Virtual(ctx);
+				_constPool.Ptr(ctx)->set<vUTF8>(ctx, i, wrap);
 				break;
 			}
 			case vCT_STRING:
 				ops[0].str.strIndex = readUSI(f);
-				_constPool->set<vSTRING>(i, ops[0].str);
+				_constPool.Ptr(ctx)->set<vSTRING>(ctx, i, ops[0].str);
 				break;
 			case vCT_CLASS:
 				ops[0].cls.clsIndex = readUSI(f);
-				_constPool->set<vCLASS>(i, ops[0].cls);
+				_constPool.Ptr(ctx)->set<vCLASS>(ctx, i, ops[0].cls);
 				break;
 			case vCT_METHODREF:
 			case vCT_FIELDREF:
 				ops[0].mr.clsIndex = readUSI(f);
 				ops[0].mr.nameIndex = readUSI(f);
-				_constPool->set<vMETHODREF>(i, ops[0].mr);
+				_constPool.Ptr(ctx)->set<vMETHODREF>(ctx, i, ops[0].mr);
 				break;
 			case vCT_NAMEANDTYPE:
 				ops[0].nt.nameIndex = readUSI(f);
 				ops[0].nt.descIndex = readUSI(f);
-				_constPool->set<vNAMEANDTYPE>(i, ops[0].nt);
+				_constPool.Ptr(ctx)->set<vNAMEANDTYPE>(ctx, i, ops[0].nt);
 				break;
 			case vCT_INT:
-				_constPool->set<vUINT>(i, readUI(f));
+				_constPool.Ptr(ctx)->set<vUINT>(ctx, i, readUI(f));
 				break;
 			case vCT_DOUBLE:
-				_constPool->set<vDOUBLE>(i, readDouble(f));
+				_constPool.Ptr(ctx)->set<vDOUBLE>(ctx, i, readDouble(f));
 				break;
 			default:
 				fprintf(stderr, "[vClass::ctor] Unhandled tag type: %d\n", type);
@@ -65,41 +65,41 @@ vClass::vClass(const char* name) {
 		_super = readUSI(f);
 
 		_interfaceCount = readUSI(f);
-		_interfaces = VMAKEARRAY(vUSHORT, (size_t)_interfaceCount);
+		_interfaces = VMAKEARRAY(vUSHORT, ctx, (size_t)_interfaceCount);
 
 		for (vUSHORT i = 0; i < _interfaceCount; i++) {
-			_interfaces[i] = readUSI(f);
+			_interfaces[VCtxIdx{ ctx, (size_t)i }] = readUSI(f);
 		}
 
 		_fieldCount = readUSI(f);
-		_fields = VMAKEARRAY(vFIELD, (size_t)_fieldCount);
+		_fields = VMAKEARRAY(vFIELD, ctx, (size_t)_fieldCount);
 		for (vUSHORT i = 0; i < _fieldCount; i++) {
-			readField(f, _fields[i]);
+			readField(ctx, f, _fields[VCtxIdx{ ctx, (size_t)i }]);
 		}
 
 		_methodCount = readUSI(f);
-		_methods = VMAKEARRAY(vFIELD, (size_t)_methodCount);
+		_methods = VMAKEARRAY(vFIELD, ctx, (size_t)_methodCount);
 		for (vUSHORT i = 0; i < _methodCount; i++) {
-			readField(f, _methods[i]);
+			readField(ctx, f, _methods[VCtxIdx{ ctx, (size_t)i }]);
 		}
 
 		_attributeCount = readUSI(f);
-		_attributes = VMAKEARRAY(vATTRIBUTE, (size_t)_attributeCount);
+		_attributes = VMAKEARRAY(vATTRIBUTE, ctx, (size_t)_attributeCount);
 		for (vUSHORT i = 0; i < _attributeCount; i++) {
-			readAttribute(f, _attributes[i]);
+			readAttribute(ctx, f, _attributes[VCtxIdx{ ctx, (size_t)i }]);
 		}
 
 		for (vUSHORT i = 0; i < consts; i++) {
-			vCOMMON item = _constPool->get<vCOMMON>(i);
+			vCOMMON item = _constPool.Ptr(ctx)->get<vCOMMON>(ctx, i);
 			if (item.type == vTypes::type<vMETHODREF>()) {
 				for (vUSHORT i = 0; i < _fieldCount; i++) {
 					if (
 						!strcmp(
-							(const char*)toString(_fields[i].name)->s.Real(),
-							(const char*)toString(item.mr.nameIndex)->s.Real()
+							(const char*)toString(ctx, _fields[VCtxIdx{ ctx, (size_t)i }].name).Ptr(ctx)->s.Real(ctx),
+							(const char*)toString(ctx, item.mr.nameIndex).Ptr(ctx)->s.Real(ctx)
 						)
 						) {
-						_fieldLookup[item.mr.nameIndex] = i;
+						_fieldLookup[VCtxIdx{ ctx, (size_t)item.mr.nameIndex }] = i;
 						break;
 					}
 				}
@@ -110,17 +110,31 @@ vClass::vClass(const char* name) {
 }
 
 vClass::~vClass() {
-	_constPool.Release();
-	_fieldLookup.Release(true);
+
 }
 
-const char* vClass::getName() {
-	return (const char*)toString(_name)->s.Real();
+void vClass::destroy(vContext* ctx) {
+	_constPool.Ptr(ctx)->destroy(ctx);
+	_constPool.Release(ctx);
+	_fieldLookup.Release(ctx, true);
+	for (vUSHORT i = 0; i < _fieldCount; i++) {
+		_fields[VCtxIdx{ ctx, (size_t)i }].attributes.Release(ctx, true);
+	}
+	for (vUSHORT i = 0; i < _methodCount; i++) {
+		_methods[VCtxIdx{ ctx, (size_t)i }].attributes.Release(ctx, true);
+	}
+	_fields.Release(ctx, true);
+	_methods.Release(ctx, true);
+	_attributes.Release(ctx, true);
 }
 
-const char* vClass::getSuperName() {
+const char* vClass::getName(vContext* ctx) {
+	return (const char*)toString(ctx, _name).Ptr(ctx)->s.Real(ctx);
+}
+
+const char* vClass::getSuperName(vContext* ctx) {
 	if (_super == 0) return 0;
-	return (const char*)toString(_super)->s.Real();
+	return (const char*)toString(ctx, _super).Ptr(ctx)->s.Real(ctx);
 }
 
 vUSHORT vClass::readUSI(vBYTE* ip) const {
@@ -164,90 +178,90 @@ vDOUBLE vClass::readDouble(std::ifstream& stream) const {
 	return readDouble(buff);
 }
 
-void vClass::readAttribute(std::ifstream& f, vATTRIBUTE& attr) {
+void vClass::readAttribute(vContext* ctx, std::ifstream& f, vATTRIBUTE& attr) {
 	attr.name = readUSI(f);
 	attr.length = readUI(f);
-	attr.info = VMAKEARRAY(vBYTE, (size_t)attr.length + 1);
-	f.read((char*)attr.info.Real(), (size_t)attr.length);
+	attr.info = VMAKEARRAY(vBYTE, ctx, (size_t)attr.length + 1);
+	f.read((char*)attr.info.Real(ctx), (size_t)attr.length);
 }
 
-void vClass::readField(std::ifstream& f, vFIELD& field) {
+void vClass::readField(vContext* ctx, std::ifstream& f, vFIELD& field) {
 	field.access = readUSI(f);
 	field.name = readUSI(f);
 	field.desc = readUSI(f);
 	field.attributeCount = readUSI(f);
-	field.attributes = VMAKEARRAY(vATTRIBUTE, (size_t)field.attributeCount);
+	field.attributes = VMAKEARRAY(vATTRIBUTE, ctx, (size_t)field.attributeCount);
 	memset(&field.value, 0, sizeof(vCOMMON));
 	for (vUSHORT i = 0; i < field.attributeCount; i++) {
-		readAttribute(f, field.attributes[i]);
+		readAttribute(ctx, f, field.attributes[VCtxIdx{ ctx, (size_t)i }]);
 	}
 }
 
-vATTRIBUTE* vClass::getAttribute(const vFIELD* field, const char* name) {
+vATTRIBUTE* vClass::getAttribute(vContext* ctx, const vFIELD* field, const char* name) {
 	for (vUSHORT i = 0; i < field->attributeCount; i++) {
-		V<vUTF8BODY> str = toString(field->attributes[i].name);
+		V<vUTF8BODY> str = toString(ctx, field->attributes[VCtxIdx{ ctx, (size_t)i }].name);
 		if (!str.IsValid()) continue;
-		if (!strcmp((const char*)str->s.Real(), name)) {
-			return &field->attributes[i];
+		if (!strcmp((const char*)str.Ptr(ctx)->s.Real(ctx), name)) {
+			return &field->attributes[VCtxIdx{ ctx, (size_t)i }];
 		}
 	}
 	return 0;
 }
 
-vFIELD* vClass::getField(const char* name) {
+vFIELD* vClass::getField(vContext* ctx, const char* name) {
 	for (vUSHORT i = 0; i < _fieldCount; i++) {
-		V<vUTF8BODY> str = toString(_fields[i].name);
+		V<vUTF8BODY> str = toString(ctx, _fields[VCtxIdx{ ctx, (size_t)i }].name);
 		if (!str.IsValid()) continue;
-		if (!strcmp((const char*)str->s.Real(), name)) {
-			return &_fields[i];
+		if (!strcmp((const char*)str.Ptr(ctx)->s.Real(ctx), name)) {
+			return &_fields[VCtxIdx{ ctx, (size_t)i }];
 		}
 	}
 	return 0;
 }
 
-vMETHOD* vClass::getMethod(const char* name, const char* desc) {
+vMETHOD* vClass::getMethod(vContext* ctx, const char* name, const char* desc) {
 	for (vUSHORT i = 0; i < _methodCount; i++) {
-		V<vUTF8BODY> str = toString(_methods[i].name);
+		V<vUTF8BODY> str = toString(ctx, _methods[VCtxIdx{ ctx, i }].name);
 		if (!str.IsValid()) continue;
-		if (!strcmp((const char*)str->s.Real(), name)) {
+		if (!strcmp((const char*)str.Ptr(ctx)->s.Real(ctx), name)) {
 			if (desc != 0) {
-				V<vUTF8BODY> descstr = toString(_methods[i].desc);
+				V<vUTF8BODY> descstr = toString(ctx, _methods[VCtxIdx{ ctx, (size_t)i }].desc);
 				if (!descstr.IsValid()) continue;
-				if (strcmp(desc, (const char*)descstr->s.Real())) continue;
+				if (strcmp(desc, (const char*)descstr.Ptr(ctx)->s.Real(ctx))) continue;
 			}
-			return &_methods[i];
+			return &_methods[VCtxIdx{ ctx, (size_t)i }];
 		}
 	}
 	return 0;
 }
 
-V<vUTF8BODY> vClass::toString(vUSHORT index, int selector) const {
-	vCOMMON str = _constPool->get<vCOMMON>(index);
+V<vUTF8BODY> vClass::toString(vContext* ctx, vUSHORT index, int selector) const {
+	vCOMMON str = _constPool.Ptr(ctx)->get<vCOMMON>(ctx, index);
 	// printf("to string %d, type: %d\n", index, str.type);
 	if (str.type == vTypes::type<vCLASS>()) {
-		return toString(str.cls.clsIndex);
+		return toString(ctx, str.cls.clsIndex);
 	} else if (str.type == vTypes::type<vNAMEANDTYPE>()) {
-		return toString(selector == 0 ? str.nt.nameIndex : str.nt.descIndex);
+		return toString(ctx, selector == 0 ? str.nt.nameIndex : str.nt.descIndex);
 	} else if (str.type == vTypes::type<vSTRING>()) {
-		return toString(str.str.strIndex);
+		return toString(ctx, str.str.strIndex);
 	} else if (str.type == vTypes::type<vUTF8>()) {
 		return V<vUTF8BODY>((vUTF8BODY*)str.utf8.r.a);
 	}
 	return V<vUTF8BODY>::NullPtr();
 }
 
-V<vBYTE> vClass::getCode(vMETHOD* method) {
+V<vBYTE> vClass::getCode(vContext* ctx, vMETHOD* method) {
 	if (!method) return V<vBYTE>::NullPtr();
-	vATTRIBUTE* attrib = getAttribute(method, "Code");
+	vATTRIBUTE* attrib = getAttribute(ctx, method, "Code");
 	if (!attrib) return V<vBYTE>::NullPtr();
 	return attrib->info + (size_t)8;
 }
 
-vUINT vClass::argsCount(vMETHOD* method) {
+vUINT vClass::argsCount(vContext* ctx, vMETHOD* method) {
 	if (!method) return 0;
-	V<vUTF8BODY> desc = toString(method->desc);
+	V<vUTF8BODY> desc = toString(ctx, method->desc);
 	if (!desc.IsValid()) return 0;
-	const char* str = (const char*)desc->s.Real();
+	const char* str = (const char*)desc.Ptr(ctx)->s.Real(ctx);
 	vUINT count = 0;
 	bool className = false;
 	while (*str != ')') {
@@ -268,30 +282,32 @@ vUINT vClass::argsCount(vMETHOD* method) {
 }
 
 std::tuple<bool, vCOMMON> vClass::invoke(
+	vContext* ctx,
 	V<vClass> self,
 	vCPU* cpu,
 	vStack* _stack,
 	vBYTE opcode,
 	const std::string& methodName,
 	const std::string& desc) {
-	vMETHOD* method = getMethod(methodName.c_str(), desc.c_str());
+	vMETHOD* method = getMethod(ctx, methodName.c_str(), desc.c_str());
 	if (method) {
-		V<vFrame> nFrame = VMAKE(vFrame, method, self);
-		vUINT args = argsCount(method);
+		V<vFrame> nFrame = VMAKE(vFrame, ctx, ctx, method, self);
+		vUINT args = argsCount(ctx, method);
 		for (vUINT i = 0; i < args; i++) {
 			vUINT j = args - i;
 			if (opcode == invokestatic) j--;
-			nFrame->_local->set<vCOMMON>((size_t)j, _stack->pop<vCOMMON>());
+			nFrame.Ptr(ctx)->_local.Ptr(ctx)->set<vCOMMON>(ctx, (size_t)j, _stack->pop<vCOMMON>(ctx));
 		}
-		if (opcode != invokestatic) nFrame->_local->set<vCOMMON>(0, _stack->pop<vCOMMON>());
-		cpu->run(nFrame);
+		if (opcode != invokestatic) nFrame.Ptr(ctx)->_local.Ptr(ctx)->set<vCOMMON>(ctx, 0, _stack->pop<vCOMMON>(ctx));
+		cpu->run(ctx, nFrame);
 		vCOMMON subret;
 		memset(&subret, 0, sizeof(subret));
-		if (nFrame->_returns) {
-			subret = nFrame->_stack->pop<vCOMMON>();
-			_stack->push<vCOMMON>(subret);
+		if (nFrame.Ptr(ctx)->_returns) {
+			subret = nFrame.Ptr(ctx)->_stack.Ptr(ctx)->pop<vCOMMON>(ctx);
+			_stack->push<vCOMMON>(ctx, subret);
 		}
-		nFrame.Release();
+		nFrame.Ptr(ctx)->destroy(ctx);
+		nFrame.Release(ctx);
 		return std::make_tuple(true, subret);
 	}
 	vCOMMON empty;

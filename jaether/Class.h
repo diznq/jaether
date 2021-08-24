@@ -11,7 +11,7 @@
 class vCPU;
 class vClass;
 
-typedef std::function<void(const std::string& className, vCPU* cpu, vStack* stack, vBYTE opcode)> vNATIVE;
+typedef std::function<void(vContext* ctx, const std::string& className, vCPU* cpu, vStack* stack, vBYTE opcode)> vNATIVE;
 
 class vClass {
 public:
@@ -30,11 +30,12 @@ public:
 	vUSHORT _attributeCount = 0;
 	vBYTE _initialized = 0;
 
-	vClass(const char* name);
+	vClass(vContext* ctx, const char* name);
 	~vClass();
+	void destroy(vContext* ctx);
 
-	const char* getName();
-	const char* getSuperName();
+	const char* getName(vContext* ctx);
+	const char* getSuperName(vContext* ctx);
 
 	template<class T> T read(vBYTE* ip) const {
 		return *(T*)ip;
@@ -46,16 +47,18 @@ public:
 	vUSHORT		readUSI(std::ifstream& stream) const;
 	vUINT		readUI(std::ifstream& stream) const;
 	vDOUBLE		readDouble(std::ifstream& stream) const;
-	void		readAttribute(std::ifstream& f, vATTRIBUTE& attr);
-	void		readField(std::ifstream& f, vFIELD& field);
-	vATTRIBUTE* getAttribute(const vFIELD* field, const char* name);
-	vFIELD*		getField(const char* name);
-	vMETHOD*	getMethod(const char* name, const char* desc = 0);
+	void		readAttribute(vContext* ctx, std::ifstream& f, vATTRIBUTE& attr);
+	void		readField(vContext* ctx, std::ifstream& f, vFIELD& field);
+	vATTRIBUTE* getAttribute(vContext* ctx, const vFIELD* field, const char* name);
+	vFIELD*		getField(vContext* ctx, const char* name);
+	vMETHOD*	getMethod(vContext* ctx, const char* name, const char* desc = 0);
 
-	V<vUTF8BODY> toString(vUSHORT index, int selector = 0) const;
-	V<vBYTE>	getCode(vMETHOD* method);
-	vUINT		argsCount(vMETHOD* method);
-	std::tuple<bool, vCOMMON> invoke(	V<vClass> self,
+	V<vUTF8BODY> toString(vContext* ctx, vUSHORT index, int selector = 0) const;
+	V<vBYTE>	getCode(vContext* ctx, vMETHOD* method);
+	vUINT		argsCount(vContext* ctx, vMETHOD* method);
+	std::tuple<bool, vCOMMON> invoke(	
+					vContext* ctx,
+					V<vClass> self,
 					vCPU* cpu,
 					vStack* _stack,
 					vBYTE opcode,

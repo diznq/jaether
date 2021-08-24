@@ -9,20 +9,23 @@ class vMemory {
 	V<vCOMMON> _memory;
 	vULONG _size;
 public:
-	vMemory(size_t size = sizeof(vCOMMON) * 65536) {
-		_memory = VMAKEARRAY(vCOMMON, size);
+	vMemory(vContext* ctx, size_t size = sizeof(vCOMMON) * 65536) {
+		_memory = VMAKEARRAY(vCOMMON, ctx, size);
 		_size = size;
-		memset(_memory.Real(), 0, size);
+		memset(_memory.Real(ctx), 0, size);
 	}
 
 	~vMemory() {
-		_memory.Release(true);
 	}
 
-	template<class T> vMemory& set(const size_t index, const T& value) {
+	void destroy(vContext* ctx) {
+		_memory.Release(ctx, true);
+	}
+
+	template<class T> vMemory& set(vContext* ctx, const size_t index, const T& value) {
 		const size_t size = sizeof(vCOMMON);
 		assert(index < _size);
-		vBYTE* ptr = (vBYTE*)&_memory[index];
+		vBYTE* ptr = (vBYTE*)&_memory[VCtxIdx{ ctx, index }];
 		memset(ptr, 0, size);
 		memcpy(ptr, &value, sizeof(T));
 		if constexpr (!std::is_same_v<T, vCOMMON>) {
@@ -33,10 +36,10 @@ public:
 		return *this;
 	}
 
-	template<class T> T get(const size_t index) const {
+	template<class T> T get(vContext* ctx, const size_t index) const {
 		const size_t size = sizeof(vCOMMON);
 		assert(index < _size);
-		T val = *(T*)&_memory[index];
+		T val = *(T*)&_memory[VCtxIdx{ ctx, index }];
 		return val;
 	}
 };

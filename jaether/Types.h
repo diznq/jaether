@@ -182,5 +182,5 @@ typedef vFIELD vMETHOD;
 struct vOBJECT {
 	V<vCOMMON> fields;
 	V<vClass> cls;
-	vOBJECT(const V<vClass>& klass);
+	vOBJECT(vContext* ctx, const V<vClass>& klass);
 };

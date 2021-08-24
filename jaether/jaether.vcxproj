@@ -142,12 +142,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Class.cpp" />
+    <ClCompile Include="Context.cpp" />
     <ClCompile Include="CPU.cpp" />
     <ClCompile Include="Types.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Class.h" />
     <ClInclude Include="CPU.h" />
+    <ClInclude Include="Context.h" />
     <ClInclude Include="Frame.h" />
     <ClInclude Include="Memory.h" />
     <ClInclude Include="Opcodes.h" />

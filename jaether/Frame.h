@@ -15,31 +15,37 @@ public:
 	bool		_returns;
 
 	vFrame(
+		vContext* ctx,
 		vMETHOD* method,
 		const V<vClass>& classFile,
 		size_t maxStackItems = 64,
 		size_t maxLocals = 512
 	) {
-		_stack = VMAKE(vStack, maxStackItems * sizeof(vCOMMON));
-		_local = VMAKE(vMemory, maxLocals);
+		_stack = VMAKE(vStack, ctx, ctx, maxStackItems * sizeof(vCOMMON));
+		_local = VMAKE(vMemory, ctx, ctx, maxLocals);
 		_pc = 0;
 		_class = classFile;
-		_program = classFile->getCode(method);
-		V<vUTF8BODY> desc = classFile->toString(method->desc);
+		_program = classFile.Ptr(ctx)->getCode(ctx, method);
+		V<vUTF8BODY> desc = classFile.Ptr(ctx)->toString(ctx, method->desc);
 		_returns = false;
 		if (desc.IsValid()) {
-			size_t len = strlen((const char*)desc->s.Real());
-			_returns = desc->s[len - 1] != 'V';
+			size_t len = strlen((const char*)desc.Ptr(ctx)->s.Real(ctx));
+			_returns = desc.Ptr(ctx)->s[VCtxIdx{ ctx, len - 1 }] != 'V';
 		}
 	}
 
 	~vFrame() {
-		_stack.Release();
-		_local.Release();
 	}
 
-	vBYTE* fetch() {
-		return _program.Real() + pc();
+	void destroy(vContext* ctx) {
+		_stack.Ptr(ctx)->destroy(ctx);
+		_stack.Release(ctx);
+		_local.Ptr(ctx)->destroy(ctx);
+		_local.Release(ctx);
+	}
+
+	vBYTE* fetch(vContext* ctx) {
+		return _program.Real(ctx) + pc();
 	}
 
 	vULONG& pc() {

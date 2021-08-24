@@ -22,15 +22,15 @@ class vCPU {
 public:
 	vCPU();
 
-	V<vClass> load(const std::string& s, const std::string& parent = "");
+	V<vClass> load(vContext* ctx, const std::string& s, const std::string& parent = "");
 	void addNative(const std::string& path, const std::string& desc, const vNATIVE& native);
 
 	bool active() const;
 
-	void run(const  V<vFrame>& frame);
+	void run(vContext* ctx, const V<vFrame>& frame);
 
-	size_t execute(const V<vFrame>& frame);
-	size_t sub_execute(const V<vFrame>& frame);
+	size_t execute(vContext* ctx, const V<vFrame>& frame);
+	size_t sub_execute(vContext* ctx, const V<vFrame>& frame);
 
 	template<class T> T read(vBYTE* ip) const {
 		return *(T*)ip;
