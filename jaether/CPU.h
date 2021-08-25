@@ -27,10 +27,7 @@ public:
 
 	bool active() const;
 
-	void run(vContext* ctx, const V<vFrame>& frame);
-
-	size_t execute(vContext* ctx, const V<vFrame>& frame);
-	size_t sub_execute(vContext* ctx, const V<vFrame>& frame);
+	size_t run(vContext* ctx, const V<vFrame>& frame);
 
 	template<class T> T read(vBYTE* ip) const {
 		return *(T*)ip;

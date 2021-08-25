@@ -52,7 +52,7 @@ public:
 		return _pc;
 	}
 
-	vULONG incrpc(size_t step) {
+	vULONG& incrpc(size_t step) {
 		return (_pc) += step;
 	}
 };
