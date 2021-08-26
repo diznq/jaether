@@ -25,7 +25,9 @@ class Main {
         long start = System.currentTimeMillis();
         Main instance = Main.getInstance();
         int s = 0;
-        s += instance.computation(10);
+        for(int i=0; i<100; i++){
+            s += instance.computation(10);
+        }
         long time = System.currentTimeMillis() - start;
         System.out.println(time);
         System.out.println(s);

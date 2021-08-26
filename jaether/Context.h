@@ -9,11 +9,8 @@ struct vDummy {
 
 struct vContext {
 private:
-	void* _pool = 0;
-	void* _offset = 0;
 	bool _secure = false;
 	void* _hashCtx = 0;
-	size_t _poolSize = 0;
 	size_t _ops = 0;
 	Allocator* _alloc = 0;
 public:
@@ -42,7 +39,11 @@ public:
 	void GetSignature(unsigned char* buffer);
 
 	uintptr_t Offset() const {
-		return (uintptr_t)_offset;
+		return (uintptr_t)_alloc->GetBase();
+	}
+
+	Allocator* GetAllocator() const {
+		return _alloc;
 	}
 
 	size_t Ops() const {

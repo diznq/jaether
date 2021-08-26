@@ -20,6 +20,10 @@ void vCPU::addNative(const std::string& path, const std::string& desc, const vNA
 	_natives[path + ":" + desc] = native;
 }
 
+std::chrono::steady_clock::time_point vCPU::getTime() const {
+	return std::chrono::high_resolution_clock::now();
+}
+
 size_t vCPU::run(vContext* ctx, const V<vFrame>& frame) {
 	vStack* _stack = frame.Ptr(ctx)->_stack.Real(ctx);
 	vMemory* _local = frame.Ptr(ctx)->_local.Real(ctx);
@@ -848,12 +852,14 @@ int main(int argc, const char** argv) {
 	const char* DirPath = "Assets/";
 	const char* ClsPath = "Main";
 	const char* MethodPath = "main";
+	bool SecureContext = false;
 
 	if (argc >= 2) ClsPath = argv[1];
 	if (argc >= 3) DirPath = argv[2];
 	if (argc >= 4) MethodPath = argv[3];
+	if (argc >= 5) SecureContext = argv[4][0] == '1';
 
-	vContext* ctx = new vContext(4096 * 1024, false);
+	vContext* ctx = new vContext(512 * 1024, SecureContext);
 
 	vCPU* cpu = new vCPU();
 	auto cls = cpu->load(ctx, ClsPath, DirPath);
@@ -883,14 +889,22 @@ int main(int argc, const char** argv) {
 			std::chrono::system_clock::now().time_since_epoch()
 		);
 		vLONG millis = (vLONG)ms.count();
-		stack->push<vLONG>(ctx, ctx->Ops());
+		stack->push<vLONG>(ctx, ctx->Ops() / 50000);
 	});
 
+	auto start = cpu->getTime();
 	cpu->run(ctx, frame);
+	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(cpu->getTime() - start).count();
+	double duration_s = duration / 1000000.0;
 	unsigned char sig[64];
 	ctx->GetSignature(sig);
-	printf("Ops: %lld\n", ctx->Ops());
-	printf("Signature: ");
+	printf("--------Execution info--------\n");
+	printf("VM Ops                  : %lld\n", ctx->Ops());
+	printf("VM kOps/s               : %.3f\n", ctx->Ops() / duration_s / 1000.0);
+	printf("Alloc c/a               : %lld\n", ctx->GetAllocator()->GetAvgCycles());
+	printf("Currently managed memory: %lld\n", ctx->GetAllocator()->GetManagedSize());
+	printf("Peak managed memory     : %lld\n", ctx->GetAllocator()->GetPeakSize());
+	printf("Signature               : ");
 	for (int i = 0; i < 32; i++) {
 		printf("%02x", sig[i] & 255);
 	}
