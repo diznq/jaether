@@ -7,6 +7,15 @@ struct vDummy {
 };
 
 struct vContext {
+private:
+	void* _pool = 0;
+	void* _offset = 0;
+	bool _secure = false;
+	void* _hashCtx = 0;
+	size_t _poolSize = 0;
+public:
+	vContext(size_t mem = 16 * 1024 * 1024, bool secure = false);
+	~vContext();
 	void* Alloc(size_t mem);
 	void Free(void* mem, bool arr = false);
 	template<typename T, typename... Args> 
@@ -26,7 +35,10 @@ struct vContext {
 		Free((void*)obj, arr);
 	}
 
+	void OnInstruction();
+	void GetSignature(unsigned char* buffer);
+
 	uintptr_t Offset() const {
-		return 0;
+		return (uintptr_t)_offset;
 	}
 };

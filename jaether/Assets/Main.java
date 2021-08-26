@@ -14,7 +14,7 @@ class Main {
 
     public int computation(int n){
         int J = 0;
-        int L = 1000 + n;
+        int L = 10 + n;
         for(int I=0; I<L; I++){
             J += I * I;
         }
@@ -25,11 +25,7 @@ class Main {
         long start = System.currentTimeMillis();
         Main instance = Main.getInstance();
         int s = 0;
-        for(int k=0; k<1000; k++){
-            for(int i=0; i<100; i++){
-                s += instance.computation(i);
-            }
-        }
+        s += instance.computation(10);
         long time = System.currentTimeMillis() - start;
         instance.attr1 += (int)time;
         System.out.println(instance.attr1);

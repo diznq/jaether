@@ -5,8 +5,6 @@
 #define VMAKE(type, ctx, ...) V<type>(ctx->AllocType<type>(__VA_ARGS__))
 #define VMAKEARRAY(type, ctx, i) V<type>(ctx->AllocArray<type>(i))
 
-constexpr size_t VPTR_OFFSET = 1;
-
 struct vContext;
 
 struct VCtxIdx {
@@ -18,8 +16,10 @@ template<class A>
 class V {
 	A* _addr = 0;
 public:
-	V() : _addr(0) {}
-	V(A* addr) : _addr((A*)((uintptr_t)addr + VPTR_OFFSET)){ }
+	V() : _addr((A*)~(uintptr_t)0) {}
+	V(A* addr) : _addr((A*)((uintptr_t)addr)){ }
+
+	uintptr_t U() const { return (uintptr_t)_addr; }
 
 	static V<A> NullPtr() {
 		return V<A>();
@@ -28,16 +28,16 @@ public:
 	bool Release(vContext* ctx, bool arr = false) {
 		if (!IsValid()) return false;
 		ctx->FreeType<A>(Real(ctx), arr);
-		_addr = (A*)0;
+		_addr = (A*)~(uintptr_t)0;
 		return true;
 	}
 
 	bool IsValid() const {
-		return _addr != 0;
+		return ~U();
 	}
 
 	A* Real(vContext* ctx) const {
-		return (A*)(((uintptr_t)_addr - VPTR_OFFSET) + ctx->Offset());
+		return (A*)(((uintptr_t)_addr) + ctx->Offset());
 	}
 
 	A* Ptr(vContext* ctx) const {
@@ -45,7 +45,7 @@ public:
 	}
 
 	A* Virtual(vContext* ctx = 0) const {
-		return (A*)((uintptr_t)_addr - VPTR_OFFSET);
+		return (A*)((uintptr_t)_addr);
 	}
 
 	/*A* operator->() const {
@@ -65,11 +65,11 @@ public:
 		return *this;
 	}
 
-	A& operator[](const VCtxIdx index) const {
+	A& operator[](const VCtxIdx& index) const {
 		return Real(index.ctx)[index.index];
 	}
 
 	operator bool() const {
-		return _addr != (A*)0;
+		return IsValid();
 	}
 };

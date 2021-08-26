@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\External">
+      <UniqueIdentifier>{7bab6b0d-805e-485d-b480-75d6e31f4be6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CPU.cpp">
@@ -27,34 +30,52 @@
     <ClCompile Include="Context.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="smmalloc.cpp">
+      <Filter>Source Files\External</Filter>
+    </ClCompile>
+    <ClCompile Include="smmalloc_generic.cpp">
+      <Filter>Source Files\External</Filter>
+    </ClCompile>
+    <ClCompile Include="smmalloc_tls.cpp">
+      <Filter>Source Files\External</Filter>
+    </ClCompile>
+    <ClCompile Include="sha256.cpp">
+      <Filter>Source Files\External</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Opcodes.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Pointer.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Types.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Stack.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Memory.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="Class.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Frame.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="CPU.h">
-      <Filter>Source Files</Filter>
+      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Context.h">
-      <Filter>Source Files</Filter>
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CPU.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Frame.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Memory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Opcodes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Pointer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Stack.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="smmalloc.h">
+      <Filter>Source Files\External</Filter>
+    </ClInclude>
+    <ClInclude Include="sha256.h">
+      <Filter>Source Files\External</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

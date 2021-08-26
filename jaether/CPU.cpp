@@ -822,6 +822,7 @@ size_t vCPU::run(vContext* ctx, const V<vFrame>& frame) {
 			fwd = 0; break;
 		}
 		_frame->incrpc(fwd + 1);
+		ctx->OnInstruction();
 	}
 	_running = true;
 	return ops;
@@ -852,32 +853,31 @@ int main(int argc, const char** argv) {
 	if (argc >= 3) DirPath = argv[2];
 	if (argc >= 4) MethodPath = argv[3];
 
-	vContext vCtx;
-	vContext* ctx = &vCtx;
+	vContext* ctx = new vContext(4096 * 1024, false);
 
-	auto cpu = VMAKE(vCPU, ctx); // vCPU();
-	auto cls = cpu.Ptr(ctx)->load(ctx, ClsPath, DirPath);
+	vCPU* cpu = new vCPU();
+	auto cls = cpu->load(ctx, ClsPath, DirPath);
 	auto frame = VMAKE(vFrame, ctx, ctx, cls.Ptr(ctx)->getMethod(ctx, MethodPath), cls);
 
-	cpu.Ptr(ctx)->addNative("java/lang/Object/<init>", "()V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+	cpu->addNative("java/lang/Object/<init>", "()V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 		//printf("Initialize class %s, opcode: %s\n", cls.c_str(), Opcodes[opcode]);
 		if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 	});
 
-	cpu.Ptr(ctx)->addNative("java/io/PrintStream/println", "(I)V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+	cpu->addNative("java/io/PrintStream/println", "(I)V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 		vINT arg = stack->pop<vINT>(ctx);
 		if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 		printf("%d\n", arg);
 	});
 
 
-	cpu.Ptr(ctx)->addNative("java/io/PrintStream/println", "(J)V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+	cpu->addNative("java/io/PrintStream/println", "(J)V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 		vLONG arg = stack->pop<vLONG>(ctx);
 		if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 		printf("%lld\n", arg);
 	});
 
-	cpu.Ptr(ctx)->addNative("java/lang/System/currentTimeMillis", "()J", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+	cpu->addNative("java/lang/System/currentTimeMillis", "()J", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 		if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 		std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(
 			std::chrono::system_clock::now().time_since_epoch()
@@ -886,6 +886,13 @@ int main(int argc, const char** argv) {
 		stack->push<vLONG>(ctx, millis);
 	});
 
-	cpu.Ptr(ctx)->run(ctx, frame);
+	cpu->run(ctx, frame);
+	unsigned char sig[64];
+	ctx->GetSignature(sig);
+	printf("Signature: ");
+	for (int i = 0; i < 32; i++) {
+		printf("%02x", sig[i] & 255);
+	}
+	printf("\n");
 	//printf("Result: %d, type: %d\n", retval.i, retval.type);
 }

@@ -36,10 +36,9 @@ public:
 		return *this;
 	}
 
-	template<class T> T get(vContext* ctx, const size_t index) const {
+	template<class T> T& get(vContext* ctx, const size_t index) const {
 		const size_t size = sizeof(vCOMMON);
 		assert(index < _size);
-		T val = *(T*)&_memory[VCtxIdx{ ctx, index }];
-		return val;
+		return *(T*)&_memory[VCtxIdx{ ctx, index }];
 	}
 };

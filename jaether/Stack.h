@@ -36,18 +36,17 @@ public:
 				vc->type = vTypes::type<T>();
 		}
 		_index += size;
-		//dbgStack("push");
+		//dbgStack(ctx, "push");
 		assert(_index >= 0 && _index <= _size);
 		return *this;
 	}
 
-	template<class T> T pop(vContext* ctx) {
+	template<class T> T& pop(vContext* ctx) {
 		const size_t size = sizeof(vCOMMON);
 		_index -= size;
 		//dbgStack("pop");
-		T val = *(T*)&_memory[VCtxIdx{ ctx, (size_t)_index }];
 		assert(_index >= 0 && _index <= _size);
-		return val;
+		return *(T*)&_memory[VCtxIdx{ ctx, (size_t)_index }];
 	}
 
 	void dbgStack(vContext* ctx, const char* op) {

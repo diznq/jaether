@@ -132,6 +132,10 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions512</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -144,6 +148,10 @@
     <ClCompile Include="Class.cpp" />
     <ClCompile Include="Context.cpp" />
     <ClCompile Include="CPU.cpp" />
+    <ClCompile Include="sha256.cpp" />
+    <ClCompile Include="smmalloc.cpp" />
+    <ClCompile Include="smmalloc_generic.cpp" />
+    <ClCompile Include="smmalloc_tls.cpp" />
     <ClCompile Include="Types.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -153,6 +161,8 @@
     <ClInclude Include="Frame.h" />
     <ClInclude Include="Memory.h" />
     <ClInclude Include="Opcodes.h" />
+    <ClInclude Include="sha256.h" />
+    <ClInclude Include="smmalloc.h" />
     <ClInclude Include="Stack.h" />
     <ClInclude Include="Types.h" />
     <ClInclude Include="Pointer.h" />
