@@ -27,8 +27,7 @@ class Main {
         int s = 0;
         s += instance.computation(10);
         long time = System.currentTimeMillis() - start;
-        instance.attr1 += (int)time;
-        System.out.println(instance.attr1);
+        System.out.println(time);
         System.out.println(s);
     }
 }

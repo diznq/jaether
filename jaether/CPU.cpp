@@ -853,7 +853,7 @@ int main(int argc, const char** argv) {
 	if (argc >= 3) DirPath = argv[2];
 	if (argc >= 4) MethodPath = argv[3];
 
-	vContext* ctx = new vContext(4096 * 1024, true);
+	vContext* ctx = new vContext(4096 * 1024, false);
 
 	vCPU* cpu = new vCPU();
 	auto cls = cpu->load(ctx, ClsPath, DirPath);
@@ -889,6 +889,7 @@ int main(int argc, const char** argv) {
 	cpu->run(ctx, frame);
 	unsigned char sig[64];
 	ctx->GetSignature(sig);
+	printf("Ops: %lld\n", ctx->Ops());
 	printf("Signature: ");
 	for (int i = 0; i < 32; i++) {
 		printf("%02x", sig[i] & 255);

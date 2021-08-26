@@ -29,8 +29,8 @@ void vContext::Free(void* mem, bool arr) {
 }
 
 void vContext::OnInstruction() {
-	if (!_secure) return;
 	_ops++;
+	if (!_secure) return;
 	SHA256_CTX* sha = (SHA256_CTX*)_hashCtx;
 	void* start = _offset;
 	sha256_update(sha, (const BYTE*)start, _poolSize);

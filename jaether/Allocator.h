@@ -30,6 +30,7 @@ public:
 	void* Alloc(size_t mem) {
 		//printf("Request alloc %llu bytes\n", mem);
 		size_t required = mem / _align + 1;
+		if (mem % _align == 0) required--;
 		for (size_t i = 0, j = _free.size(); i < j; i++) {
 			bool suitable = false;
 			if (_free[i]) {
