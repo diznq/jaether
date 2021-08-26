@@ -160,6 +160,10 @@ struct vCOMMON {
 		var.type = vTypes::type<T>();
 		return var;
 	}
+
+	vCOMMON() {
+		memset(this, 0, sizeof(vCOMMON));
+	}
 };
 
 struct vATTRIBUTE {

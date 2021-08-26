@@ -30,15 +30,6 @@
     <ClCompile Include="Context.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="smmalloc.cpp">
-      <Filter>Source Files\External</Filter>
-    </ClCompile>
-    <ClCompile Include="smmalloc_generic.cpp">
-      <Filter>Source Files\External</Filter>
-    </ClCompile>
-    <ClCompile Include="smmalloc_tls.cpp">
-      <Filter>Source Files\External</Filter>
-    </ClCompile>
     <ClCompile Include="sha256.cpp">
       <Filter>Source Files\External</Filter>
     </ClCompile>
@@ -71,11 +62,11 @@
     <ClInclude Include="Types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="smmalloc.h">
-      <Filter>Source Files\External</Filter>
-    </ClInclude>
     <ClInclude Include="sha256.h">
       <Filter>Source Files\External</Filter>
+    </ClInclude>
+    <ClInclude Include="Allocator.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

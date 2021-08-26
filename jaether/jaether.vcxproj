@@ -149,12 +149,10 @@
     <ClCompile Include="Context.cpp" />
     <ClCompile Include="CPU.cpp" />
     <ClCompile Include="sha256.cpp" />
-    <ClCompile Include="smmalloc.cpp" />
-    <ClCompile Include="smmalloc_generic.cpp" />
-    <ClCompile Include="smmalloc_tls.cpp" />
     <ClCompile Include="Types.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Allocator.h" />
     <ClInclude Include="Class.h" />
     <ClInclude Include="CPU.h" />
     <ClInclude Include="Context.h" />
@@ -162,7 +160,6 @@
     <ClInclude Include="Memory.h" />
     <ClInclude Include="Opcodes.h" />
     <ClInclude Include="sha256.h" />
-    <ClInclude Include="smmalloc.h" />
     <ClInclude Include="Stack.h" />
     <ClInclude Include="Types.h" />
     <ClInclude Include="Pointer.h" />

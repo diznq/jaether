@@ -1,6 +1,7 @@
 #pragma once
 #include <utility>
 #include <stdint.h>
+#include "Allocator.h"
 
 struct vDummy {
 	vDummy(int i){}
@@ -13,6 +14,8 @@ private:
 	bool _secure = false;
 	void* _hashCtx = 0;
 	size_t _poolSize = 0;
+	size_t _ops = 0;
+	Allocator* _alloc = 0;
 public:
 	vContext(size_t mem = 16 * 1024 * 1024, bool secure = false);
 	~vContext();
@@ -40,5 +43,9 @@ public:
 
 	uintptr_t Offset() const {
 		return (uintptr_t)_offset;
+	}
+
+	size_t Ops() const {
+		return _ops;
 	}
 };

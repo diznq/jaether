@@ -33,7 +33,7 @@ size_t vCPU::run(vContext* ctx, const V<vFrame>& frame) {
 	while (_running) {
 		vBYTE* ip = _frame->fetch(ctx);
 		vBYTE& opcode = *ip; ops++;
-		//printf("Execute instruction %d (%s)\n", opcode, Opcodes[opcode]);
+		// printf("Execute instruction %d (%s)\n", opcode, Opcodes[opcode]);
 		switch (opcode) {
 		case nop:
 			fwd = 0; break;
@@ -853,7 +853,7 @@ int main(int argc, const char** argv) {
 	if (argc >= 3) DirPath = argv[2];
 	if (argc >= 4) MethodPath = argv[3];
 
-	vContext* ctx = new vContext(4096 * 1024, false);
+	vContext* ctx = new vContext(4096 * 1024, true);
 
 	vCPU* cpu = new vCPU();
 	auto cls = cpu->load(ctx, ClsPath, DirPath);
@@ -883,7 +883,7 @@ int main(int argc, const char** argv) {
 			std::chrono::system_clock::now().time_since_epoch()
 		);
 		vLONG millis = (vLONG)ms.count();
-		stack->push<vLONG>(ctx, millis);
+		stack->push<vLONG>(ctx, ctx->Ops());
 	});
 
 	cpu->run(ctx, frame);
