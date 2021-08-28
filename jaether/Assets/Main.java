@@ -9,7 +9,7 @@ class Main {
     }
 
     Main(){
-
+        
     }
 
     public int computation(int n){
@@ -30,19 +30,20 @@ class Main {
         long start = System.currentTimeMillis();
         Main instance = Main.getInstance();
         int s = 0;
-        int[] results = new int[100];
-        int k =0;
-        for(int j=0; j<10; j++){
-            for(int i=0; i<10; i++, k++){
-                s += instance.fuc(10 + i);
-                System.out.println(s);
-                results[k] = s;
+        int k = 0;
+        int[] results = new int[10000];
+        for(int j=0; j<100; j++){
+            for(int i=0; i<100; i++, k++){
+                results[k] = instance.fuc(10 + i);
             }
         }
-        long time = System.currentTimeMillis() - start;
-        for(int i=0; i<100; i++){
-            System.out.println(results[i]);
+        for(int i=0; i<results.length; i++){
+            s += results[i];
         }
+        long time = System.currentTimeMillis() - start;
+        //for(int i=0; i<results.length; i++){
+        //    System.out.println(results[i]);
+        //}
         System.out.println(time);
         System.out.println(s);
     }

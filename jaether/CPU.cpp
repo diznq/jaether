@@ -10,7 +10,9 @@ namespace jaether {
 	V<vClass> vCPU::load(vContext* ctx, const std::string& s, const std::string& parent) {
 		auto it = _classes.find(s);
 		if (it != _classes.end()) return it->second;
-		return _classes[s] = VMAKE(vClass, ctx, ctx, (parent + s + ".class").c_str());
+		V<vClass> cls = VMAKE(vClass, ctx, ctx, (parent + s + ".class").c_str());
+		_classes[cls.Ptr(ctx)->getName(ctx)] = cls;
+		return cls;
 	}
 
 	bool vCPU::active() const {
@@ -39,7 +41,6 @@ namespace jaether {
 		while (_running) {
 			vBYTE* ip = _frame->fetch(ctx);
 			vBYTE& opcode = *ip; ops++;
-			// printf("Execute instruction %d (%s)\n", opcode, Opcodes[opcode]);
 			switch (opcode) {
 			case nop:
 				fwd = 0; break;
@@ -860,8 +861,7 @@ namespace jaether {
 				if (nit != _natives.end()) {
 					nit->second(ctx, path, this, _stack, opcode);
 					found = true;
-				}
-				else {
+				} else {
 					auto it = _classes.find(path);
 					if (it != _classes.end()) {
 						V<vClass> cls = it->second;

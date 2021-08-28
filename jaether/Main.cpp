@@ -54,6 +54,7 @@ int main(int argc, const char** argv) {
 	unsigned char sig[64];
 	ctx->GetSignature(sig);
 	printf("--------Execution info--------\n");
+	printf("Execution time          : %.3f ms\n", duration_s * 1000);
 	printf("VM Ops                  : %lld\n", ctx->Ops());
 	printf("VM kOps/s               : %.3f\n", ctx->Ops() / duration_s / 1000.0);
 	printf("Alloc c/a               : %lld\n", ctx->GetAllocator()->GetAvgCycles());
