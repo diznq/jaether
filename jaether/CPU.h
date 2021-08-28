@@ -17,32 +17,36 @@
 #include "Frame.h"
 #include "Class.h"
 
-class vCPU {
-	bool _running = true;
-	std::map<std::string, V<vClass>> _classes;
-	std::map<std::string, vNATIVE> _natives;
-public:
-	vCPU();
+namespace jaether {
 
-	V<vClass> load(vContext* ctx, const std::string& s, const std::string& parent = "");
-	void addNative(const std::string& path, const std::string& desc, const vNATIVE& native);
+	class vCPU {
+		bool _running = true;
+		std::map<std::string, V<vClass>> _classes;
+		std::map<std::string, vNATIVE> _natives;
+	public:
+		vCPU();
 
-	bool active() const;
+		V<vClass> load(vContext* ctx, const std::string& s, const std::string& parent = "");
+		void addNative(const std::string& path, const std::string& desc, const vNATIVE& native);
 
-	size_t run(vContext* ctx, const V<vFrame>& frame);
-	std::chrono::steady_clock::time_point getTime() const;
+		bool active() const;
 
-	template<class T> T read(vBYTE* ip) const {
-		return *(T*)ip;
-	}
+		size_t run(vContext* ctx, const V<vFrame>& frame);
+		std::chrono::steady_clock::time_point getTime() const;
 
-	vUSHORT readUSI(vBYTE* ip) const;
+		template<class T> T read(vBYTE* ip) const {
+			return *(T*)ip;
+		}
 
-	vUINT readUI(vBYTE* ip) const;
+		vUSHORT readUSI(vBYTE* ip) const;
 
-	template<class T> vINT compare(T a, T b) {
-		if (a == b) return 0;
-		if (a > b) return 1;
-		return -1;
-	}
-};
+		vUINT readUI(vBYTE* ip) const;
+
+		template<class T> vINT compare(T a, T b) {
+			if (a == b) return 0;
+			if (a > b) return 1;
+			return -1;
+		}
+	};
+
+}

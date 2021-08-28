@@ -21,14 +21,28 @@ class Main {
         return J;
     }
 
+    public int fuc(int n){
+        if(n<=1) return 1;
+        return n + fuc(n - 1);
+    }
+
     public static void main(String[] args){
         long start = System.currentTimeMillis();
         Main instance = Main.getInstance();
         int s = 0;
-        for(int i=0; i<100; i++){
-            s += instance.computation(10);
+        int[] results = new int[100];
+        int k =0;
+        for(int j=0; j<10; j++){
+            for(int i=0; i<10; i++, k++){
+                s += instance.fuc(10 + i);
+                System.out.println(s);
+                results[k] = s;
+            }
         }
         long time = System.currentTimeMillis() - start;
+        for(int i=0; i<100; i++){
+            System.out.println(results[i]);
+        }
         System.out.println(time);
         System.out.println(s);
     }

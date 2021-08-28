@@ -33,6 +33,9 @@
     <ClCompile Include="sha256.cpp">
       <Filter>Source Files\External</Filter>
     </ClCompile>
+    <ClCompile Include="Main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Class.h">

@@ -5,71 +5,75 @@
 #define VMAKE(type, ctx, ...) V<type>(ctx->AllocType<type>(__VA_ARGS__))
 #define VMAKEARRAY(type, ctx, i) V<type>(ctx->AllocArray<type>(i))
 
-struct vContext;
+namespace jaether {
 
-struct VCtxIdx {
-	vContext* ctx;
-	size_t index;
-};
+	struct vContext;
 
-template<class A>
-class V {
-	A* _addr = 0;
-public:
-	V() : _addr((A*)~(uintptr_t)0) {}
-	V(A* addr) : _addr((A*)((uintptr_t)addr)){ }
+	struct VCtxIdx {
+		vContext* ctx;
+		size_t index;
+	};
 
-	uintptr_t U() const { return (uintptr_t)_addr; }
+	template<class A>
+	class V {
+		A* _addr = 0;
+	public:
+		V() : _addr((A*)~(uintptr_t)0) {}
+		V(A* addr) : _addr((A*)((uintptr_t)addr)) { }
 
-	static V<A> NullPtr() {
-		return V<A>();
-	}
+		uintptr_t U() const { return (uintptr_t)_addr; }
 
-	bool Release(vContext* ctx, bool arr = false) {
-		if (!IsValid()) return false;
-		ctx->FreeType<A>(Real(ctx), arr);
-		_addr = (A*)~(uintptr_t)0;
-		return true;
-	}
+		static V<A> NullPtr() {
+			return V<A>();
+		}
 
-	bool IsValid() const {
-		return ~U();
-	}
+		bool Release(vContext* ctx, bool arr = false) {
+			if (!IsValid()) return false;
+			ctx->FreeType<A>(Real(ctx), arr);
+			_addr = (A*)~(uintptr_t)0;
+			return true;
+		}
 
-	A* Real(vContext* ctx) const {
-		return (A*)(((uintptr_t)_addr) + ctx->Offset());
-	}
+		bool IsValid() const {
+			return ~U();
+		}
 
-	A* Ptr(vContext* ctx) const {
-		return Real(ctx);
-	}
+		A* Real(vContext* ctx) const {
+			return (A*)(((uintptr_t)_addr) + ctx->Offset());
+		}
 
-	A* Virtual(vContext* ctx = 0) const {
-		return (A*)((uintptr_t)_addr);
-	}
+		A* Ptr(vContext* ctx) const {
+			return Real(ctx);
+		}
 
-	/*A* operator->() const {
-		return Real();
-	}
+		A* Virtual(vContext* ctx = 0) const {
+			return (A*)((uintptr_t)_addr);
+		}
 
-	A& operator*() const {
-		return *Real();
-	}*/
+		/*A* operator->() const {
+			return Real();
+		}
 
-	V<A> operator+(const size_t index) const {
-		return V<A>(Virtual() + index);
-	}
+		A& operator*() const {
+			return *Real();
+		}*/
 
-	V<A>& operator+=(const size_t index) {
-		_addr += index;
-		return *this;
-	}
+		V<A> operator+(const size_t index) const {
+			return V<A>(Virtual() + index);
+		}
 
-	A& operator[](const VCtxIdx& index) const {
-		return Real(index.ctx)[index.index];
-	}
+		V<A>& operator+=(const size_t index) {
+			_addr += index;
+			return *this;
+		}
 
-	operator bool() const {
-		return IsValid();
-	}
-};
+		A& operator[](const VCtxIdx& index) const {
+			return Real(index.ctx)[index.index];
+		}
+
+		operator bool() const {
+			return IsValid();
+		}
+	};
+
+}
