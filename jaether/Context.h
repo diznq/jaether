@@ -40,9 +40,7 @@ namespace jaether {
 		void OnInstruction();
 		void GetSignature(unsigned char* buffer);
 
-		uintptr_t Offset() const {
-			return (uintptr_t)_alloc->GetBase();
-		}
+		uintptr_t Offset() const;
 
 		Allocator* GetAllocator() const {
 			return _alloc;

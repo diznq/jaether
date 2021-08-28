@@ -24,12 +24,18 @@ namespace jaether {
 	enum vClassTag {
 		vCT_UTF8 = 1,
 		vCT_INT = 3,
+		vCT_FLOAT = 4,
+		vCT_LONG = 5,
 		vCT_DOUBLE = 6,
 		vCT_CLASS = 7,
 		vCT_STRING = 8,
 		vCT_FIELDREF = 9,
 		vCT_METHODREF = 10,
-		vCT_NAMEANDTYPE = 12
+		vCT_IFACEMETHODREF = 11,
+		vCT_NAMEANDTYPE = 12,
+		vCT_METHODHANDLE = 15,
+		vCT_METHODTYPE = 16,
+		vCT_INVOKEDYNAMIC = 18
 	};
 
 	struct vREF {
@@ -73,6 +79,20 @@ namespace jaether {
 
 	struct vCONST {
 		vREF ref;
+	};
+
+	struct vINVOKEDYNAMIC {
+		vUSHORT bootstrapMethodAttrIndex;
+		vUSHORT nameIndex;
+	};
+
+	struct vMETHODHANDLE {
+		vBYTE kind;
+		vUSHORT index;
+	};
+
+	struct vMETHODTYPE {
+		vUSHORT descIndex;
 	};
 
 	namespace vTypes {
@@ -134,6 +154,18 @@ namespace jaether {
 		template<> static vBYTE type<vOBJECTREF>() {
 			return 15;
 		}
+		template<> static vBYTE type<vARRAYREF>() {
+			return 15;
+		}
+		template<> static vBYTE type<vMETHODHANDLE>() {
+			return 16;
+		}
+		template<> static vBYTE type<vINVOKEDYNAMIC>() {
+			return 17;
+		}
+		template<> static vBYTE type<vMETHODTYPE>() {
+			return 18;
+		}
 	}
 
 	struct vCOMMON {
@@ -155,6 +187,9 @@ namespace jaether {
 			vMETHODREF mr;
 			vNAMEANDTYPE nt;
 			vOBJECTREF objref;
+			vINVOKEDYNAMIC idyn;
+			vMETHODHANDLE mh;
+			vMETHODTYPE mt;
 			double d;
 			float f;
 		};

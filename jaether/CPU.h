@@ -26,8 +26,10 @@ namespace jaether {
 	public:
 		vCPU();
 
-		V<vClass> load(vContext* ctx, const std::string& s, const std::string& parent = "");
+		V<vClass> load(vContext* ctx, const std::string& path);
 		void addNative(const std::string& path, const std::string& desc, const vNATIVE& native);
+
+		std::map<std::string, V<vClass>>::iterator lazyLoad(vContext* ctx, const std::string& path);
 
 		bool active() const;
 

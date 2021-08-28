@@ -39,4 +39,12 @@ namespace jaether {
 		sha256_final(sha, out);
 	}
 
+	uintptr_t vContext::Offset() const {
+#ifdef _DEBUG
+		return (uintptr_t)_alloc->GetBase();
+#else
+		return (uintptr_t)_alloc->GetBase();
+#endif
+	}
+
 }

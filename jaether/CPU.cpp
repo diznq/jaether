@@ -1,5 +1,6 @@
 #include "CPU.h"
 #include <chrono>
+#include <filesystem>
 
 namespace jaether {
 
@@ -7,12 +8,23 @@ namespace jaether {
 		// ...
 	}
 
-	V<vClass> vCPU::load(vContext* ctx, const std::string& s, const std::string& parent) {
-		auto it = _classes.find(s);
+	V<vClass> vCPU::load(vContext* ctx, const std::string& path) {
+		auto it = _classes.find(path);
 		if (it != _classes.end()) return it->second;
-		V<vClass> cls = VMAKE(vClass, ctx, ctx, (parent + s + ".class").c_str());
+		if (!std::filesystem::exists(path + ".class")) {
+			return V<vClass>::NullPtr();
+		}
+		V<vClass> cls = VMAKE(vClass, ctx, ctx, (path + ".class").c_str());
 		_classes[cls.Ptr(ctx)->getName(ctx)] = cls;
 		return cls;
+	}
+
+	std::map<std::string, V<vClass>>::iterator vCPU::lazyLoad(vContext* ctx, const std::string& path) {
+		auto it = _classes.find(path);
+		if (it != _classes.end()) return it;
+		load(ctx, path);
+		it = _classes.find(path);
+		return it;
 	}
 
 	bool vCPU::active() const {
@@ -41,9 +53,15 @@ namespace jaether {
 		while (_running) {
 			vBYTE* ip = _frame->fetch(ctx);
 			vBYTE& opcode = *ip; ops++;
+			// printf("Execute %s (%d)\n", Opcodes[opcode], opcode);
 			switch (opcode) {
 			case nop:
 				fwd = 0; break;
+			case 253:
+				// pass
+				fwd = 0;
+				_running = false;
+				break;
 			case iconst_0:
 				_stack->push<vINT>(ctx, 0);
 				fwd = 0; break;
@@ -683,15 +701,37 @@ namespace jaether {
 			}
 
 			case ldc:
-				op[0].b = read<vBYTE>(ip + 1);
-				_stack->push<vCOMMON>(ctx, _constPool->get<vCOMMON>(ctx, (size_t)op[0].b));
-				fwd = 1; break;
 			case ldc_w:
-			case ldc2_w:
-				op[0].usi = readUSI(ip + 1);
-				_stack->push<vCOMMON>(ctx, _constPool->get<vCOMMON>(ctx, (size_t)op[0].usi));
-				fwd = 2; break;
-
+			{
+				op[0].usi = opcode != ldc ? readUSI(ip + 1) : (vUSHORT)read<vBYTE>(ip + 1);
+				op[1] = _constPool->get<vCOMMON>(ctx, (size_t)op[0].usi);
+				if (op[1].type == vTypes::type<vSTRING>()) {
+					V<vUTF8BODY> str = _class->toString(ctx, op[1].str.strIndex);
+					vUINT size = (vUINT)str.Ptr(ctx)->len;
+					V<vNATIVEARRAY> arr = VMAKE(vNATIVEARRAY, ctx, ctx, 5, size + 1); // 5 = JCHAR
+					const char* src = (const char*)str.Ptr(ctx)->s.Ptr(ctx);
+					wchar_t* dest = (wchar_t*)arr.Ptr(ctx)->data.Ptr(ctx);
+					for (vUINT K = 0; K < size; K++) {
+						dest[K] = (char)src[K];
+					}
+					dest[size] = 0;
+					vOBJECTREF wchRef; wchRef.r.a = (uintptr_t)arr.Virtual(ctx);
+					auto it = lazyLoad(ctx, "java/lang/String");
+					if (it != _classes.end()) {
+						V<vClass> strCls = it->second;
+						V<vOBJECT> strObj = VMAKE(vOBJECT, ctx, ctx, strCls);
+						vOBJECTREF ref; ref.r.a = (vULONG)strObj.Virtual(ctx);
+						_stack->push<vOBJECTREF>(ctx, ref);
+						_stack->push<vOBJECTREF>(ctx, wchRef);
+						_constPool->set<vOBJECTREF>(ctx, (size_t)op[0].b, ref);
+						auto [ok, result] = strCls.Ptr(ctx)->invoke(ctx, strCls, this, _stack, invokespecial, "<init>", "([C)V");
+						_stack->push<vOBJECTREF>(ctx, ref);
+					}
+				} else {
+					_stack->push<vCOMMON>(ctx, op[1]);
+				}
+				fwd = opcode != ldc ? 2 : 1; break;
+			}
 			case iinc:
 				op[0].b = read<vBYTE>(ip + 1);
 				op[1].b = read<vBYTE>(ip + 2);
@@ -846,6 +886,13 @@ namespace jaether {
 				_running = false;
 				fwd = 0; break;
 
+			case invokedynamic:
+				op[0].usi = readUSI(ip + 1);
+				op[1].mh = _constPool->get<vMETHODHANDLE>(ctx, (size_t)op[0].usi);
+				op[2] = _constPool->get<vCOMMON>(ctx, (size_t)op[1].mh.index);
+				printf("kind: %d, index: %d\n", op[1].mh.kind, op[1].mh.index);
+				printf("type: %d: %s\n", op[2].type, _class->toString(ctx, op[2].nt.nameIndex).Ptr(ctx)->s.Ptr(ctx));
+				fwd = 4;  break;
 			case invokevirtual:
 			case invokestatic:
 			case invokespecial:
@@ -862,10 +909,11 @@ namespace jaether {
 					nit->second(ctx, path, this, _stack, opcode);
 					found = true;
 				} else {
-					auto it = _classes.find(path);
+					auto it = lazyLoad(ctx, path);
 					if (it != _classes.end()) {
 						V<vClass> cls = it->second;
 						vClass* clsPtr = cls.Ptr(ctx);
+						// printf("<%s> %s.%s\n", Opcodes[opcode], (methodName + desc).c_str(), path.c_str());
 						auto [methodFound, ret] = clsPtr->invoke(ctx, cls, this, _stack, opcode, methodName, desc);
 						found = methodFound;
 					}
@@ -881,7 +929,7 @@ namespace jaether {
 				op[0].usi = readUSI(ip + 1);
 				op[1].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
 				std::string path = std::string((const char*)_class->toString(ctx, op[1].mr.clsIndex).Ptr(ctx)->s.Real(ctx));
-				auto it = _classes.find(path);
+				auto it = lazyLoad(ctx, path);
 				bool found = false;
 				if (it != _classes.end()) {
 					V<vClass> cls = it->second;
@@ -902,7 +950,7 @@ namespace jaether {
 				op[3].mr = _constPool->get<vMETHODREF>(ctx, op[0].usi);
 				std::string path = std::string((const char*)_class->toString(ctx, op[3].mr.clsIndex).Ptr(ctx)->s.Real(ctx));
 				std::string field = std::string((const char*)_class->toString(ctx, op[3].mr.nameIndex).Ptr(ctx)->s.Real(ctx));
-				auto it = _classes.find(path);
+				auto it = lazyLoad(ctx, path);
 				bool found = false;
 				if (it != _classes.end()) {
 					V<vClass> cls = it->second;
@@ -930,7 +978,7 @@ namespace jaether {
 				op[3].mr = _constPool->get<vMETHODREF>(ctx, op[0].usi);
 				std::string path = std::string((const char*)_class->toString(ctx, op[3].mr.clsIndex).Ptr(ctx)->s.Real(ctx));
 				std::string field = std::string((const char*)_class->toString(ctx, op[3].mr.nameIndex).Ptr(ctx)->s.Real(ctx));
-				auto it = _classes.find(path);
+				auto it = lazyLoad(ctx, path);
 				bool found = false;
 				if (it != _classes.end()) {
 					V<vClass> cls = it->second;
@@ -956,13 +1004,17 @@ namespace jaether {
 				op[1].objref = _stack->pop<vOBJECTREF>(ctx);
 				op[3].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
 				V<vOBJECT> obj((vOBJECT*)op[1].objref.r.a);
-				vUSHORT fieldIdx = obj.Ptr(ctx)->cls.Ptr(ctx)->_fieldLookup[VCtxIdx{ ctx, (size_t)op[3].mr.nameIndex }];
+				V<vClass> cls = obj.Ptr(ctx)->cls; vClass* pcls = cls.Ptr(ctx);
+				vUSHORT* plookup = pcls->_fieldLookup.Ptr(ctx);
+				vUSHORT fieldval = plookup[11];
+				vUSHORT fieldIdx = cls.Ptr(ctx)->_fieldLookup[VCtxIdx{ ctx, (size_t)op[3].mr.nameIndex }];
 				bool found = fieldIdx != 0xFFFF;
 				if (found) {
 					_stack->push<vCOMMON>(ctx, obj.Ptr(ctx)->fields[VCtxIdx{ ctx, (size_t)fieldIdx }]);
-				}
-				else {
-					fprintf(stderr, "[vCPU::sub_execute/%s] Couldn't find field index %d\n", Opcodes[opcode], op[3].mr.nameIndex);
+				} else {
+					fprintf(stderr, "[vCPU::sub_execute/%s] Couldn't find field index %d (%s)\n", 
+						Opcodes[opcode], op[3].mr.nameIndex,
+						cls.Ptr(ctx)->toString(ctx, op[3].mr.nameIndex).Ptr(ctx)->s.Ptr(ctx));
 					_running = false;
 				}
 				fwd = 2; break;

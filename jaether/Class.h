@@ -46,9 +46,13 @@ namespace jaether {
 		vUSHORT		readUSI(vBYTE* ip) const;
 		vUINT		readUI(vBYTE* ip) const;
 		vDOUBLE		readDouble(vBYTE* ip) const;
+		vFLOAT		readFloat(vBYTE* ip) const;
+		vULONG		readLong(vBYTE* ip) const;
 		vUSHORT		readUSI(std::ifstream& stream) const;
 		vUINT		readUI(std::ifstream& stream) const;
 		vDOUBLE		readDouble(std::ifstream& stream) const;
+		vFLOAT		readFloat(std::ifstream& stream) const;
+		vULONG		readLong(std::ifstream& stream) const;
 		void		readAttribute(vContext* ctx, std::ifstream& f, vATTRIBUTE& attr);
 		void		readField(vContext* ctx, std::ifstream& f, vFIELD& field);
 		vATTRIBUTE* getAttribute(vContext* ctx, const vFIELD* field, const char* name);

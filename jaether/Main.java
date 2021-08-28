@@ -27,24 +27,28 @@ class Main {
     }
 
     public static void main(String[] args){
+        System.out.println("Ahoj".substring(1));
         long start = System.currentTimeMillis();
         Main instance = Main.getInstance();
+        
         int s = 0;
         int k = 0;
-        int[] results = new int[10000];
-        for(int j=0; j<100; j++){
-            for(int i=0; i<100; i++, k++){
-                results[k] = instance.fuc(10 + i);
+        int[] results = new int[50];
+        for(int j=0; j<5; j++){
+            for(int i=0; i<10; i++, k++){
+                results[k] = instance.fuc(5);
             }
         }
         for(int i=0; i<results.length; i++){
             s += results[i];
         }
+        
+        System.out.println(s);
+        
         long time = System.currentTimeMillis() - start;
         //for(int i=0; i<results.length; i++){
         //    System.out.println(results[i]);
         //}
         System.out.println(time);
-        System.out.println(s);
     }
 }

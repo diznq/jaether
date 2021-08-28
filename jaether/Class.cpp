@@ -11,6 +11,7 @@ namespace jaether {
 			vUSHORT minor = readUSI(f), major = readUSI(f);
 			vUSHORT consts = readUSI(f);
 			vCOMMON ops[8];
+			printf("Loading class %s, ver: %d.%d, magic: %08X, constants: %d\n", name, major, minor, magic, consts);
 			_constPool = VMAKE(vMemory, ctx, ctx, (size_t)consts);
 			_fieldLookup = VMAKEARRAY(vUSHORT, ctx, (size_t)consts);
 			memset(_fieldLookup.Real(ctx), 0xFF, consts * sizeof(vUSHORT));
@@ -25,7 +26,7 @@ namespace jaether {
 					str.Ptr(ctx)->len = ops[0].usi;
 					str.Ptr(ctx)->s = VMAKEARRAY(vBYTE, ctx, (size_t)str.Ptr(ctx)->len + 1);
 					memset(str.Ptr(ctx)->s.Real(ctx), 0, (size_t)str.Ptr(ctx)->len + 1);
-					for (vUSHORT i = 0; i < ops[0].usi; i++) str.Ptr(ctx)->s[VCtxIdx{ ctx, i }] = (vBYTE)f.get();
+					for (vUSHORT k = 0; k < ops[0].usi; k++) str.Ptr(ctx)->s[VCtxIdx{ ctx, k }] = (vBYTE)f.get();
 					vUTF8 wrap;
 					wrap.r.a = (vULONG)str.Virtual(ctx);
 					_constPool.Ptr(ctx)->set<vUTF8>(ctx, i, wrap);
@@ -40,6 +41,7 @@ namespace jaether {
 					_constPool.Ptr(ctx)->set<vCLASS>(ctx, i, ops[0].cls);
 					break;
 				case vCT_METHODREF:
+				case vCT_IFACEMETHODREF:
 				case vCT_FIELDREF:
 					ops[0].mr.clsIndex = readUSI(f);
 					ops[0].mr.nameIndex = readUSI(f);
@@ -50,17 +52,40 @@ namespace jaether {
 					ops[0].nt.descIndex = readUSI(f);
 					_constPool.Ptr(ctx)->set<vNAMEANDTYPE>(ctx, i, ops[0].nt);
 					break;
+				case vCT_METHODTYPE:
+					ops[0].mt.descIndex = readUSI(f);
+					_constPool.Ptr(ctx)->set<vMETHODTYPE>(ctx, i, ops[0].mt);
+					break;
 				case vCT_INT:
 					_constPool.Ptr(ctx)->set<vUINT>(ctx, i, readUI(f));
 					break;
+				case vCT_FLOAT:
+					_constPool.Ptr(ctx)->set<vFLOAT>(ctx, i, readFloat(f));
+					break;
+				case vCT_LONG:
+					_constPool.Ptr(ctx)->set<vULONG>(ctx, i, readLong(f));
+					i++;
+					break;
 				case vCT_DOUBLE:
 					_constPool.Ptr(ctx)->set<vDOUBLE>(ctx, i, readDouble(f));
+					i++;
+					break;
+				case vCT_INVOKEDYNAMIC:
+					ops[0].idyn.bootstrapMethodAttrIndex = readUSI(f);
+					ops[0].idyn.nameIndex = readUSI(f);
+					_constPool.Ptr(ctx)->set<vINVOKEDYNAMIC>(ctx, i, ops[0].idyn);
+					break;
+				case vCT_METHODHANDLE:
+					ops[0].mh.kind = (vBYTE)f.get();
+					ops[0].mh.index = readUSI(f);
+					_constPool.Ptr(ctx)->set<vMETHODHANDLE>(ctx, i, ops[0].mh);
 					break;
 				default:
 					fprintf(stderr, "[vClass::ctor] Unhandled tag type: %d\n", type);
 					break;
 				}
 			}
+
 			// Parse class info
 			_accessFlags = readUSI(f);
 			_name = readUSI(f);
@@ -101,6 +126,12 @@ namespace jaether {
 								(const char*)toString(ctx, item.mr.nameIndex).Ptr(ctx)->s.Real(ctx)
 							)
 							) {
+							/*printf(
+								"Field %d (%s) is at index: %d\n", 
+								item.mr.nameIndex,
+								(const char*)toString(ctx, _fields[VCtxIdx{ ctx, (size_t)i }].name).Ptr(ctx)->s.Real(ctx),
+								i
+							);*/
 							_fieldLookup[VCtxIdx{ ctx, (size_t)item.mr.nameIndex }] = i;
 							break;
 						}
@@ -162,6 +193,22 @@ namespace jaether {
 		return *(vDOUBLE*)mirror;
 	}
 
+	vFLOAT vClass::readFloat(vBYTE* ip) const {
+		vBYTE mirror[4];
+		for (int i = 0; i < 4; i++) {
+			mirror[3 - i] = ip[i];
+		}
+		return *(vFLOAT*)mirror;
+	}
+
+	vULONG vClass::readLong(vBYTE* ip) const {
+		vBYTE mirror[8];
+		for (int i = 0; i < 8; i++) {
+			mirror[7 - i] = ip[i];
+		}
+		return *(vLONG*)mirror;
+	}
+
 	vUSHORT vClass::readUSI(std::ifstream& stream) const {
 		vBYTE buff[2];
 		stream.read((char*)buff, 2);
@@ -178,6 +225,19 @@ namespace jaether {
 		vBYTE buff[8];
 		stream.read((char*)buff, 8);
 		return readDouble(buff);
+	}
+
+	vFLOAT vClass::readFloat(std::ifstream& stream) const {
+		vBYTE buff[4];
+		stream.read((char*)buff, 4);
+		return readFloat(buff);
+	}
+
+	vULONG vClass::readLong(std::ifstream& stream) const {
+		vBYTE buff[8];
+		stream.read((char*)buff, 8);
+		vULONG lng = readLong(buff);
+		return lng;
 	}
 
 	void vClass::readAttribute(vContext* ctx, std::ifstream& f, vATTRIBUTE& attr) {
@@ -271,6 +331,10 @@ namespace jaether {
 		bool className = false;
 		while (*str != ')') {
 			char c = *str;
+			if (c == '[') {
+				str++;
+				continue;
+			}
 			if (c != '(') {
 				if (!className && c == 'L') {
 					className = true;
@@ -305,7 +369,10 @@ namespace jaether {
 				if (opcode == invokestatic) j--;
 				nFrame.Ptr(ctx)->_local.Ptr(ctx)->set<vCOMMON>(ctx, (size_t)j, _stack->pop<vCOMMON>(ctx));
 			}
-			if (opcode != invokestatic) nFrame.Ptr(ctx)->_local.Ptr(ctx)->set<vCOMMON>(ctx, 0, _stack->pop<vCOMMON>(ctx));
+			if (opcode != invokestatic) 
+				nFrame.Ptr(ctx)
+					->_local.Ptr(ctx)
+					->set<vCOMMON>(ctx, 0, _stack->pop<vCOMMON>(ctx));
 			cpu->run(ctx, nFrame);
 			vCOMMON subret;
 			memset(&subret, 0, sizeof(subret));
