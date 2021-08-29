@@ -319,6 +319,7 @@ namespace jaether {
 		if (!method) return V<vBYTE>::NullPtr();
 		vATTRIBUTE* attrib = getAttribute(ctx, method, "Code");
 		if (!attrib) return V<vBYTE>::NullPtr();
+		if (attrib->length == 0) return V<vBYTE>::NullPtr();
 		return attrib->info + (size_t)8;
 	}
 

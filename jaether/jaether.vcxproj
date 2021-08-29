@@ -145,6 +145,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Allocator.cpp" />
     <ClCompile Include="Class.cpp" />
     <ClCompile Include="Context.cpp" />
     <ClCompile Include="CPU.cpp" />

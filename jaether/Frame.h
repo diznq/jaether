@@ -28,6 +28,9 @@ namespace jaether {
 			_pc = 0;
 			_class = classFile;
 			_program = classFile.Ptr(ctx)->getCode(ctx, method);
+			if (!_program.IsValid()) {
+				fprintf(stderr, "Method %s/%s has no code\n", classFile.Ptr(ctx)->getName(ctx), classFile.Ptr(ctx)->toString(ctx, method->name).Ptr(ctx)->s.Ptr(ctx));
+			}
 			V<vUTF8BODY> desc = classFile.Ptr(ctx)->toString(ctx, method->desc);
 			_returns = false;
 			if (desc.IsValid()) {

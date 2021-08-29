@@ -28,6 +28,7 @@ namespace jaether {
 
 		V<vClass> load(vContext* ctx, const std::string& path);
 		void addNative(const std::string& path, const std::string& desc, const vNATIVE& native);
+		void registerNatives();
 
 		std::map<std::string, V<vClass>>::iterator lazyLoad(vContext* ctx, const std::string& path);
 

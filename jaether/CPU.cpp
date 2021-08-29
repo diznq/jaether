@@ -6,6 +6,7 @@ namespace jaether {
 
 	vCPU::vCPU() {
 		// ...
+		registerNatives();
 	}
 
 	V<vClass> vCPU::load(vContext* ctx, const std::string& path) {
@@ -36,6 +37,73 @@ namespace jaether {
 		_natives[path + ":" + desc] = native;
 	}
 
+	void vCPU::registerNatives() {
+		addNative("java/lang/Object/<init>", "()V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+		});
+
+		addNative("java/io/PrintStream/println", "(I)V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vINT arg = stack->pop<vINT>(ctx);
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			printf("%d\n", arg);
+		});
+
+
+		addNative("java/io/PrintStream/println", "(J)V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vLONG arg = stack->pop<vLONG>(ctx);
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			printf("%lld\n", arg);
+		});
+
+		addNative("java/lang/System/arraycopy", "(Ljava/lang/Object;ILjava/lang/Object;II)V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vINT len = stack->pop<vINT>(ctx);
+			vINT dstPos = stack->pop<vINT>(ctx);
+			vOBJECTREF dst = stack->pop<vOBJECTREF>(ctx);
+			vINT srcPos = stack->pop<vINT>(ctx);
+			vOBJECTREF src = stack->pop<vOBJECTREF>(ctx);
+
+			V<vNATIVEARRAY> srcArr((vNATIVEARRAY*)src.r.a);
+			V<vNATIVEARRAY> dstArr((vNATIVEARRAY*)dst.r.a);
+
+			auto unit = srcArr.Ptr(ctx)->unitSize(srcArr.Ptr(ctx)->type);
+			vBYTE* pSrc = srcArr.Ptr(ctx)->data.Ptr(ctx);
+			vBYTE* pDst = dstArr.Ptr(ctx)->data.Ptr(ctx);
+
+			memmove(pDst + (size_t)dstPos * unit, pSrc + (size_t)srcPos * unit, (size_t)len * unit);
+
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+		});
+
+		addNative("java/lang/System/registerNatives", "()V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+		});
+
+		addNative("java/io/PrintStream/println", "(Ljava/lang/String;)V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vOBJECTREF arg = stack->pop<vOBJECTREF>(ctx);
+			V<vOBJECT> vobj((vOBJECT*)arg.r.a);
+			vOBJECT* obj = vobj.Ptr(ctx);
+			vClass* klass = obj->cls.Ptr(ctx);
+			vCOMMON value = obj->fields[VCtxIdx{ ctx, 0 }];
+			V<vNATIVEARRAY> varr((vNATIVEARRAY*)value.a.a);
+			vNATIVEARRAY* arr = varr.Ptr(ctx);
+			vJCHAR* data = (vJCHAR*)arr->data.Ptr(ctx);
+			char* cdata = (char*)data;
+			fwrite(cdata, 1, arr->size, stdout);
+			fputc('\n', stdout);
+			fflush(stdout);
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+		});
+
+		addNative("java/lang/System/currentTimeMillis", "()J", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+				std::chrono::system_clock::now().time_since_epoch()
+				);
+			vLONG millis = (vLONG)ms.count();
+			stack->push<vLONG>(ctx, ctx->Ops() / 50000);
+		});
+	}
+
 	std::chrono::steady_clock::time_point vCPU::getTime() const {
 		return std::chrono::high_resolution_clock::now();
 	}
@@ -49,6 +117,9 @@ namespace jaether {
 		vCOMMON op[8];
 		size_t ops = 0;
 		size_t fwd = 0;
+		if (!_frame->_program.IsValid()) {
+			return 0;
+		}
 		_running = true;
 		while (_running) {
 			vBYTE* ip = _frame->fetch(ctx);
