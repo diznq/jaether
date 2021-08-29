@@ -3,8 +3,11 @@
 using namespace jaether;
 
 int main(int argc, const char** argv) {
+#ifdef _WIN32
+	system("@chcp 65001>nul");
+#endif
 
-	const char* ClsPath = "Main";
+	const char* ClsPath = "example/Main";
 	const char* MethodPath = "main";
 	bool SecureContext = false;
 

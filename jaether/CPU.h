@@ -37,6 +37,9 @@ namespace jaether {
 		size_t run(vContext* ctx, const V<vFrame>& frame);
 		std::chrono::steady_clock::time_point getTime() const;
 
+		vOBJECTREF createString(vContext* ctx, vClass* _class, vStack* _stack, vMemory* _constPool, vUSHORT strIndex, vUSHORT* backref);
+		vOBJECTREF createString(vContext* ctx, vStack* _stack, const std::wstring& text, vMemory* _constPool = 0, vUSHORT* backref = 0);
+
 		template<class T> T read(vBYTE* ip) const {
 			return *(T*)ip;
 		}

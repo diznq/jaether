@@ -2,6 +2,12 @@
 #include "ObjectHelper.h"
 #include <chrono>
 #include <filesystem>
+#include <codecvt>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#endif
 
 namespace jaether {
 
@@ -82,16 +88,32 @@ namespace jaether {
 		addNative("java/io/PrintStream/println", "(Ljava/lang/String;)V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			vOBJECTREF arg = stack->pop<vOBJECTREF>(ctx);
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-
 			JObject obj(ctx, arg);
+			vBYTE coder = 1;	// 1 = UTF16, 0 = LATIN1
+			try {
+				coder = obj["coder"].b;
+			} catch (FieldNotFoundException&) {
+				//...
+			}
 			try {
 				vCOMMON& value = obj["value"];
-
-				JArray<char> jArr(ctx, value);
-				fwrite(jArr.data(), 1, jArr.length(), stdout);
+				JArray<char> arr(ctx, value);
+				if (coder == 0) {	// LATIN1
+					fwrite(arr.data(), 1, arr.length(), stdout);
+				} else {			// UTF16
+#ifdef _WIN32
+					int size = WideCharToMultiByte(CP_UTF8, 0, (wchar_t*)arr.data(), -1, NULL, 0, NULL, NULL);
+					char* buffer = new char[size];
+					WideCharToMultiByte(CP_UTF8, 0, (wchar_t*)arr.data(), -1, buffer, size, NULL, NULL);
+					printf("%s", buffer);
+					delete[] buffer;
+#else
+					fwrite(arr.data(), 1, arr.length(), stdout);
+#endif
+				}
 				fputc('\n', stdout);
 				fflush(stdout);
-			} catch (std::exception& ex) {
+			} catch (FieldNotFoundException&) {
 				fprintf(stderr, "String at %p has no value!\n", obj.Ptr());
 				return;
 			}
@@ -109,6 +131,59 @@ namespace jaether {
 
 	std::chrono::steady_clock::time_point vCPU::getTime() const {
 		return std::chrono::high_resolution_clock::now();
+	}
+
+	vOBJECTREF vCPU::createString(vContext* ctx, vClass* _class, vStack* _stack, vMemory* _constPool, vUSHORT strIndex, vUSHORT* backref) {
+		V<vUTF8BODY> str = _class->toString(ctx, strIndex);
+		vUINT size = (vUINT)str.Ptr(ctx)->len;
+		size_t utf16len = 0;
+		const vBYTE* src = (const vBYTE*)str.Ptr(ctx)->s.Ptr(ctx);
+		wchar_t* arr = new wchar_t[(size_t)size + 1];
+		memset(arr, 0, sizeof(wchar_t) * ((size_t)size + 1));
+		for (vUINT i = 0; i < size; i++) {
+			vBYTE b = src[i] & 255;
+			if (b >= 1 && b <= 0x7F) {	// 1 byte
+				arr[utf16len++] = (b << 8);	// fix endian
+			} else if ((b & 0xE0) == 0xC0) { // 2 bytes
+				vUSHORT x = (vUSHORT)src[i++] & 255;
+				vUSHORT y = (vUSHORT)src[i] & 255;
+				vUSHORT R = (vUSHORT)(((x & 0x1f) << 6) | (y & 0x3f));
+				arr[utf16len++] = (wchar_t)((R >> 8) | (R << 8));	// fix endian
+			} else if ((b & 0xE0) == 0xE0) { // 3 bytes
+				vUSHORT x = (vUSHORT)src[i++] & 255;
+				vUSHORT y = (vUSHORT)src[i++] & 255;
+				vUSHORT z = (vUSHORT)src[i] & 255;
+				vUSHORT R = (vUSHORT)(((x & 0xf) << 12) | ((y & 0x3f) << 6) | (z & 0x3f));
+				arr[utf16len++] = (wchar_t)((R >> 8) | (R << 8));	// fix endian
+			}
+		}
+		std::wstring utf16Str(arr, arr + utf16len);
+		delete[] arr;
+		return createString(ctx, _stack, utf16Str, _constPool, backref);
+	}
+
+	vOBJECTREF vCPU::createString(vContext* ctx, vStack* _stack, const std::wstring& text, vMemory* _constPool, vUSHORT* backref) {
+		V<vNATIVEARRAY> arr = VMAKE(vNATIVEARRAY, ctx, ctx, 5, (vUINT)(text.length())); // 5 = JCHAR
+		for (size_t i = 0, j = text.length(); i < j; i++) {
+			arr.Ptr(ctx)->set<vJCHAR>(ctx, i, text[i]);
+		}
+		vOBJECTREF wchRef; wchRef.r.a = (uintptr_t)arr.Virtual(ctx);
+		auto it = lazyLoad(ctx, "java/lang/String");
+		if (it != _classes.end()) {
+			V<vClass> strCls = it->second;
+			V<vOBJECT> strObj = VMAKE(vOBJECT, ctx, ctx, strCls);
+			vOBJECTREF ref; ref.r.a = (vULONG)strObj.Virtual(ctx);
+			_stack->push<vOBJECTREF>(ctx, ref);
+			_stack->push<vOBJECTREF>(ctx, wchRef);
+			if (_constPool && backref) {
+				_constPool->set<vOBJECTREF>(ctx, (size_t)*backref, ref);
+			}
+			auto [ok, result] = strCls.Ptr(ctx)->invoke(ctx, strCls, this, _stack, invokespecial, "<init>", "([C)V");
+			return ref;
+		} else {
+			vOBJECTREF objr; objr.r.a = (vULONG)V<vOBJECT>::NullPtr().Virtual(ctx);
+			return objr;
+		}
 	}
 
 	size_t vCPU::run(vContext* ctx, const V<vFrame>& frame) {
@@ -780,27 +855,7 @@ namespace jaether {
 				op[0].usi = opcode != ldc ? readUSI(ip + 1) : (vUSHORT)read<vBYTE>(ip + 1);
 				op[1] = _constPool->get<vCOMMON>(ctx, (size_t)op[0].usi);
 				if (op[1].type == vTypes::type<vSTRING>()) {
-					V<vUTF8BODY> str = _class->toString(ctx, op[1].str.strIndex);
-					vUINT size = (vUINT)str.Ptr(ctx)->len;
-					V<vNATIVEARRAY> arr = VMAKE(vNATIVEARRAY, ctx, ctx, 5, size + 1); // 5 = JCHAR
-					const char* src = (const char*)str.Ptr(ctx)->s.Ptr(ctx);
-					wchar_t* dest = (wchar_t*)arr.Ptr(ctx)->data.Ptr(ctx);
-					for (vUINT K = 0; K < size; K++) {
-						dest[K] = (char)src[K];
-					}
-					dest[size] = 0;
-					vOBJECTREF wchRef; wchRef.r.a = (uintptr_t)arr.Virtual(ctx);
-					auto it = lazyLoad(ctx, "java/lang/String");
-					if (it != _classes.end()) {
-						V<vClass> strCls = it->second;
-						V<vOBJECT> strObj = VMAKE(vOBJECT, ctx, ctx, strCls);
-						vOBJECTREF ref; ref.r.a = (vULONG)strObj.Virtual(ctx);
-						_stack->push<vOBJECTREF>(ctx, ref);
-						_stack->push<vOBJECTREF>(ctx, wchRef);
-						_constPool->set<vOBJECTREF>(ctx, (size_t)op[0].b, ref);
-						auto [ok, result] = strCls.Ptr(ctx)->invoke(ctx, strCls, this, _stack, invokespecial, "<init>", "([C)V");
-						_stack->push<vOBJECTREF>(ctx, ref);
-					}
+					_stack->push<vOBJECTREF>(ctx, createString(ctx, _class, _stack, _constPool, op[1].str.strIndex, &op[0].usi));
 				} else {
 					_stack->push<vCOMMON>(ctx, op[1]);
 				}

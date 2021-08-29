@@ -14,43 +14,20 @@ class Main {
         
     }
 
-    public int computation(int n){
-        int J = 0;
-        int L = 10 + n;
-        for(int I=0; I<L; I++){
-            J += I * I;
-        }
-        return J;
-    }
-
     public int fuc(int n){
         if(n<=1) return 1;
         return n + fuc(n - 1);
     }
 
+    public String getString(int n){
+        return String.valueOf(n);
+    }
+
     public static void main(String[] args){
-        System.out.println("Ahoj".substring(1));
-        long start = System.currentTimeMillis();
-        Main instance = Main.getInstance();
-        
-        int s = 0;
-        int k = 0;
-        int[] results = new int[50];
-        for(int j=0; j<5; j++){
-            for(int i=0; i<10; i++, k++){
-                results[k] = instance.fuc(5);
-            }
+        Main main = Main.getInstance();
+        String names[] = new String[]{"Čau",  "핐핑"};
+        for(String name : names){
+            System.out.println(name);
         }
-        for(int i=0; i<results.length; i++){
-            s += results[i];
-        }
-        
-        System.out.println(s);
-        
-        long time = System.currentTimeMillis() - start;
-        //for(int i=0; i<results.length; i++){
-        //    System.out.println(results[i]);
-        //}
-        System.out.println(time);
     }
 }
