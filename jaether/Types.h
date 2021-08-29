@@ -100,70 +100,70 @@ namespace jaether {
 		template<class T> static vBYTE type() {
 			return 0;
 		}
-		template<> static vBYTE type<vBYTE>() {
+		template<> vBYTE type<vBYTE>() {
 			return 1;
 		}
-		template<> static vBYTE type<vSHORT>() {
+		template<> vBYTE type<vSHORT>() {
 			return 2;
 		}
-		template<> static vBYTE type<vUSHORT>() {
+		template<> vBYTE type<vUSHORT>() {
 			return 2;
 		}
-		template<> static vBYTE type<vINT>() {
+		template<> vBYTE type<vINT>() {
 			return 3;
 		}
-		template<> static vBYTE type<vUINT>() {
+		template<> vBYTE type<vUINT>() {
 			return 3;
 		}
-		template<> static vBYTE type<vLONG>() {
+		template<> vBYTE type<vLONG>() {
 			return 4;
 		}
-		template<> static vBYTE type<vULONG>() {
+		template<> vBYTE type<vULONG>() {
 			return 4;
 		}
-		template<> static vBYTE type<vJCHAR>() {
+		template<> vBYTE type<vJCHAR>() {
 			return 5;
 		}
-		template<> static vBYTE type<vFLOAT>() {
+		template<> vBYTE type<vFLOAT>() {
 			return 6;
 		}
-		template<> static vBYTE type<vDOUBLE>() {
+		template<> vBYTE type<vDOUBLE>() {
 			return 7;
 		}
-		template<> static vBYTE type<vREF>() {
+		template<> vBYTE type<vREF>() {
 			return 8;
 		}
-		template<> static vBYTE type<vCONST>() {
+		template<> vBYTE type<vCONST>() {
 			return 9;
 		}
-		template<> static vBYTE type<vUTF8>() {
+		template<> vBYTE type<vUTF8>() {
 			return 10;
 		}
-		template<> static vBYTE type<vMETHODREF>() {
+		template<> vBYTE type<vMETHODREF>() {
 			return 11;
 		}
-		template<> static vBYTE type<vCLASS>() {
+		template<> vBYTE type<vCLASS>() {
 			return 12;
 		}
-		template<> static vBYTE type<vSTRING>() {
+		template<> vBYTE type<vSTRING>() {
 			return 13;
 		}
-		template<> static vBYTE type<vNAMEANDTYPE>() {
+		template<> vBYTE type<vNAMEANDTYPE>() {
 			return 14;
 		}
-		template<> static vBYTE type<vOBJECTREF>() {
+		template<> vBYTE type<vOBJECTREF>() {
 			return 15;
 		}
-		template<> static vBYTE type<vARRAYREF>() {
+		template<> vBYTE type<vARRAYREF>() {
 			return 15;
 		}
-		template<> static vBYTE type<vMETHODHANDLE>() {
+		template<> vBYTE type<vMETHODHANDLE>() {
 			return 16;
 		}
-		template<> static vBYTE type<vINVOKEDYNAMIC>() {
+		template<> vBYTE type<vINVOKEDYNAMIC>() {
 			return 17;
 		}
-		template<> static vBYTE type<vMETHODTYPE>() {
+		template<> vBYTE type<vMETHODTYPE>() {
 			return 18;
 		}
 	}

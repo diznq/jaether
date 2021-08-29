@@ -119,20 +119,28 @@ namespace jaether {
 			for (vUSHORT i = 0; i < consts; i++) {
 				vCOMMON item = _constPool.Ptr(ctx)->get<vCOMMON>(ctx, i);
 				if (item.type == vTypes::type<vMETHODREF>()) {
-					for (vUSHORT i = 0; i < _fieldCount; i++) {
+					bool found = false;
+					for (vUSHORT i = 0; !found && i < _fieldCount; i++) {
 						if (
 							!strcmp(
 								(const char*)toString(ctx, _fields[VCtxIdx{ ctx, (size_t)i }].name).Ptr(ctx)->s.Real(ctx),
 								(const char*)toString(ctx, item.mr.nameIndex).Ptr(ctx)->s.Real(ctx)
 							)
 							) {
-							/*printf(
-								"Field %d (%s) is at index: %d\n", 
-								item.mr.nameIndex,
-								(const char*)toString(ctx, _fields[VCtxIdx{ ctx, (size_t)i }].name).Ptr(ctx)->s.Real(ctx),
-								i
-							);*/
 							_fieldLookup[VCtxIdx{ ctx, (size_t)item.mr.nameIndex }] = i;
+							found = true;
+							break;
+						}
+					}
+					for (vUSHORT i = 0; !found && i < _methodCount; i++) {
+						if (
+							!strcmp(
+								(const char*)toString(ctx, _methods[VCtxIdx{ ctx, (size_t)i }].name).Ptr(ctx)->s.Real(ctx),
+								(const char*)toString(ctx, item.mr.nameIndex).Ptr(ctx)->s.Real(ctx)
+							)
+							) {
+							_fieldLookup[VCtxIdx{ ctx, (size_t)item.mr.nameIndex }] = i;
+							found = true;
 							break;
 						}
 					}
@@ -352,6 +360,30 @@ namespace jaether {
 		}
 		return count;
 	}
+
+	vCOMMON* vClass::getObjField(vContext* ctx, V<vOBJECT> obj, const char* name) {
+		for (vUSHORT i = 0; i < _fieldCount; i++) {
+			if (!strcmp((const char*)toString(ctx, _fields[VCtxIdx{ ctx, (size_t)i }].name).Ptr(ctx)->s.Real(ctx), name)) {
+				return &obj.Ptr(ctx)->fields[VCtxIdx{ ctx, i }];
+			}
+		}
+		return 0;
+	}
+
+	vCOMMON* vClass::getObjField(vContext* ctx, V<vOBJECT> obj, vUSHORT idx) {
+		vUSHORT realIndex = _fieldLookup[VCtxIdx{ ctx, idx }];
+		if (realIndex == 0xFFFF) return 0;
+		return &obj.Ptr(ctx)->fields[VCtxIdx{ ctx, realIndex }];
+	}
+
+	vCOMMON* vClass::getObjField(vContext* ctx, V<vOBJECTREF> objref, const char* name) {
+		return getObjField(ctx, V<vOBJECT>((vOBJECT*)objref.Ptr(ctx)->r.a), name);
+	}
+
+	vCOMMON* vClass::getObjField(vContext* ctx, V<vOBJECTREF> objref, vUSHORT idx) {
+		return getObjField(ctx, V<vOBJECT>((vOBJECT*)objref.Ptr(ctx)->r.a), idx);
+	}
+
 
 	std::tuple<bool, vCOMMON> vClass::invoke(
 		vContext* ctx,

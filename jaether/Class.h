@@ -56,8 +56,12 @@ namespace jaether {
 		void		readAttribute(vContext* ctx, std::ifstream& f, vATTRIBUTE& attr);
 		void		readField(vContext* ctx, std::ifstream& f, vFIELD& field);
 		vATTRIBUTE* getAttribute(vContext* ctx, const vFIELD* field, const char* name);
-		vFIELD* getField(vContext* ctx, const char* name);
-		vMETHOD* getMethod(vContext* ctx, const char* name, const char* desc = 0);
+		vFIELD*		getField(vContext* ctx, const char* name);
+		vMETHOD*	getMethod(vContext* ctx, const char* name, const char* desc = 0);
+		vCOMMON*	getObjField(vContext* ctx, V<vOBJECT> obj, const char* name);
+		vCOMMON*	getObjField(vContext* ctx, V<vOBJECTREF> objref, const char* name);
+		vCOMMON*	getObjField(vContext* ctx, V<vOBJECT> obj, vUSHORT idx);
+		vCOMMON*	getObjField(vContext* ctx, V<vOBJECTREF> objref, vUSHORT idx);
 
 		V<vUTF8BODY> toString(vContext* ctx, vUSHORT index, int selector = 0) const;
 		V<vBYTE>	getCode(vContext* ctx, vMETHOD* method);

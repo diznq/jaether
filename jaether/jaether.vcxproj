@@ -160,6 +160,7 @@
     <ClInclude Include="Context.h" />
     <ClInclude Include="Frame.h" />
     <ClInclude Include="Memory.h" />
+    <ClInclude Include="ObjectHelper.h" />
     <ClInclude Include="Opcodes.h" />
     <ClInclude Include="sha256.h" />
     <ClInclude Include="Stack.h" />

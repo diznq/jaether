@@ -1,4 +1,5 @@
 #include "CPU.h"
+#include "ObjectHelper.h"
 #include <chrono>
 #include <filesystem>
 
@@ -80,18 +81,20 @@ namespace jaether {
 
 		addNative("java/io/PrintStream/println", "(Ljava/lang/String;)V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			vOBJECTREF arg = stack->pop<vOBJECTREF>(ctx);
-			V<vOBJECT> vobj((vOBJECT*)arg.r.a);
-			vOBJECT* obj = vobj.Ptr(ctx);
-			vClass* klass = obj->cls.Ptr(ctx);
-			vCOMMON value = obj->fields[VCtxIdx{ ctx, 0 }];
-			V<vNATIVEARRAY> varr((vNATIVEARRAY*)value.a.a);
-			vNATIVEARRAY* arr = varr.Ptr(ctx);
-			vJCHAR* data = (vJCHAR*)arr->data.Ptr(ctx);
-			char* cdata = (char*)data;
-			fwrite(cdata, 1, arr->size, stdout);
-			fputc('\n', stdout);
-			fflush(stdout);
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+
+			JObject obj(ctx, arg);
+			try {
+				vCOMMON& value = obj["value"];
+
+				JArray<char> jArr(ctx, value);
+				fwrite(jArr.data(), 1, jArr.length(), stdout);
+				fputc('\n', stdout);
+				fflush(stdout);
+			} catch (std::exception& ex) {
+				fprintf(stderr, "String at %p has no value!\n", obj.Ptr());
+				return;
+			}
 		});
 
 		addNative("java/lang/System/currentTimeMillis", "()J", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
@@ -1075,13 +1078,11 @@ namespace jaether {
 				op[1].objref = _stack->pop<vOBJECTREF>(ctx);
 				op[3].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
 				V<vOBJECT> obj((vOBJECT*)op[1].objref.r.a);
-				V<vClass> cls = obj.Ptr(ctx)->cls; vClass* pcls = cls.Ptr(ctx);
-				vUSHORT* plookup = pcls->_fieldLookup.Ptr(ctx);
-				vUSHORT fieldval = plookup[11];
-				vUSHORT fieldIdx = cls.Ptr(ctx)->_fieldLookup[VCtxIdx{ ctx, (size_t)op[3].mr.nameIndex }];
-				bool found = fieldIdx != 0xFFFF;
+				V<vClass> cls = obj.Ptr(ctx)->cls; 
+				vCOMMON* value = cls.Ptr(ctx)->getObjField(ctx, obj, op[3].mr.nameIndex);
+				bool found = value != 0;
 				if (found) {
-					_stack->push<vCOMMON>(ctx, obj.Ptr(ctx)->fields[VCtxIdx{ ctx, (size_t)fieldIdx }]);
+					_stack->push<vCOMMON>(ctx, *value);
 				} else {
 					fprintf(stderr, "[vCPU::sub_execute/%s] Couldn't find field index %d (%s)\n", 
 						Opcodes[opcode], op[3].mr.nameIndex,
@@ -1097,11 +1098,11 @@ namespace jaether {
 				op[1].objref = _stack->pop<vOBJECTREF>(ctx);
 				op[3].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
 				V<vOBJECT> obj((vOBJECT*)op[1].objref.r.a);
-				V<vUTF8BODY> fieldName = obj.Ptr(ctx)->cls.Ptr(ctx)->toString(ctx, op[3].mr.nameIndex);
-				vUSHORT fieldIdx = obj.Ptr(ctx)->cls.Ptr(ctx)->_fieldLookup[VCtxIdx{ ctx, (size_t)op[3].mr.nameIndex }];
-				bool found = fieldIdx != 0xFFFF;
+				V<vClass> cls = obj.Ptr(ctx)->cls;
+				vCOMMON* value = cls.Ptr(ctx)->getObjField(ctx, obj, op[3].mr.nameIndex);
+				bool found = value != 0;
 				if (found) {
-					obj.Ptr(ctx)->fields[VCtxIdx{ ctx, fieldIdx }] = op[2];
+					*value = op[2];
 				}
 				else {
 					fprintf(stderr, "[vCPU::sub_execute/%s] Couldn't find field index %d\n", Opcodes[opcode], op[3].mr.nameIndex);

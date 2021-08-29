@@ -1,3 +1,5 @@
+package example;
+
 class Main {
     public static Main instance = new Main();
 
