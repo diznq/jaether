@@ -1,9 +1,14 @@
 #pragma once
 #include <utility>
 #include <stdint.h>
+#include <map>
+#include <string>
 #include "Allocator.h"
 
+
 namespace jaether {
+
+	class vClass;
 
 	struct vDummy {
 		vDummy(int i) {}
@@ -15,6 +20,7 @@ namespace jaether {
 		void* _hashCtx = 0;
 		size_t _ops = 0;
 		Allocator* _alloc = 0;
+		std::map<std::string, vClass*> _classes;
 	public:
 		vContext(size_t mem = 16 * 1024 * 1024, bool secure = false);
 		~vContext();
@@ -44,6 +50,10 @@ namespace jaether {
 
 		Allocator* GetAllocator() const {
 			return _alloc;
+		}
+
+		std::map<std::string, vClass*>& GetClasses() {
+			return _classes;
 		}
 
 		size_t Ops() const {

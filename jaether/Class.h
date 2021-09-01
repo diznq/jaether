@@ -30,9 +30,11 @@ namespace jaether {
 		vUSHORT _methodCount = 0;
 		vUSHORT _interfaceCount = 0;
 		vUSHORT _attributeCount = 0;
+		vUSHORT _fieldOffset = 0;
+		vUSHORT _methodOffset = 0;
 		vBYTE _initialized = 0;
 
-		vClass(vContext* ctx, const char* name);
+		vClass(vContext* ctx, vCPU* cpu, const char* name);
 		~vClass();
 		void destroy(vContext* ctx);
 
@@ -66,9 +68,11 @@ namespace jaether {
 		V<vUTF8BODY> toString(vContext* ctx, vUSHORT index, int selector = 0) const;
 		V<vBYTE>	getCode(vContext* ctx, vMETHOD* method);
 		vUINT		argsCount(vContext* ctx, vMETHOD* method);
+		vUINT		argsCount(const char* desc);
 		std::tuple<bool, vCOMMON> invoke(
 			vContext* ctx,
 			V<vClass> self,
+			V<vClass> super,
 			vCPU* cpu,
 			vStack* _stack,
 			vBYTE opcode,

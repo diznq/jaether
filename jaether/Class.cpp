@@ -4,7 +4,7 @@
 
 namespace jaether {
 
-	vClass::vClass(vContext* ctx, const char* name) {
+	vClass::vClass(vContext* ctx, vCPU* cpu, const char* name) {
 		std::ifstream f(name, std::ios::binary);
 		if (f) {
 			vUINT magic = readUI(f);
@@ -91,6 +91,25 @@ namespace jaether {
 			_name = readUSI(f);
 			_super = readUSI(f);
 
+			vClass* super = 0;
+
+			if (_super) {
+				auto super_it = cpu->lazyLoad(ctx, getSuperName(ctx));
+				if (super_it != ctx->GetClasses().end())
+				{
+					V<vClass> vsuper = super_it->second;
+					super = vsuper.Ptr(ctx);
+				}
+			}
+
+
+			size_t fieldOffset = 0; // (size_t)(super ? super->_fieldCount : 0);
+			size_t methodOffset = 0; // (size_t)(super ? super->_methodCount : 0);
+			//printf("Field offset: %llu, method offset: %llu\n", fieldOffset, methodOffset);
+
+			_fieldOffset = (vUSHORT)fieldOffset;
+			_methodOffset = (vUSHORT)methodOffset;
+
 			_interfaceCount = readUSI(f);
 			_interfaces = VMAKEARRAY(vUSHORT, ctx, (size_t)_interfaceCount);
 
@@ -99,15 +118,23 @@ namespace jaether {
 			}
 
 			_fieldCount = readUSI(f);
-			_fields = VMAKEARRAY(vFIELD, ctx, (size_t)_fieldCount);
+			_fields = VMAKEARRAY(vFIELD, ctx, (size_t)_fieldCount + fieldOffset);
+
 			for (vUSHORT i = 0; i < _fieldCount; i++) {
 				readField(ctx, f, _fields[VCtxIdx{ ctx, (size_t)i }]);
 			}
+			for (size_t i = _fieldCount; super && i < _fieldCount + fieldOffset; i++) {
+				_fields[VCtxIdx{ ctx, i + (size_t)_fieldCount }] = super->_fields[VCtxIdx{ ctx, i - _fieldCount }];
+			}
 
 			_methodCount = readUSI(f);
-			_methods = VMAKEARRAY(vFIELD, ctx, (size_t)_methodCount);
+			_methods = VMAKEARRAY(vFIELD, ctx, (size_t)_methodCount + methodOffset);
+
 			for (vUSHORT i = 0; i < _methodCount; i++) {
 				readField(ctx, f, _methods[VCtxIdx{ ctx, (size_t)i }]);
+			}
+			for (size_t i = 0; super && i < methodOffset; i++) {
+				_methods[VCtxIdx{ ctx, i + (size_t)_methodCount }] = super->_methods[VCtxIdx{ ctx, i - _methodCount }];
 			}
 
 			_attributeCount = readUSI(f);
@@ -120,22 +147,10 @@ namespace jaether {
 				vCOMMON item = _constPool.Ptr(ctx)->get<vCOMMON>(ctx, i);
 				if (item.type == vTypes::type<vMETHODREF>()) {
 					bool found = false;
-					for (vUSHORT i = 0; !found && i < _fieldCount; i++) {
+					for (vUSHORT i = 0; !found && i < _fieldCount + _fieldOffset; i++) {
 						if (
 							!strcmp(
 								(const char*)toString(ctx, _fields[VCtxIdx{ ctx, (size_t)i }].name).Ptr(ctx)->s.Real(ctx),
-								(const char*)toString(ctx, item.mr.nameIndex).Ptr(ctx)->s.Real(ctx)
-							)
-							) {
-							_fieldLookup[VCtxIdx{ ctx, (size_t)item.mr.nameIndex }] = i;
-							found = true;
-							break;
-						}
-					}
-					for (vUSHORT i = 0; !found && i < _methodCount; i++) {
-						if (
-							!strcmp(
-								(const char*)toString(ctx, _methods[VCtxIdx{ ctx, (size_t)i }].name).Ptr(ctx)->s.Real(ctx),
 								(const char*)toString(ctx, item.mr.nameIndex).Ptr(ctx)->s.Real(ctx)
 							)
 							) {
@@ -336,6 +351,10 @@ namespace jaether {
 		V<vUTF8BODY> desc = toString(ctx, method->desc);
 		if (!desc.IsValid()) return 0;
 		const char* str = (const char*)desc.Ptr(ctx)->s.Real(ctx);
+		return argsCount(str);
+	}
+
+	vUINT vClass::argsCount(const char* str) {
 		vUINT count = 0;
 		bool className = false;
 		while (*str != ')') {
@@ -363,8 +382,17 @@ namespace jaether {
 
 	vCOMMON* vClass::getObjField(vContext* ctx, V<vOBJECT> obj, const char* name) {
 		for (vUSHORT i = 0; i < _fieldCount; i++) {
-			if (!strcmp((const char*)toString(ctx, _fields[VCtxIdx{ ctx, (size_t)i }].name).Ptr(ctx)->s.Real(ctx), name)) {
+			const char* fieldName = (const char*)toString(ctx, _fields[VCtxIdx{ ctx, (size_t)i }].name).Ptr(ctx)->s.Real(ctx);
+			if (!strcmp(fieldName, name)) {
 				return &obj.Ptr(ctx)->fields[VCtxIdx{ ctx, i }];
+			}
+		}
+		if (_super) {
+			auto& _classes = ctx->GetClasses();
+			auto it = _classes.find(getSuperName(ctx));
+			if (it != _classes.end()) {
+				V<vClass> super = it->second;
+				return super.Ptr(ctx)->getObjField(ctx, obj, name);
 			}
 		}
 		return 0;
@@ -372,7 +400,9 @@ namespace jaether {
 
 	vCOMMON* vClass::getObjField(vContext* ctx, V<vOBJECT> obj, vUSHORT idx) {
 		vUSHORT realIndex = _fieldLookup[VCtxIdx{ ctx, idx }];
-		if (realIndex == 0xFFFF) return 0;
+		if (realIndex == 0xFFFF) {
+			return getObjField(ctx, obj, (const char*)toString(ctx, idx).Ptr(ctx)->s.Ptr(ctx));
+		}
 		return &obj.Ptr(ctx)->fields[VCtxIdx{ ctx, realIndex }];
 	}
 
@@ -388,6 +418,7 @@ namespace jaether {
 	std::tuple<bool, vCOMMON> vClass::invoke(
 		vContext* ctx,
 		V<vClass> self,
+		V<vClass> super,
 		vCPU* cpu,
 		vStack* _stack,
 		vBYTE opcode,
@@ -416,6 +447,8 @@ namespace jaether {
 			nFrame.Ptr(ctx)->destroy(ctx);
 			nFrame.Release(ctx);
 			return std::make_tuple(true, subret);
+		} else if(super.IsValid()) {
+			return super.Ptr(ctx)->invoke(ctx, super, V<vClass>::NullPtr(), cpu, _stack, opcode, methodName, desc);
 		}
 		vCOMMON empty;
 		memset(&empty, 0, sizeof(vCOMMON));

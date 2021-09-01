@@ -3,6 +3,7 @@
 #include "Class.h"
 #include "Context.h"
 #include <exception>
+#include <string>
 
 namespace jaether {
 
@@ -14,7 +15,7 @@ namespace jaether {
 	};
 
 	class JObject {
-	private:
+	protected:
 		vContext* _ctx = 0;
 		V<vOBJECT> _obj;
 	public:
@@ -46,12 +47,15 @@ namespace jaether {
 		operator bool() const {
 			return _obj.IsValid();
 		}
+		V<vClass> GetClass() const {
+			return _obj.Ptr(_ctx)->cls;
+		}
 	};
 
 
 	template<class T>
 	class JArray {
-	private:
+	protected:
 		vContext* _ctx = 0;
 		V<vNATIVEARRAY> _obj;
 	public:
@@ -88,5 +92,11 @@ namespace jaether {
 		operator bool() const {
 			return _obj.IsValid();
 		}
+	};
+
+	class JString : public JObject {
+	public:
+		using JObject::JObject;
+		std::string str() const;
 	};
 }

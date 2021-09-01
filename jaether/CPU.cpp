@@ -4,11 +4,6 @@
 #include <filesystem>
 #include <codecvt>
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#endif
-
 namespace jaether {
 
 	vCPU::vCPU() {
@@ -17,17 +12,19 @@ namespace jaether {
 	}
 
 	V<vClass> vCPU::load(vContext* ctx, const std::string& path) {
+		auto& _classes = ctx->GetClasses();
 		auto it = _classes.find(path);
-		if (it != _classes.end()) return it->second;
+		if (it != _classes.end()) return V<vClass>((vClass*)it->second);
 		if (!std::filesystem::exists(path + ".class")) {
 			return V<vClass>::NullPtr();
 		}
-		V<vClass> cls = VMAKE(vClass, ctx, ctx, (path + ".class").c_str());
-		_classes[cls.Ptr(ctx)->getName(ctx)] = cls;
+		V<vClass> cls = VMAKE(vClass, ctx, ctx, this, (path + ".class").c_str());
+		_classes[cls.Ptr(ctx)->getName(ctx)] = cls.Virtual(ctx);
 		return cls;
 	}
 
-	std::map<std::string, V<vClass>>::iterator vCPU::lazyLoad(vContext* ctx, const std::string& path) {
+	std::map<std::string, vClass*>::iterator vCPU::lazyLoad(vContext* ctx, const std::string& path) {
+		auto& _classes = ctx->GetClasses();
 		auto it = _classes.find(path);
 		if (it != _classes.end()) return it;
 		load(ctx, path);
@@ -85,46 +82,22 @@ namespace jaether {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 		});
 
+		addNative("java/lang/StringUTF16/isBigEndian", "()Z", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			stack->push<vBYTE>(ctx, 1);
+		});
+
 		addNative("java/io/PrintStream/println", "(Ljava/lang/String;)V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			vOBJECTREF arg = stack->pop<vOBJECTREF>(ctx);
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			JObject obj(ctx, arg);
-			vBYTE coder = 1;	// 1 = UTF16, 0 = LATIN1
-			try {
-				coder = obj["coder"].b;
-			} catch (FieldNotFoundException&) {
-				//...
-			}
-			try {
-				vCOMMON& value = obj["value"];
-				JArray<char> arr(ctx, value);
-				if (coder == 0) {	// LATIN1
-					fwrite(arr.data(), 1, arr.length(), stdout);
-				} else {			// UTF16
-#ifdef _WIN32
-					int size = WideCharToMultiByte(CP_UTF8, 0, (wchar_t*)arr.data(), -1, NULL, 0, NULL, NULL);
-					char* buffer = new char[size];
-					WideCharToMultiByte(CP_UTF8, 0, (wchar_t*)arr.data(), -1, buffer, size, NULL, NULL);
-					printf("%s", buffer);
-					delete[] buffer;
-#else
-					fwrite(arr.data(), 1, arr.length(), stdout);
-#endif
-				}
-				fputc('\n', stdout);
-				fflush(stdout);
-			} catch (FieldNotFoundException&) {
-				fprintf(stderr, "String at %p has no value!\n", obj.Ptr());
-				return;
-			}
+			JString str(ctx, arg);
+			fprintf(stdout, "%s\n", str.str().c_str());
 		});
 
 		addNative("java/lang/System/currentTimeMillis", "()J", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-				std::chrono::system_clock::now().time_since_epoch()
-				);
-			vLONG millis = (vLONG)ms.count();
+			//std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
+			//vLONG millis = (vLONG)ms.count();
 			stack->push<vLONG>(ctx, ctx->Ops() / 50000);
 		});
 	}
@@ -169,6 +142,7 @@ namespace jaether {
 		}
 		vOBJECTREF wchRef; wchRef.r.a = (uintptr_t)arr.Virtual(ctx);
 		auto it = lazyLoad(ctx, "java/lang/String");
+		auto& _classes = ctx->GetClasses();
 		if (it != _classes.end()) {
 			V<vClass> strCls = it->second;
 			V<vOBJECT> strObj = VMAKE(vOBJECT, ctx, ctx, strCls);
@@ -178,7 +152,7 @@ namespace jaether {
 			if (_constPool && backref) {
 				_constPool->set<vOBJECTREF>(ctx, (size_t)*backref, ref);
 			}
-			auto [ok, result] = strCls.Ptr(ctx)->invoke(ctx, strCls, this, _stack, invokespecial, "<init>", "([C)V");
+			auto [ok, result] = strCls.Ptr(ctx)->invoke(ctx, strCls, strCls, this, _stack, invokespecial, "<init>", "([C)V");
 			return ref;
 		} else {
 			vOBJECTREF objr; objr.r.a = (vULONG)V<vOBJECT>::NullPtr().Virtual(ctx);
@@ -192,6 +166,7 @@ namespace jaether {
 		vClass* _class = frame.Ptr(ctx)->_class.Real(ctx);
 		vMemory* _constPool = frame.Ptr(ctx)->_class.Ptr(ctx)->_constPool.Real(ctx);
 		vFrame* _frame = frame.Ptr(ctx);
+		auto& _classes = ctx->GetClasses();
 		vCOMMON op[8];
 		size_t ops = 0;
 		size_t fwd = 0;
@@ -202,7 +177,7 @@ namespace jaether {
 		while (_running) {
 			vBYTE* ip = _frame->fetch(ctx);
 			vBYTE& opcode = *ip; ops++;
-			// printf("Execute %s (%d)\n", Opcodes[opcode], opcode);
+			//printf("Execute %s (%d)\n", Opcodes[opcode], opcode);
 			switch (opcode) {
 			case nop:
 				fwd = 0; break;
@@ -1042,8 +1017,22 @@ namespace jaether {
 					if (it != _classes.end()) {
 						V<vClass> cls = it->second;
 						vClass* clsPtr = cls.Ptr(ctx);
-						// printf("<%s> %s.%s\n", Opcodes[opcode], (methodName + desc).c_str(), path.c_str());
-						auto [methodFound, ret] = clsPtr->invoke(ctx, cls, this, _stack, opcode, methodName, desc);
+
+						if (opcode == invokevirtual) {
+							vUINT argc = clsPtr->argsCount(desc.c_str());
+							vCOMMON objr = _stack->get<vCOMMON>(ctx, argc);
+							JObject obj(ctx, objr);
+							V<vClass> objCls = obj.GetClass();
+							if (objCls.IsValid()) {
+								cls = objCls;
+								clsPtr = cls.Ptr(ctx);
+								path = clsPtr->getName(ctx);
+							}
+						}
+
+						// TODO extends
+						// printf("<%s> %s/%s\n", Opcodes[opcode], path.c_str(), (methodName + desc).c_str());
+						auto [methodFound, ret] = clsPtr->invoke(ctx, cls, it->second, this, _stack, opcode, methodName, desc);
 						found = methodFound;
 					}
 				}
@@ -1063,6 +1052,7 @@ namespace jaether {
 				if (it != _classes.end()) {
 					V<vClass> cls = it->second;
 					V<vOBJECT> obj = VMAKE(vOBJECT, ctx, ctx, cls);
+					// printf("Create new object of type: %s\n", cls.Ptr(ctx)->getName(ctx));
 					vOBJECTREF ref; ref.r.a = (vULONG)obj.Virtual(ctx);
 					_stack->push<vOBJECTREF>(ctx, ref);
 					found = true;
@@ -1086,7 +1076,7 @@ namespace jaether {
 					vClass* clsPtr = cls.Ptr(ctx);
 					if (!clsPtr->_initialized) {
 						clsPtr->_initialized = true;
-						clsPtr->invoke(ctx, cls, this, _stack, invokestatic, "<clinit>", "()V");
+						clsPtr->invoke(ctx, cls, cls, this, _stack, invokestatic, "<clinit>", "()V");
 					}
 					vFIELD* fld = clsPtr->getField(ctx, field.c_str());
 					if (fld) {
@@ -1114,7 +1104,7 @@ namespace jaether {
 					vClass* clsPtr = cls.Ptr(ctx);
 					if (!clsPtr->_initialized) {
 						clsPtr->_initialized = true;
-						clsPtr->invoke(ctx, cls, this, _stack, invokestatic, "<clinit>", "()V");
+						clsPtr->invoke(ctx, cls, cls, this, _stack, invokestatic, "<clinit>", "()V");
 					}
 					vFIELD* fld = clsPtr->getField(ctx, field.c_str());
 					if (fld) {

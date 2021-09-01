@@ -40,8 +40,8 @@ namespace jaether {
 					vc->type = vTypes::type<T>();
 			}
 			_index += size;
-			// dbgStack(ctx, "push");
-			assert(_index >= 0 && _index <= _size);
+			//dbgStack(ctx, "push");
+			assert(_index <= _size);
 			return *this;
 		}
 
@@ -49,8 +49,14 @@ namespace jaether {
 			const size_t size = sizeof(vCOMMON);
 			_index -= size;
 			//dbgStack("pop");
-			assert(_index >= 0 && _index <= _size);
+			assert(_index <= _size);
 			return *(T*)&_memory[VCtxIdx{ ctx, (size_t)_index }];
+		}
+
+		template<class T> T& get(vContext* ctx, size_t index) {
+			const size_t offset = sizeof(vCOMMON) * index;
+			assert(_offset <= _index);
+			return *(T*)&_memory[VCtxIdx{ ctx, _index - offset - sizeof(vCOMMON) }];
 		}
 
 		void dbgStack(vContext* ctx, const char* op) {
