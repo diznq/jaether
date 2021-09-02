@@ -11,7 +11,7 @@ namespace jaether {
 			vUSHORT minor = readUSI(f), major = readUSI(f);
 			vUSHORT consts = readUSI(f);
 			vCOMMON ops[8];
-			printf("Loading class %s, ver: %d.%d, magic: %08X, constants: %d\n", name, major, minor, magic, consts);
+			DPRINTF("Loading class %s, ver: %d.%d, magic: %08X, constants: %d\n", name, major, minor, magic, consts);
 			_constPool = VMAKE(vMemory, ctx, ctx, (size_t)consts);
 			//_fieldLookup = VMAKEARRAY(vUSHORT, ctx, (size_t)consts);
 			// memset(_fieldLookup.Real(ctx), 0xFF, consts * sizeof(vUSHORT));
@@ -58,13 +58,13 @@ namespace jaether {
 					_constPool.Ptr(ctx)->set<vMETHODTYPE>(ctx, i, ops[0].mt);
 					break;
 				case vCT_INT:
-					_constPool.Ptr(ctx)->set<vUINT>(ctx, i, readUI(f));
+					_constPool.Ptr(ctx)->set<vINT>(ctx, i, readInt(f));
 					break;
 				case vCT_FLOAT:
 					_constPool.Ptr(ctx)->set<vFLOAT>(ctx, i, readFloat(f));
 					break;
 				case vCT_LONG:
-					_constPool.Ptr(ctx)->set<vULONG>(ctx, i, readLong(f));
+					_constPool.Ptr(ctx)->set<vLONG>(ctx, i, readLong(f));
 					i++;
 					break;
 				case vCT_DOUBLE:
@@ -105,7 +105,7 @@ namespace jaether {
 
 
 			size_t fieldOffset = (size_t)(super ? super->_fieldCount : 0);
-			size_t methodOffset = (size_t)(super ? super->_methodCount : 0);
+			size_t methodOffset = 0;
 			//printf("Field offset: %llu, method offset: %llu\n", fieldOffset, methodOffset);
 
 			_fieldOffset = (vUSHORT)fieldOffset;
@@ -128,18 +128,14 @@ namespace jaether {
 			for (size_t i = _fieldCount; super && i < _fieldCount + fieldOffset; i++) {
 				vFIELD& field = super->_fields[VCtxIdx{ ctx, i - _fieldCount }];
 				vClass* fieldCls = (V<vClass>((vClass*)field.cls)).Ptr(ctx);
-				//printf("Add foreign field: %s::%s\n", fieldCls->getName(ctx), fieldCls->toString(ctx, field.name).Ptr(ctx)->s.Ptr(ctx));
 				_fields[VCtxIdx{ ctx, i }] = field;
 			}
 
 			_methodCount = readUSI(f);
-			_methods = VMAKEARRAY(vFIELD, ctx, (size_t)_methodCount + methodOffset);
+			_methods = VMAKEARRAY(vFIELD, ctx, (size_t)_methodCount);
 
 			for (vUSHORT i = 0; i < _methodCount; i++) {
 				readField(ctx, f, _methods[VCtxIdx{ ctx, (size_t)i }]);
-			}
-			for (size_t i = 0; super && i < methodOffset; i++) {
-				_methods[VCtxIdx{ ctx, i + (size_t)_methodCount }] = super->_methods[VCtxIdx{ ctx, i - _methodCount }];
 			}
 
 			_attributeCount = readUSI(f);
@@ -211,12 +207,20 @@ namespace jaether {
 		return *(vFLOAT*)mirror;
 	}
 
-	vULONG vClass::readLong(vBYTE* ip) const {
+	vLONG vClass::readLong(vBYTE* ip) const {
 		vBYTE mirror[8];
 		for (int i = 0; i < 8; i++) {
 			mirror[7 - i] = ip[i];
 		}
 		return *(vLONG*)mirror;
+	}
+
+	vINT vClass::readInt(vBYTE* ip) const {
+		vBYTE mirror[4];
+		for (int i = 0; i < 4; i++) {
+			mirror[3 - i] = ip[i];
+		}
+		return *(vINT*)mirror;
 	}
 
 	vUSHORT vClass::readUSI(std::ifstream& stream) const {
@@ -231,6 +235,12 @@ namespace jaether {
 		return readUI(buff);
 	}
 
+	vINT vClass::readInt(std::ifstream& stream) const {
+		vBYTE buff[4];
+		stream.read((char*)buff, 4);
+		return readInt(buff);
+	}
+
 	vDOUBLE vClass::readDouble(std::ifstream& stream) const {
 		vBYTE buff[8];
 		stream.read((char*)buff, 8);
@@ -243,10 +253,10 @@ namespace jaether {
 		return readFloat(buff);
 	}
 
-	vULONG vClass::readLong(std::ifstream& stream) const {
+	vLONG vClass::readLong(std::ifstream& stream) const {
 		vBYTE buff[8];
 		stream.read((char*)buff, 8);
-		vULONG lng = readLong(buff);
+		vLONG lng = readLong(buff);
 		return lng;
 	}
 
@@ -411,8 +421,38 @@ namespace jaether {
 		const std::string& methodName,
 		const std::string& desc,
 		int nesting) {
-		//for (int i = 0; i < nesting; i++) printf(" ");
-		//printf("Call %d %s::%s %s\n", _super, getName(ctx), methodName.c_str(), desc.c_str());
+
+		auto [exists, nnFrame] = createFrame(ctx, self, super, cpu, _stack, opcode, methodName, desc, nesting);
+		if (!exists) {
+			vCOMMON empty;
+			memset(&empty, 0, sizeof(vCOMMON));
+			return std::make_tuple(false, empty);
+		}
+
+		V<vFrame> nFrame((vFrame*)nnFrame);
+		cpu->run(ctx, nFrame);
+		vCOMMON subret;
+		memset(&subret, 0, sizeof(subret));
+		if (nFrame.Ptr(ctx)->_returns) {
+			subret = nFrame.Ptr(ctx)->_stack.Ptr(ctx)->pop<vCOMMON>(ctx);
+			_stack->push<vCOMMON>(ctx, subret);
+		}
+		nFrame.Ptr(ctx)->destroy(ctx);
+		nFrame.Release(ctx);
+		return std::make_tuple(true, subret);
+	}
+
+
+	std::tuple<bool, vFrame*> vClass::createFrame(
+		vContext* ctx,
+		V<vClass> self,
+		V<vClass> super,
+		vCPU* cpu,
+		vStack* _stack,
+		vBYTE opcode,
+		const std::string& methodName,
+		const std::string& desc,
+		int nesting) {
 		vMETHOD* method = getMethod(ctx, methodName.c_str(), desc.c_str());
 		if (method) {
 			V<vFrame> nFrame = VMAKE(vFrame, ctx, ctx, method, self);
@@ -422,36 +462,25 @@ namespace jaether {
 				if (opcode == invokestatic) j--;
 				nFrame.Ptr(ctx)->_local.Ptr(ctx)->set<vCOMMON>(ctx, (size_t)j, _stack->pop<vCOMMON>(ctx));
 			}
-			if (opcode != invokestatic) 
+			if (opcode != invokestatic)
 				nFrame.Ptr(ctx)
-					->_local.Ptr(ctx)
-					->set<vCOMMON>(ctx, 0, _stack->pop<vCOMMON>(ctx));
-			cpu->run(ctx, nFrame);
-			vCOMMON subret;
-			memset(&subret, 0, sizeof(subret));
-			if (nFrame.Ptr(ctx)->_returns) {
-				subret = nFrame.Ptr(ctx)->_stack.Ptr(ctx)->pop<vCOMMON>(ctx);
-				_stack->push<vCOMMON>(ctx, subret);
-			}
-			nFrame.Ptr(ctx)->destroy(ctx);
-			nFrame.Release(ctx);
-			return std::make_tuple(true, subret);
-		} else if(super.IsValid()) {
+				->_local.Ptr(ctx)
+				->set<vCOMMON>(ctx, 0, _stack->pop<vCOMMON>(ctx));
+			return std::make_tuple(true, nFrame.Virtual(ctx));
+		} else if (super.IsValid()) {
 			if (_super) {
 				auto& classes = ctx->GetClasses();
 				auto it = classes.find(getSuperName(ctx));
 				if (it != classes.end()) {
 					V<vClass> kls((vClass*)it->second);
 					if (kls.IsValid())
-						return kls.Ptr(ctx)->invoke(ctx, kls, super, cpu, _stack, opcode, methodName, desc, nesting + 1);
+						return kls.Ptr(ctx)->createFrame(ctx, kls, super, cpu, _stack, opcode, methodName, desc, nesting + 1);
 				}
 			}
-			if(super.IsValid())
-				return super.Ptr(ctx)->invoke(ctx, super, V<vClass>::NullPtr(), cpu, _stack, opcode, methodName, desc, nesting + 1);
+			if (super.IsValid())
+				return super.Ptr(ctx)->createFrame(ctx, super, V<vClass>::NullPtr(), cpu, _stack, opcode, methodName, desc, nesting + 1);
 		}
-		vCOMMON empty;
-		memset(&empty, 0, sizeof(vCOMMON));
-		return std::make_tuple(false, empty);
+		return std::make_tuple(false, V<vFrame>::NullPtr().Virtual(ctx));
 	}
 
 }

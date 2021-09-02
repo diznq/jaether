@@ -260,6 +260,10 @@ namespace jaether {
 		template<typename T> void set(vContext* ctx, size_t index, const T& value) {
 			size_t scaledIndex = index * unitSize(type);
 			assert(index < size);
+			if (index >= size) {
+				printf("vNATIVEARRAY::set out of bounds (index: %llu)\n", index);
+				return;
+			}
 			vBYTE* base = data.Ptr(ctx) + scaledIndex;
 			*(T*)base = value;
 		}
@@ -267,6 +271,10 @@ namespace jaether {
 		template<typename T> T& get(vContext* ctx, size_t index) {
 			size_t scaledIndex = index * unitSize(type);
 			assert(index < size);
+			if (index >= size) {
+				printf("vNATIVEARRAY::get out of bounds (index: %llu)\n", index);
+				return *(T*)0;
+			}
 			vBYTE* base = data.Ptr(ctx) + scaledIndex;
 			return *(T*)base;
 		}

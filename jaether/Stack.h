@@ -30,7 +30,9 @@ namespace jaether {
 		template<class T> vStack& push(vContext* ctx, const T& value) {
 			const size_t size = sizeof(vCOMMON);
 			vBYTE* ptr = &_memory[VCtxIdx{ ctx, (size_t)_index }];
-			memset(ptr, 0, size);
+			char lastByte = ((char*)&value)[sizeof(T) - 1];
+			bool isNegative = lastByte < 0;
+			memset(ptr, isNegative ? 0xFF : 0, size);
 			memcpy(ptr, &value, sizeof(T));
 			if constexpr (!(std::is_same_v<T, vCOMMON>)) {
 				vCOMMON* vc = (vCOMMON*)ptr;

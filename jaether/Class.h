@@ -12,6 +12,7 @@ namespace jaether {
 
 	class vCPU;
 	class vClass;
+	class vFrame;
 
 	typedef std::function<void(vContext* ctx, const std::string& className, vCPU* cpu, vStack* stack, vBYTE opcode)> vNATIVE;
 
@@ -47,14 +48,16 @@ namespace jaether {
 
 		vUSHORT		readUSI(vBYTE* ip) const;
 		vUINT		readUI(vBYTE* ip) const;
+		vINT		readInt(vBYTE* ip) const;
 		vDOUBLE		readDouble(vBYTE* ip) const;
 		vFLOAT		readFloat(vBYTE* ip) const;
-		vULONG		readLong(vBYTE* ip) const;
+		vLONG		readLong(vBYTE* ip) const;
 		vUSHORT		readUSI(std::ifstream& stream) const;
 		vUINT		readUI(std::ifstream& stream) const;
+		vINT		readInt(std::ifstream& stream) const;
 		vDOUBLE		readDouble(std::ifstream& stream) const;
 		vFLOAT		readFloat(std::ifstream& stream) const;
-		vULONG		readLong(std::ifstream& stream) const;
+		vLONG		readLong(std::ifstream& stream) const;
 		void		readAttribute(vContext* ctx, std::ifstream& f, vATTRIBUTE& attr);
 		void		readField(vContext* ctx, std::ifstream& f, vFIELD& field);
 		vATTRIBUTE* getAttribute(vContext* ctx, const vFIELD* field, const char* name);
@@ -67,7 +70,19 @@ namespace jaether {
 		V<vBYTE>	getCode(vContext* ctx, vMETHOD* method);
 		vUINT		argsCount(vContext* ctx, vMETHOD* method);
 		vUINT		argsCount(const char* desc);
+
 		std::tuple<bool, vCOMMON> invoke(
+			vContext* ctx,
+			V<vClass> self,
+			V<vClass> super,
+			vCPU* cpu,
+			vStack* _stack,
+			vBYTE opcode,
+			const std::string& methodName,
+			const std::string& desc,
+			int nesting = 0);
+
+		std::tuple<bool, vFrame*> createFrame(
 			vContext* ctx,
 			V<vClass> self,
 			V<vClass> super,

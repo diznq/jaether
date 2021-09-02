@@ -3,6 +3,7 @@
 #include <chrono>
 #include <filesystem>
 #include <codecvt>
+#include <stack>
 
 namespace jaether {
 
@@ -111,6 +112,20 @@ namespace jaether {
 			fprintf(stdout, "%s\n", str.str().c_str());
 		});
 
+		addNative("java/lang/Class/getPrimitiveClass", "(Ljava/lang/String;)Ljava/lang/Class;", [this](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vOBJECTREF arg = stack->pop<vOBJECTREF>(ctx);
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			JString str(ctx, arg);
+			auto& classes = ctx->GetClasses();
+			auto it = lazyLoad(ctx, "java/lang/Class");
+			if (it != classes.end()) {
+				V<vClass> cls(it->second);
+				V<vOBJECT> obj = VMAKE(vOBJECT, ctx, ctx, cls);
+				vOBJECTREF ref; ref.r.a = (vULONG)obj.Virtual(ctx);
+				stack->push<vOBJECTREF>(ctx, ref);
+			}
+		});
+
 		addNative("java/lang/System/currentTimeMillis", "()J", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 			//std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
@@ -178,31 +193,42 @@ namespace jaether {
 	}
 
 	size_t vCPU::run(vContext* ctx, const V<vFrame>& frame) {
-		vStack* _stack = frame.Ptr(ctx)->_stack.Real(ctx);
-		vMemory* _local = frame.Ptr(ctx)->_local.Real(ctx);
-		vClass* _class = frame.Ptr(ctx)->_class.Real(ctx);
-		vMemory* _constPool = frame.Ptr(ctx)->_class.Ptr(ctx)->_constPool.Real(ctx);
-		vFrame* _frame = frame.Ptr(ctx);
+		std::stack<V<vFrame>> frames;
+		frames.push(frame);
+		bool frameChanged = true;
+		vStack* _stack = 0;
+		vMemory* _local = 0;
+		vClass* _class = 0;
+		vMemory* _constPool = 0;
+		vFrame* _frame = 0;
 		auto& _classes = ctx->GetClasses();
 		vCOMMON op[8];
 		size_t ops = 0;
 		size_t fwd = 0;
-		if (!_frame->_program.IsValid()) {
-			return 0;
-		}
 		_running = true;
+		bool unwrapCallstack = true;
 		while (_running) {
+			if (unwrapCallstack && frames.empty()) {
+				return 0;
+			}
+			if (frameChanged) {
+				const V<vFrame>& Frame = frames.top();
+				_stack = Frame.Ptr(ctx)->_stack.Real(ctx);
+				_local = Frame.Ptr(ctx)->_local.Real(ctx);
+				_class = Frame.Ptr(ctx)->_class.Real(ctx);
+				_constPool = Frame.Ptr(ctx)->_class.Ptr(ctx)->_constPool.Real(ctx);
+				_frame = Frame.Ptr(ctx);
+				if (!_frame->_program.IsValid()) {
+					return 0;
+				}
+				frameChanged = false;
+			}
 			vBYTE* ip = _frame->fetch(ctx);
 			vBYTE& opcode = *ip; ops++;
-			//printf("%p Execute %s (%d)\n", _frame, Opcodes[opcode], opcode);
+			RPRINTF("Execute %s (%d)\n", Opcodes[opcode], opcode);
 			switch (opcode) {
 			case nop:
 				fwd = 0; break;
-			case 253:
-				// pass
-				fwd = 0;
-				_running = false;
-				break;
 			case iconst_0:
 				_stack->push<vINT>(ctx, 0);
 				fwd = 0; break;
@@ -250,7 +276,7 @@ namespace jaether {
 				fwd = 0; break;
 
 			case bipush:
-				_stack->push<vBYTE>(ctx, read<vBYTE>(ip + 1));
+				_stack->push<vLONG>(ctx, (vLONG)read<vCHAR>(ip + 1));
 				fwd = 1; break;
 			case sipush:
 				op[0].usi = readUSI(ip + 1);
@@ -843,6 +869,7 @@ namespace jaether {
 
 			case ldc:
 			case ldc_w:
+			case ldc2_w:
 			{
 				op[0].usi = opcode != ldc ? readUSI(ip + 1) : (vUSHORT)read<vBYTE>(ip + 1);
 				op[1] = _constPool->get<vCOMMON>(ctx, (size_t)op[0].usi);
@@ -855,8 +882,8 @@ namespace jaether {
 			}
 			case iinc:
 				op[0].b = read<vBYTE>(ip + 1);
-				op[1].b = read<vBYTE>(ip + 2);
-				_local->set<vINT>(ctx, op[0].b, _local->get<vINT>(ctx, op[0].b) + op[1].b);
+				op[1].c = read<vCHAR>(ip + 2);
+				_local->set<vINT>(ctx, op[0].b, _local->get<vINT>(ctx, op[0].b) + op[1].c);
 				fwd = 2;
 				break;
 			case goto_:
@@ -923,8 +950,7 @@ namespace jaether {
 				op[0].usi = readUSI(ip + 1);
 				op[2].i = _stack->pop<vINT>(ctx);
 				op[1].i = _stack->pop<vINT>(ctx);
-				//printf("Si: %d\n", op[0].si);
-				if (op[1].i == op[1].i)
+				if (op[1].i == op[2].i)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2; break;
 			case if_icmpne:
@@ -946,7 +972,7 @@ namespace jaether {
 				op[2].i = _stack->pop<vINT>(ctx);
 				op[1].i = _stack->pop<vINT>(ctx);
 				if (op[1].i > op[2].i)
-					fwd = ((size_t)(op[0].si)) - 1;
+					fwd = ((size_t)(op[0].si)) -1;
 				else fwd = 2; break;
 			case if_icmple:
 				op[0].usi = readUSI(ip + 1);
@@ -996,23 +1022,36 @@ namespace jaether {
 				fwd = 0; break;
 
 			case return_:
-				_running = false;
-				fwd = 0; break;
-
 			case ireturn:
 			case lreturn:
 			case dreturn:
 			case freturn:
 			case areturn:
-				_running = false;
+			{
+				if (unwrapCallstack) {
+					if (_frame->_returns) {
+						op[0] = _stack->pop<vCOMMON>(ctx);
+						auto& oldFrame = frames.top();
+						frames.pop();
+						auto& newFrame = frames.top();
+						newFrame.Ptr(ctx)->_stack.Ptr(ctx)->push<vCOMMON>(ctx, op[0]);
+						oldFrame.Ptr(ctx)->destroy(ctx);
+						oldFrame.Release(ctx);
+					} else {
+						frames.pop();
+					}
+					RPRINTF("<%s\n", Opcodes[opcode]);
+					frameChanged = true;
+				} else {
+					_running = false;
+				}
 				fwd = 0; break;
+			}
 
 			case invokedynamic:
 				op[0].usi = readUSI(ip + 1);
 				op[1].mh = _constPool->get<vMETHODHANDLE>(ctx, (size_t)op[0].usi);
 				op[2] = _constPool->get<vCOMMON>(ctx, (size_t)op[1].mh.index);
-				printf("kind: %d, index: %d\n", op[1].mh.kind, op[1].mh.index);
-				printf("type: %d: %s\n", op[2].type, _class->toString(ctx, op[2].nt.nameIndex).Ptr(ctx)->s.Ptr(ctx));
 				fwd = 4;  break;
 			case invokevirtual:
 			case invokestatic:
@@ -1023,7 +1062,6 @@ namespace jaether {
 				std::string path = std::string((const char*)_class->toString(ctx, op[1].mr.clsIndex).Ptr(ctx)->s.Real(ctx));
 				std::string methodName = (const char*)_class->toString(ctx, op[1].mr.nameIndex).Ptr(ctx)->s.Real(ctx);
 				std::string desc = (const char*)_class->toString(ctx, op[1].mr.nameIndex, 1).Ptr(ctx)->s.Real(ctx);
-				//printf("%s: %s\n", Opcodes[opcode], (path + "/" + methodName + desc).c_str());
 				auto nit = _natives.find(path + "/" + methodName + ":" + desc);
 				bool found = false;
 				if (nit != _natives.end()) {
@@ -1047,10 +1085,18 @@ namespace jaether {
 							}
 						}
 
-						// TODO extends
-						printf("<%s> %s/%s\n", Opcodes[opcode], path.c_str(), (methodName + desc).c_str());
-						auto [methodFound, ret] = clsPtr->invoke(ctx, cls, it->second, this, _stack, opcode, methodName, desc);
-						found = methodFound;
+						RPRINTF("[%s] %s/%s\n", Opcodes[opcode], path.c_str(), (methodName + desc).c_str());
+						if (unwrapCallstack) {
+							auto [methodFound, ret] = clsPtr->createFrame(ctx, cls, it->second, this, _stack, opcode, methodName, desc);
+							if (methodFound) {
+								frames.push(ret);
+								frameChanged = true;
+							}
+							found = methodFound;
+						} else {
+							auto [methodFound, ret] = clsPtr->invoke(ctx, cls, it->second, this, _stack, opcode, methodName, desc);
+							found = methodFound;
+						}
 					}
 				}
 				if (!found) {
@@ -1069,7 +1115,6 @@ namespace jaether {
 				if (it != _classes.end()) {
 					V<vClass> cls = it->second;
 					V<vOBJECT> obj = VMAKE(vOBJECT, ctx, ctx, cls);
-					printf("Create new object of type: %s\n", cls.Ptr(ctx)->getName(ctx));
 					vOBJECTREF ref; ref.r.a = (vULONG)obj.Virtual(ctx);
 					_stack->push<vOBJECTREF>(ctx, ref);
 					found = true;
@@ -1177,7 +1222,9 @@ namespace jaether {
 				fwd = 0; break;
 			default:
 				fprintf(stderr, "[vCPU::sub_execute] Executing undefined instruction with opcode %d (%s)\n", *ip, Opcodes[*ip]);
-				_running = false;
+				frames.pop();
+				frameChanged = true;
+				if (unwrapCallstack) return 0;
 				fwd = 0; break;
 			}
 			_frame->incrpc(fwd + 1);

@@ -17,6 +17,7 @@ class Main {
             System.out.println(word);
             sb.append(word);
         }
+        System.out.println(666);
         System.out.println(sb.toString());
     }
 }
