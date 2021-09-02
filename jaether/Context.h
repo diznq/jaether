@@ -5,6 +5,7 @@
 #include <string>
 #include "Allocator.h"
 
+//#define JVM_DEBUG
 #ifdef JVM_DEBUG
 #define RPRINTF(fmt, ...) fprintf(stdout, "%*s " fmt, (int)frames.size(), "", __VA_ARGS__)
 #define DPRINTF(fmt, ...) fprintf(stdout, fmt, __VA_ARGS__)

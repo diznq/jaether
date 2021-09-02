@@ -287,6 +287,13 @@ namespace jaether {
 				_stack->push<vCOMMON>(ctx, op[0]);
 				_stack->push<vCOMMON>(ctx, op[0]);
 				fwd = 0; break;
+			case dup_x1:
+				op[1] = _stack->pop<vCOMMON>(ctx);
+				op[0] = _stack->pop<vCOMMON>(ctx);
+				_stack->push<vCOMMON>(ctx, op[1]);
+				_stack->push<vCOMMON>(ctx, op[0]);
+				_stack->push<vCOMMON>(ctx, op[1]);
+				fwd = 0; break;
 
 			case i2b:
 				_stack->push<vBYTE>(ctx, (vBYTE)(_stack->pop<vUINT>(ctx) & 255));
@@ -1055,6 +1062,7 @@ namespace jaether {
 				fwd = 4;  break;
 			case invokevirtual:
 			case invokestatic:
+			case invokeinterface:
 			case invokespecial:
 			{
 				op[0].usi = readUSI(ip + 1);
@@ -1073,7 +1081,7 @@ namespace jaether {
 						V<vClass> cls = it->second;
 						vClass* clsPtr = cls.Ptr(ctx);
 
-						if (opcode == invokevirtual) {
+						if (opcode == invokevirtual || opcode == invokeinterface) {
 							vUINT argc = clsPtr->argsCount(desc.c_str());
 							vCOMMON objr = _stack->get<vCOMMON>(ctx, argc);
 							JObject obj(ctx, objr);
@@ -1103,7 +1111,7 @@ namespace jaether {
 					fprintf(stderr, "[vCPU::sub_execute/%s] Couldn't find virtual %s (%s)\n", Opcodes[opcode], (path + "/" + methodName).c_str(), desc.c_str());
 					_running = false;
 				}
-				fwd = 2; break;
+				fwd = opcode == invokeinterface ? 4 : 2; break;
 			}
 			case new_:
 			{
@@ -1125,6 +1133,9 @@ namespace jaether {
 				}
 				fwd = 2; break;
 			}
+			case checkcast:
+				fwd = 2;
+				break;
 			case getstatic:
 			{
 				op[0].usi = readUSI(ip + 1);
