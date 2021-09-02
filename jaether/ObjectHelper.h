@@ -31,11 +31,6 @@ namespace jaether {
 		JObject(vContext* ctx, V<vOBJECT> obj) : _ctx(ctx), _obj(obj) {
 
 		}
-		vCOMMON& operator[](const vUSHORT idx) const {
-			vCOMMON* ptr = _obj.Ptr(_ctx)->cls.Ptr(_ctx)->getObjField(_ctx, _obj, idx);
-			if (!ptr) throw FieldNotFoundException();
-			return *ptr;
-		}
 		vCOMMON& operator[](const char* idx) const {
 			vCOMMON* ptr = _obj.Ptr(_ctx)->cls.Ptr(_ctx)->getObjField(_ctx, _obj, idx);
 			if (!ptr) throw FieldNotFoundException();

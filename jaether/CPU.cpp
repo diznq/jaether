@@ -20,6 +20,14 @@ namespace jaether {
 		}
 		V<vClass> cls = VMAKE(vClass, ctx, ctx, this, (path + ".class").c_str());
 		_classes[cls.Ptr(ctx)->getName(ctx)] = cls.Virtual(ctx);
+
+		vClass* clsPtr = cls.Ptr(ctx);
+
+		if (!clsPtr->_initialized) {
+			clsPtr->_initialized = true;
+			clsPtr->invoke(ctx, cls, cls, this, 0, invokestatic, "<clinit>", "()V");
+		}
+
 		return cls;
 	}
 
@@ -82,7 +90,16 @@ namespace jaether {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 		});
 
+		addNative("java/lang/Class/registerNatives", "()V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+		});
+
 		addNative("java/lang/StringUTF16/isBigEndian", "()Z", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			stack->push<vBYTE>(ctx, 1);
+		});
+
+		addNative("java/lang/Class/desiredAssertionStatus", "()Z", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 			stack->push<vBYTE>(ctx, 1);
 		});
@@ -177,7 +194,7 @@ namespace jaether {
 		while (_running) {
 			vBYTE* ip = _frame->fetch(ctx);
 			vBYTE& opcode = *ip; ops++;
-			//printf("Execute %s (%d)\n", Opcodes[opcode], opcode);
+			//printf("%p Execute %s (%d)\n", _frame, Opcodes[opcode], opcode);
 			switch (opcode) {
 			case nop:
 				fwd = 0; break;
@@ -1031,7 +1048,7 @@ namespace jaether {
 						}
 
 						// TODO extends
-						// printf("<%s> %s/%s\n", Opcodes[opcode], path.c_str(), (methodName + desc).c_str());
+						printf("<%s> %s/%s\n", Opcodes[opcode], path.c_str(), (methodName + desc).c_str());
 						auto [methodFound, ret] = clsPtr->invoke(ctx, cls, it->second, this, _stack, opcode, methodName, desc);
 						found = methodFound;
 					}
@@ -1052,7 +1069,7 @@ namespace jaether {
 				if (it != _classes.end()) {
 					V<vClass> cls = it->second;
 					V<vOBJECT> obj = VMAKE(vOBJECT, ctx, ctx, cls);
-					// printf("Create new object of type: %s\n", cls.Ptr(ctx)->getName(ctx));
+					printf("Create new object of type: %s\n", cls.Ptr(ctx)->getName(ctx));
 					vOBJECTREF ref; ref.r.a = (vULONG)obj.Virtual(ctx);
 					_stack->push<vOBJECTREF>(ctx, ref);
 					found = true;
@@ -1074,10 +1091,6 @@ namespace jaether {
 				if (it != _classes.end()) {
 					V<vClass> cls = it->second;
 					vClass* clsPtr = cls.Ptr(ctx);
-					if (!clsPtr->_initialized) {
-						clsPtr->_initialized = true;
-						clsPtr->invoke(ctx, cls, cls, this, _stack, invokestatic, "<clinit>", "()V");
-					}
 					vFIELD* fld = clsPtr->getField(ctx, field.c_str());
 					if (fld) {
 						_stack->push<vCOMMON>(ctx, fld->value);
@@ -1102,10 +1115,6 @@ namespace jaether {
 				if (it != _classes.end()) {
 					V<vClass> cls = it->second;
 					vClass* clsPtr = cls.Ptr(ctx);
-					if (!clsPtr->_initialized) {
-						clsPtr->_initialized = true;
-						clsPtr->invoke(ctx, cls, cls, this, _stack, invokestatic, "<clinit>", "()V");
-					}
 					vFIELD* fld = clsPtr->getField(ctx, field.c_str());
 					if (fld) {
 						fld->value = _stack->pop<vCOMMON>(ctx);
@@ -1123,15 +1132,19 @@ namespace jaether {
 				op[1].objref = _stack->pop<vOBJECTREF>(ctx);
 				op[3].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
 				V<vOBJECT> obj((vOBJECT*)op[1].objref.r.a);
-				V<vClass> cls = obj.Ptr(ctx)->cls; 
-				vCOMMON* value = cls.Ptr(ctx)->getObjField(ctx, obj, op[3].mr.nameIndex);
+				V<vClass> cls = obj.Ptr(ctx)->cls;
+				const char* fieldName = (const char*)_class->toString(ctx, op[3].mr.nameIndex).Ptr(ctx)->s.Ptr(ctx);
+				vCOMMON* value = cls.Ptr(ctx)->getObjField(ctx, obj, fieldName);
 				bool found = value != 0;
 				if (found) {
 					_stack->push<vCOMMON>(ctx, *value);
 				} else {
-					fprintf(stderr, "[vCPU::sub_execute/%s] Couldn't find field index %d (%s)\n", 
-						Opcodes[opcode], op[3].mr.nameIndex,
-						cls.Ptr(ctx)->toString(ctx, op[3].mr.nameIndex).Ptr(ctx)->s.Ptr(ctx));
+					fprintf(stderr, "[vCPU::sub_execute/%s] Couldn't find field index %s::%s #%d, #%d\n", 
+						Opcodes[opcode],
+						_class->getName(ctx),
+						_class->toString(ctx, op[3].mr.nameIndex).Ptr(ctx)->s.Ptr(ctx),
+						op[3].mr.nameIndex,
+						op[0].usi);
 					_running = false;
 				}
 				fwd = 2; break;
@@ -1144,13 +1157,17 @@ namespace jaether {
 				op[3].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
 				V<vOBJECT> obj((vOBJECT*)op[1].objref.r.a);
 				V<vClass> cls = obj.Ptr(ctx)->cls;
-				vCOMMON* value = cls.Ptr(ctx)->getObjField(ctx, obj, op[3].mr.nameIndex);
+				const char* fieldName = (const char*)_class->toString(ctx, op[3].mr.nameIndex).Ptr(ctx)->s.Ptr(ctx);
+				vCOMMON* value = cls.Ptr(ctx)->getObjField(ctx, obj, fieldName);
 				bool found = value != 0;
 				if (found) {
 					*value = op[2];
-				}
-				else {
-					fprintf(stderr, "[vCPU::sub_execute/%s] Couldn't find field index %d\n", Opcodes[opcode], op[3].mr.nameIndex);
+				} else {
+					fprintf(stderr, "[vCPU::sub_execute/%s] Couldn't find field index %s::%s #%d\n",
+						Opcodes[opcode],
+						cls.Ptr(ctx)->getName(ctx),
+						cls.Ptr(ctx)->toString(ctx, op[3].mr.nameIndex).Ptr(ctx)->s.Ptr(ctx),
+						op[3].mr.nameIndex); 
 					_running = false;
 				}
 				fwd = 2; break;

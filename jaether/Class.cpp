@@ -13,8 +13,8 @@ namespace jaether {
 			vCOMMON ops[8];
 			printf("Loading class %s, ver: %d.%d, magic: %08X, constants: %d\n", name, major, minor, magic, consts);
 			_constPool = VMAKE(vMemory, ctx, ctx, (size_t)consts);
-			_fieldLookup = VMAKEARRAY(vUSHORT, ctx, (size_t)consts);
-			memset(_fieldLookup.Real(ctx), 0xFF, consts * sizeof(vUSHORT));
+			//_fieldLookup = VMAKEARRAY(vUSHORT, ctx, (size_t)consts);
+			// memset(_fieldLookup.Real(ctx), 0xFF, consts * sizeof(vUSHORT));
 			// Parse const pool
 			for (vUSHORT i = 1; i < consts; i++) {
 				vBYTE type = (vBYTE)f.get();
@@ -30,6 +30,7 @@ namespace jaether {
 					vUTF8 wrap;
 					wrap.r.a = (vULONG)str.Virtual(ctx);
 					_constPool.Ptr(ctx)->set<vUTF8>(ctx, i, wrap);
+					//printf("Read string at %d: %s\n", i, str.Ptr(ctx)->s.Ptr(ctx));
 					break;
 				}
 				case vCT_STRING:
@@ -103,8 +104,8 @@ namespace jaether {
 			}
 
 
-			size_t fieldOffset = 0; // (size_t)(super ? super->_fieldCount : 0);
-			size_t methodOffset = 0; // (size_t)(super ? super->_methodCount : 0);
+			size_t fieldOffset = (size_t)(super ? super->_fieldCount : 0);
+			size_t methodOffset = (size_t)(super ? super->_methodCount : 0);
 			//printf("Field offset: %llu, method offset: %llu\n", fieldOffset, methodOffset);
 
 			_fieldOffset = (vUSHORT)fieldOffset;
@@ -123,8 +124,12 @@ namespace jaether {
 			for (vUSHORT i = 0; i < _fieldCount; i++) {
 				readField(ctx, f, _fields[VCtxIdx{ ctx, (size_t)i }]);
 			}
+
 			for (size_t i = _fieldCount; super && i < _fieldCount + fieldOffset; i++) {
-				_fields[VCtxIdx{ ctx, i + (size_t)_fieldCount }] = super->_fields[VCtxIdx{ ctx, i - _fieldCount }];
+				vFIELD& field = super->_fields[VCtxIdx{ ctx, i - _fieldCount }];
+				vClass* fieldCls = (V<vClass>((vClass*)field.cls)).Ptr(ctx);
+				//printf("Add foreign field: %s::%s\n", fieldCls->getName(ctx), fieldCls->toString(ctx, field.name).Ptr(ctx)->s.Ptr(ctx));
+				_fields[VCtxIdx{ ctx, i }] = field;
 			}
 
 			_methodCount = readUSI(f);
@@ -143,25 +148,7 @@ namespace jaether {
 				readAttribute(ctx, f, _attributes[VCtxIdx{ ctx, (size_t)i }]);
 			}
 
-			for (vUSHORT i = 0; i < consts; i++) {
-				vCOMMON item = _constPool.Ptr(ctx)->get<vCOMMON>(ctx, i);
-				if (item.type == vTypes::type<vMETHODREF>()) {
-					bool found = false;
-					for (vUSHORT i = 0; !found && i < _fieldCount + _fieldOffset; i++) {
-						if (
-							!strcmp(
-								(const char*)toString(ctx, _fields[VCtxIdx{ ctx, (size_t)i }].name).Ptr(ctx)->s.Real(ctx),
-								(const char*)toString(ctx, item.mr.nameIndex).Ptr(ctx)->s.Real(ctx)
-							)
-							) {
-							_fieldLookup[VCtxIdx{ ctx, (size_t)item.mr.nameIndex }] = i;
-							found = true;
-							break;
-						}
-					}
-				}
-			}
-
+			_fieldCount += _fieldOffset;
 		}
 	}
 
@@ -172,7 +159,7 @@ namespace jaether {
 	void vClass::destroy(vContext* ctx) {
 		_constPool.Ptr(ctx)->destroy(ctx);
 		_constPool.Release(ctx);
-		_fieldLookup.Release(ctx, true);
+		//_fieldLookup.Release(ctx, true);
 		for (vUSHORT i = 0; i < _fieldCount; i++) {
 			_fields[VCtxIdx{ ctx, (size_t)i }].attributes.Release(ctx, true);
 		}
@@ -274,8 +261,10 @@ namespace jaether {
 		field.access = readUSI(f);
 		field.name = readUSI(f);
 		field.desc = readUSI(f);
+		field.cls = (vClass*)((uintptr_t)this - ctx->Offset());
 		field.attributeCount = readUSI(f);
 		field.attributes = VMAKEARRAY(vATTRIBUTE, ctx, (size_t)field.attributeCount);
+		//printf("%s read field %s\n", getName(ctx), toString(ctx, field.name).Ptr(ctx)->s.Ptr(ctx));
 		memset(&field.value, 0, sizeof(vCOMMON));
 		for (vUSHORT i = 0; i < field.attributeCount; i++) {
 			readAttribute(ctx, f, field.attributes[VCtxIdx{ ctx, (size_t)i }]);
@@ -298,7 +287,18 @@ namespace jaether {
 			V<vUTF8BODY> str = toString(ctx, _fields[VCtxIdx{ ctx, (size_t)i }].name);
 			if (!str.IsValid()) continue;
 			if (!strcmp((const char*)str.Ptr(ctx)->s.Real(ctx), name)) {
+				//printf("Found %s\n", name);
 				return &_fields[VCtxIdx{ ctx, (size_t)i }];
+			}
+		}
+		//printf("Cannot find %s\n", name);
+		if (_super) {
+			auto& classes = ctx->GetClasses();
+			auto it = classes.find(getSuperName(ctx));
+			if (it != classes.end()) {
+				//printf("Trying super class\n");
+				V<vClass> super((vClass*)it->second);
+				return super.Ptr(ctx)->getField(ctx, name);
 			}
 		}
 		return 0;
@@ -381,37 +381,23 @@ namespace jaether {
 	}
 
 	vCOMMON* vClass::getObjField(vContext* ctx, V<vOBJECT> obj, const char* name) {
+		//printf("This: %p\n", this);
 		for (vUSHORT i = 0; i < _fieldCount; i++) {
-			const char* fieldName = (const char*)toString(ctx, _fields[VCtxIdx{ ctx, (size_t)i }].name).Ptr(ctx)->s.Real(ctx);
+			vFIELD& field = _fields[VCtxIdx{ ctx, (size_t)i }];
+			//printf("Xdd %p\n", &field);
+			V<vClass> vcls((vClass*)field.cls);
+			if (!vcls.IsValid()) return 0;
+			vClass* cls = (vcls).Ptr(ctx);
+			const char* fieldName = (const char*)cls->toString(ctx, field.name).Ptr(ctx)->s.Real(ctx);
 			if (!strcmp(fieldName, name)) {
 				return &obj.Ptr(ctx)->fields[VCtxIdx{ ctx, i }];
-			}
-		}
-		if (_super) {
-			auto& _classes = ctx->GetClasses();
-			auto it = _classes.find(getSuperName(ctx));
-			if (it != _classes.end()) {
-				V<vClass> super = it->second;
-				return super.Ptr(ctx)->getObjField(ctx, obj, name);
 			}
 		}
 		return 0;
 	}
 
-	vCOMMON* vClass::getObjField(vContext* ctx, V<vOBJECT> obj, vUSHORT idx) {
-		vUSHORT realIndex = _fieldLookup[VCtxIdx{ ctx, idx }];
-		if (realIndex == 0xFFFF) {
-			return getObjField(ctx, obj, (const char*)toString(ctx, idx).Ptr(ctx)->s.Ptr(ctx));
-		}
-		return &obj.Ptr(ctx)->fields[VCtxIdx{ ctx, realIndex }];
-	}
-
 	vCOMMON* vClass::getObjField(vContext* ctx, V<vOBJECTREF> objref, const char* name) {
 		return getObjField(ctx, V<vOBJECT>((vOBJECT*)objref.Ptr(ctx)->r.a), name);
-	}
-
-	vCOMMON* vClass::getObjField(vContext* ctx, V<vOBJECTREF> objref, vUSHORT idx) {
-		return getObjField(ctx, V<vOBJECT>((vOBJECT*)objref.Ptr(ctx)->r.a), idx);
 	}
 
 
@@ -423,7 +409,10 @@ namespace jaether {
 		vStack* _stack,
 		vBYTE opcode,
 		const std::string& methodName,
-		const std::string& desc) {
+		const std::string& desc,
+		int nesting) {
+		//for (int i = 0; i < nesting; i++) printf(" ");
+		//printf("Call %d %s::%s %s\n", _super, getName(ctx), methodName.c_str(), desc.c_str());
 		vMETHOD* method = getMethod(ctx, methodName.c_str(), desc.c_str());
 		if (method) {
 			V<vFrame> nFrame = VMAKE(vFrame, ctx, ctx, method, self);
@@ -448,7 +437,17 @@ namespace jaether {
 			nFrame.Release(ctx);
 			return std::make_tuple(true, subret);
 		} else if(super.IsValid()) {
-			return super.Ptr(ctx)->invoke(ctx, super, V<vClass>::NullPtr(), cpu, _stack, opcode, methodName, desc);
+			if (_super) {
+				auto& classes = ctx->GetClasses();
+				auto it = classes.find(getSuperName(ctx));
+				if (it != classes.end()) {
+					V<vClass> kls((vClass*)it->second);
+					if (kls.IsValid())
+						return kls.Ptr(ctx)->invoke(ctx, kls, super, cpu, _stack, opcode, methodName, desc, nesting + 1);
+				}
+			}
+			if(super.IsValid())
+				return super.Ptr(ctx)->invoke(ctx, super, V<vClass>::NullPtr(), cpu, _stack, opcode, methodName, desc, nesting + 1);
 		}
 		vCOMMON empty;
 		memset(&empty, 0, sizeof(vCOMMON));

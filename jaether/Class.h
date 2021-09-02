@@ -22,7 +22,7 @@ namespace jaether {
 		V<vFIELD> _fields = V<vFIELD>::NullPtr();
 		V<vATTRIBUTE> _attributes = V<vATTRIBUTE>::NullPtr();
 		V<vUSHORT> _interfaces = V<vUSHORT>::NullPtr();
-		V<vUSHORT> _fieldLookup = V<vUSHORT>::NullPtr();
+		//V<vUSHORT> _fieldLookup = V<vUSHORT>::NullPtr();
 		vUSHORT _name = 0;
 		vUSHORT _super = 0;
 		vUSHORT _accessFlags = 0;
@@ -62,8 +62,6 @@ namespace jaether {
 		vMETHOD*	getMethod(vContext* ctx, const char* name, const char* desc = 0);
 		vCOMMON*	getObjField(vContext* ctx, V<vOBJECT> obj, const char* name);
 		vCOMMON*	getObjField(vContext* ctx, V<vOBJECTREF> objref, const char* name);
-		vCOMMON*	getObjField(vContext* ctx, V<vOBJECT> obj, vUSHORT idx);
-		vCOMMON*	getObjField(vContext* ctx, V<vOBJECTREF> objref, vUSHORT idx);
 
 		V<vUTF8BODY> toString(vContext* ctx, vUSHORT index, int selector = 0) const;
 		V<vBYTE>	getCode(vContext* ctx, vMETHOD* method);
@@ -77,7 +75,8 @@ namespace jaether {
 			vStack* _stack,
 			vBYTE opcode,
 			const std::string& methodName,
-			const std::string& desc);
+			const std::string& desc,
+			int nesting = 0);
 	};
 
 }

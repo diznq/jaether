@@ -220,6 +220,7 @@ namespace jaether {
 		vUSHORT desc;
 		vUSHORT attributeCount;
 		V<vATTRIBUTE> attributes;
+		vClass* cls;
 		vCOMMON value;
 	};
 

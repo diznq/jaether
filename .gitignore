@@ -36,6 +36,7 @@ bld/
 jaether/java/
 jaether/sun/
 jaether/jdk/
+jaether/javasrc/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
