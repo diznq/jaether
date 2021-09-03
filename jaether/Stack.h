@@ -16,7 +16,7 @@ namespace jaether {
 			_memory = VMAKEARRAY(vBYTE, ctx, size);
 			_index = 0;
 			_size = size;
-			memset(_memory.Real(ctx), 0, size);
+			memset(_memory.real(ctx), 0, size);
 		}
 
 		~vStack() {
@@ -24,7 +24,7 @@ namespace jaether {
 		}
 
 		void destroy(vContext* ctx) {
-			_memory.Release(ctx, true);
+			_memory.release(ctx, true);
 		}
 
 		template<class T> vStack& push(vContext* ctx, const T& value) {

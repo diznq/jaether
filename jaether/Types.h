@@ -264,7 +264,7 @@ namespace jaether {
 				printf("vNATIVEARRAY::set out of bounds (index: %llu)\n", index);
 				return;
 			}
-			vBYTE* base = data.Ptr(ctx) + scaledIndex;
+			vBYTE* base = data.ptr(ctx) + scaledIndex;
 			*(T*)base = value;
 		}
 
@@ -275,7 +275,7 @@ namespace jaether {
 				printf("vNATIVEARRAY::get out of bounds (index: %llu)\n", index);
 				return *(T*)0;
 			}
-			vBYTE* base = data.Ptr(ctx) + scaledIndex;
+			vBYTE* base = data.ptr(ctx) + scaledIndex;
 			return *(T*)base;
 		}
 	};

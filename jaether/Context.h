@@ -25,46 +25,46 @@ namespace jaether {
 	struct vContext {
 	private:
 		bool _secure = false;
-		void* _hashCtx = 0;
+		void* _hashContext = 0;
 		size_t _ops = 0;
 		Allocator* _alloc = 0;
 		std::map<std::string, vClass*> _classes;
 	public:
-		vContext(size_t mem = 16 * 1024 * 1024, bool secure = false);
+		vContext(Allocator* alloc, bool secure = false);
 		~vContext();
-		void* Alloc(size_t mem);
-		void Free(void* mem, bool arr = false);
+		void* alloc(size_t mem);
+		void free(void* mem, bool arr = false);
 		template<typename T, typename... Args>
-		T* AllocType(Args&&... args) {
-			char* mem = ((char*)Alloc(sizeof(T)));
-			new ((T*)(mem + Offset())) T(
+		T* allocType(Args&&... args) {
+			char* mem = ((char*)alloc(sizeof(T)));
+			new ((T*)(mem + offset())) T(
 				std::forward<Args>(args)...
 			);
 			return (T*)mem;
 		}
 		template<typename T>
-		T* AllocArray(size_t size) {
-			return (T*)Alloc(sizeof(T) * size);
+		T* allocArray(size_t size) {
+			return (T*)alloc(sizeof(T) * size);
 		}
 		template<typename T>
-		void FreeType(T* obj, bool arr = false) {
-			Free((void*)obj, arr);
+		void freeType(T* obj, bool arr = false) {
+			free((void*)obj, arr);
 		}
 
-		void OnInstruction();
-		void GetSignature(unsigned char* buffer);
+		void onInstruction();
+		void getSignature(unsigned char* buffer);
 
-		uintptr_t Offset() const;
+		uintptr_t offset() const;
 
-		Allocator* GetAllocator() const {
+		Allocator* getAllocator() const {
 			return _alloc;
 		}
 
-		std::map<std::string, vClass*>& GetClasses() {
+		std::map<std::string, vClass*>& getClasses() {
 			return _classes;
 		}
 
-		size_t Ops() const {
+		size_t ops() const {
 			return _ops;
 		}
 	};

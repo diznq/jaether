@@ -18,11 +18,11 @@ namespace jaether {
 
 	class vClass {
 	public:
-		V<vMemory> _constPool = V<vMemory>::NullPtr();
-		V<vFIELD> _methods = V<vFIELD>::NullPtr();
-		V<vFIELD> _fields = V<vFIELD>::NullPtr();
-		V<vATTRIBUTE> _attributes = V<vATTRIBUTE>::NullPtr();
-		V<vUSHORT> _interfaces = V<vUSHORT>::NullPtr();
+		V<vMemory> _constPool = V<vMemory>::nullPtr();
+		V<vFIELD> _methods = V<vFIELD>::nullPtr();
+		V<vFIELD> _fields = V<vFIELD>::nullPtr();
+		V<vATTRIBUTE> _attributes = V<vATTRIBUTE>::nullPtr();
+		V<vUSHORT> _interfaces = V<vUSHORT>::nullPtr();
 		//V<vUSHORT> _fieldLookup = V<vUSHORT>::NullPtr();
 		vUSHORT _name = 0;
 		vUSHORT _super = 0;

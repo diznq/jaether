@@ -14,14 +14,14 @@ namespace jaether {
 		vMemory(vContext* ctx, size_t size = sizeof(vCOMMON) * 65536) {
 			_memory = VMAKEARRAY(vCOMMON, ctx, size);
 			_size = size;
-			memset(_memory.Real(ctx), 0, size);
+			memset(_memory.real(ctx), 0, size);
 		}
 
 		~vMemory() {
 		}
 
 		void destroy(vContext* ctx) {
-			_memory.Release(ctx, true);
+			_memory.release(ctx, true);
 		}
 
 		template<class T> vMemory& set(vContext* ctx, const size_t index, const T& value) {

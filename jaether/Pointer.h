@@ -2,8 +2,8 @@
 #include <stdint.h>
 #include "Context.h"
 
-#define VMAKE(type, ctx, ...) V<type>(ctx->AllocType<type>(__VA_ARGS__))
-#define VMAKEARRAY(type, ctx, i) V<type>(ctx->AllocArray<type>(i))
+#define VMAKE(type, ctx, ...) V<type>(ctx->allocType<type>(__VA_ARGS__))
+#define VMAKEARRAY(type, ctx, i) V<type>(ctx->allocArray<type>(i))
 
 namespace jaether {
 
@@ -23,30 +23,30 @@ namespace jaether {
 
 		uintptr_t U() const { return (uintptr_t)_addr; }
 
-		static V<A> NullPtr() {
+		static V<A> nullPtr() {
 			return V<A>();
 		}
 
-		bool Release(vContext* ctx, bool arr = false) {
-			if (!IsValid()) return false;
-			ctx->FreeType<A>(Real(ctx), arr);
+		bool release(vContext* ctx, bool arr = false) {
+			if (!isValid()) return false;
+			ctx->freeType<A>(real(ctx), arr);
 			_addr = (A*)~(uintptr_t)0;
 			return true;
 		}
 
-		bool IsValid() const {
+		bool isValid() const {
 			return ~U();
 		}
 
-		A* Real(vContext* ctx) const {
-			return (A*)(((uintptr_t)_addr) + ctx->Offset());
+		A* real(vContext* ctx) const {
+			return (A*)(((uintptr_t)_addr) + ctx->offset());
 		}
 
-		A* Ptr(vContext* ctx) const {
-			return Real(ctx);
+		A* ptr(vContext* ctx) const {
+			return real(ctx);
 		}
 
-		A* Virtual(vContext* ctx = 0) const {
+		A* v(vContext* ctx = 0) const {
 			return (A*)((uintptr_t)_addr);
 		}
 
@@ -59,7 +59,7 @@ namespace jaether {
 		}*/
 
 		V<A> operator+(const size_t index) const {
-			return V<A>(Virtual() + index);
+			return V<A>(v() + index);
 		}
 
 		V<A>& operator+=(const size_t index) {
@@ -68,11 +68,11 @@ namespace jaether {
 		}
 
 		A& operator[](const VCtxIdx& index) const {
-			return Real(index.ctx)[index.index];
+			return real(index.ctx)[index.index];
 		}
 
 		operator bool() const {
-			return IsValid();
+			return isValid();
 		}
 	};
 

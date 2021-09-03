@@ -20,7 +20,7 @@ namespace jaether {
 		V<vOBJECT> _obj;
 	public:
 		JObject(vContext* ctx, V<vOBJECTREF> objref) : _ctx(ctx) {
-			_obj = V<vOBJECT>((vOBJECT*)objref.Ptr(ctx)->r.a);
+			_obj = V<vOBJECT>((vOBJECT*)objref.ptr(ctx)->r.a);
 		}
 		JObject(vContext* ctx, vOBJECTREF objref) : _ctx(ctx) {
 			_obj = V<vOBJECT>((vOBJECT*)objref.r.a);
@@ -32,18 +32,18 @@ namespace jaether {
 
 		}
 		vCOMMON& operator[](const char* idx) const {
-			vCOMMON* ptr = _obj.Ptr(_ctx)->cls.Ptr(_ctx)->getObjField(_ctx, _obj, idx);
+			vCOMMON* ptr = _obj.ptr(_ctx)->cls.ptr(_ctx)->getObjField(_ctx, _obj, idx);
 			if (!ptr) throw FieldNotFoundException();
 			return *ptr;
 		}
 		void* Ptr() const {
-			return _obj.Ptr(_ctx);
+			return _obj.ptr(_ctx);
 		}
 		operator bool() const {
-			return _obj.IsValid();
+			return _obj.isValid();
 		}
 		V<vClass> GetClass() const {
-			return _obj.Ptr(_ctx)->cls;
+			return _obj.ptr(_ctx)->cls;
 		}
 	};
 
@@ -55,7 +55,7 @@ namespace jaether {
 		V<vNATIVEARRAY> _obj;
 	public:
 		JArray(vContext* ctx, V<vOBJECTREF> objref) : _ctx(ctx) {
-			_obj = V<vNATIVEARRAY>((vNATIVEARRAY*)objref.Ptr(ctx)->r.a);
+			_obj = V<vNATIVEARRAY>((vNATIVEARRAY*)objref.ptr(ctx)->r.a);
 		}
 		JArray(vContext* ctx, vOBJECTREF objref) : _ctx(ctx) {
 			_obj = V<vNATIVEARRAY>((vNATIVEARRAY*)objref.r.a);
@@ -67,25 +67,25 @@ namespace jaether {
 
 		}
 		T& operator[](const size_t idx) const {
-			return _obj.Ptr(_ctx)->get<T>(_ctx, idx);
+			return _obj.ptr(_ctx)->get<T>(_ctx, idx);
 		}
 		size_t length() const {
-			return _obj.Ptr(_ctx)->size;
+			return _obj.ptr(_ctx)->size;
 		}
 		vBYTE type() const {
-			return _obj.Ptr(_ctx)->type;
+			return _obj.ptr(_ctx)->type;
 		}
 		vUSHORT cls() const {
-			return _obj.Ptr(_ctx)->cls;
+			return _obj.ptr(_ctx)->cls;
 		}
 		T* data() const {
-			return (T*)_obj.Ptr(_ctx)->data.Ptr(_ctx);
+			return (T*)_obj.ptr(_ctx)->data.ptr(_ctx);
 		}
 		void* Ptr() const {
-			return _obj.Ptr(_ctx);
+			return _obj.ptr(_ctx);
 		}
 		operator bool() const {
-			return _obj.IsValid();
+			return _obj.isValid();
 		}
 	};
 

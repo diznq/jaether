@@ -13,16 +13,16 @@ namespace jaether {
 	}
 
 	V<vClass> vCPU::load(vContext* ctx, const std::string& path) {
-		auto& _classes = ctx->GetClasses();
+		auto& _classes = ctx->getClasses();
 		auto it = _classes.find(path);
 		if (it != _classes.end()) return V<vClass>((vClass*)it->second);
 		if (!std::filesystem::exists(path + ".class")) {
-			return V<vClass>::NullPtr();
+			return V<vClass>::nullPtr();
 		}
 		V<vClass> cls = VMAKE(vClass, ctx, ctx, this, (path + ".class").c_str());
-		_classes[cls.Ptr(ctx)->getName(ctx)] = cls.Virtual(ctx);
+		_classes[cls.ptr(ctx)->getName(ctx)] = cls.v(ctx);
 
-		vClass* clsPtr = cls.Ptr(ctx);
+		vClass* clsPtr = cls.ptr(ctx);
 
 		if (!clsPtr->_initialized) {
 			clsPtr->_initialized = true;
@@ -33,7 +33,7 @@ namespace jaether {
 	}
 
 	std::map<std::string, vClass*>::iterator vCPU::lazyLoad(vContext* ctx, const std::string& path) {
-		auto& _classes = ctx->GetClasses();
+		auto& _classes = ctx->getClasses();
 		auto it = _classes.find(path);
 		if (it != _classes.end()) return it;
 		load(ctx, path);
@@ -78,9 +78,9 @@ namespace jaether {
 			V<vNATIVEARRAY> srcArr((vNATIVEARRAY*)src.r.a);
 			V<vNATIVEARRAY> dstArr((vNATIVEARRAY*)dst.r.a);
 
-			auto unit = srcArr.Ptr(ctx)->unitSize(srcArr.Ptr(ctx)->type);
-			vBYTE* pSrc = srcArr.Ptr(ctx)->data.Ptr(ctx);
-			vBYTE* pDst = dstArr.Ptr(ctx)->data.Ptr(ctx);
+			auto unit = srcArr.ptr(ctx)->unitSize(srcArr.ptr(ctx)->type);
+			vBYTE* pSrc = srcArr.ptr(ctx)->data.ptr(ctx);
+			vBYTE* pDst = dstArr.ptr(ctx)->data.ptr(ctx);
 
 			memmove(pDst + (size_t)dstPos * unit, pSrc + (size_t)srcPos * unit, (size_t)len * unit);
 
@@ -116,12 +116,12 @@ namespace jaether {
 			vOBJECTREF arg = stack->pop<vOBJECTREF>(ctx);
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 			JString str(ctx, arg);
-			auto& classes = ctx->GetClasses();
+			auto& classes = ctx->getClasses();
 			auto it = lazyLoad(ctx, "java/lang/Class");
 			if (it != classes.end()) {
 				V<vClass> cls(it->second);
 				V<vOBJECT> obj = VMAKE(vOBJECT, ctx, ctx, cls);
-				vOBJECTREF ref; ref.r.a = (vULONG)obj.Virtual(ctx);
+				vOBJECTREF ref; ref.r.a = (vULONG)obj.v(ctx);
 				stack->push<vOBJECTREF>(ctx, ref);
 			}
 		});
@@ -130,7 +130,7 @@ namespace jaether {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 			//std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
 			//vLONG millis = (vLONG)ms.count();
-			stack->push<vLONG>(ctx, ctx->Ops() / 50000);
+			stack->push<vLONG>(ctx, ctx->ops() / 50000);
 		});
 	}
 
@@ -140,11 +140,12 @@ namespace jaether {
 
 	vOBJECTREF vCPU::createString(vContext* ctx, vClass* _class, vStack* _stack, vMemory* _constPool, vUSHORT strIndex, vUSHORT* backref) {
 		V<vUTF8BODY> str = _class->toString(ctx, strIndex);
-		vUINT size = (vUINT)str.Ptr(ctx)->len;
+		vUINT size = (vUINT)str.ptr(ctx)->len;
 		size_t utf16len = 0;
-		const vBYTE* src = (const vBYTE*)str.Ptr(ctx)->s.Ptr(ctx);
-		wchar_t* arr = new wchar_t[(size_t)size + 1];
-		memset(arr, 0, sizeof(wchar_t) * ((size_t)size + 1));
+		const vBYTE* src = (const vBYTE*)str.ptr(ctx)->s.ptr(ctx);
+		size_t utfCapacity = (size_t)size + 10;
+		vJCHAR* arr = new vJCHAR[utfCapacity];
+		memset(arr, 0, sizeof(vJCHAR) * utfCapacity);
 		for (vUINT i = 0; i < size; i++) {
 			vBYTE b = src[i] & 255;
 			if (b >= 1 && b <= 0x7F) {	// 1 byte
@@ -153,13 +154,13 @@ namespace jaether {
 				vUSHORT x = (vUSHORT)src[i++] & 255;
 				vUSHORT y = (vUSHORT)src[i] & 255;
 				vUSHORT R = (vUSHORT)(((x & 0x1f) << 6) | (y & 0x3f));
-				arr[utf16len++] = (wchar_t)((R >> 8) | (R << 8));	// fix endian
+				arr[utf16len++] = (vJCHAR)((R >> 8) | (R << 8));	// fix endian
 			} else if ((b & 0xE0) == 0xE0) { // 3 bytes
 				vUSHORT x = (vUSHORT)src[i++] & 255;
 				vUSHORT y = (vUSHORT)src[i++] & 255;
 				vUSHORT z = (vUSHORT)src[i] & 255;
 				vUSHORT R = (vUSHORT)(((x & 0xf) << 12) | ((y & 0x3f) << 6) | (z & 0x3f));
-				arr[utf16len++] = (wchar_t)((R >> 8) | (R << 8));	// fix endian
+				arr[utf16len++] = (vJCHAR)((R >> 8) | (R << 8));	// fix endian
 			}
 		}
 		std::wstring utf16Str(arr, arr + utf16len);
@@ -170,24 +171,24 @@ namespace jaether {
 	vOBJECTREF vCPU::createString(vContext* ctx, vStack* _stack, const std::wstring& text, vMemory* _constPool, vUSHORT* backref) {
 		V<vNATIVEARRAY> arr = VMAKE(vNATIVEARRAY, ctx, ctx, 5, (vUINT)(text.length())); // 5 = JCHAR
 		for (size_t i = 0, j = text.length(); i < j; i++) {
-			arr.Ptr(ctx)->set<vJCHAR>(ctx, i, text[i]);
+			arr.ptr(ctx)->set<vJCHAR>(ctx, i, text[i]);
 		}
-		vOBJECTREF wchRef; wchRef.r.a = (uintptr_t)arr.Virtual(ctx);
+		vOBJECTREF wchRef; wchRef.r.a = (uintptr_t)arr.v(ctx);
 		auto it = lazyLoad(ctx, "java/lang/String");
-		auto& _classes = ctx->GetClasses();
+		auto& _classes = ctx->getClasses();
 		if (it != _classes.end()) {
 			V<vClass> strCls = it->second;
 			V<vOBJECT> strObj = VMAKE(vOBJECT, ctx, ctx, strCls);
-			vOBJECTREF ref; ref.r.a = (vULONG)strObj.Virtual(ctx);
+			vOBJECTREF ref; ref.r.a = (vULONG)strObj.v(ctx);
 			_stack->push<vOBJECTREF>(ctx, ref);
 			_stack->push<vOBJECTREF>(ctx, wchRef);
 			if (_constPool && backref) {
 				_constPool->set<vOBJECTREF>(ctx, (size_t)*backref, ref);
 			}
-			auto [ok, result] = strCls.Ptr(ctx)->invoke(ctx, strCls, strCls, this, _stack, invokespecial, "<init>", "([C)V");
+			auto [ok, result] = strCls.ptr(ctx)->invoke(ctx, strCls, strCls, this, _stack, invokespecial, "<init>", "([C)V");
 			return ref;
 		} else {
-			vOBJECTREF objr; objr.r.a = (vULONG)V<vOBJECT>::NullPtr().Virtual(ctx);
+			vOBJECTREF objr; objr.r.a = (vULONG)V<vOBJECT>::nullPtr().v(ctx);
 			return objr;
 		}
 	}
@@ -201,7 +202,7 @@ namespace jaether {
 		vClass* _class = 0;
 		vMemory* _constPool = 0;
 		vFrame* _frame = 0;
-		auto& _classes = ctx->GetClasses();
+		auto& _classes = ctx->getClasses();
 		vCOMMON op[8];
 		size_t ops = 0;
 		size_t fwd = 0;
@@ -213,12 +214,12 @@ namespace jaether {
 			}
 			if (frameChanged) {
 				const V<vFrame>& Frame = frames.top();
-				_stack = Frame.Ptr(ctx)->_stack.Real(ctx);
-				_local = Frame.Ptr(ctx)->_local.Real(ctx);
-				_class = Frame.Ptr(ctx)->_class.Real(ctx);
-				_constPool = Frame.Ptr(ctx)->_class.Ptr(ctx)->_constPool.Real(ctx);
-				_frame = Frame.Ptr(ctx);
-				if (!_frame->_program.IsValid()) {
+				_stack = Frame.ptr(ctx)->_stack.real(ctx);
+				_local = Frame.ptr(ctx)->_local.real(ctx);
+				_class = Frame.ptr(ctx)->_class.real(ctx);
+				_constPool = Frame.ptr(ctx)->_class.ptr(ctx)->_constPool.real(ctx);
+				_frame = Frame.ptr(ctx);
+				if (!_frame->_program.isValid()) {
 					return 0;
 				}
 				frameChanged = false;
@@ -711,7 +712,7 @@ namespace jaether {
 				op[0].b = read<vBYTE>(ip + 1);
 				op[1].u = _stack->pop<vUINT>(ctx);
 				V<vNATIVEARRAY> arr = VMAKE(vNATIVEARRAY, ctx, ctx, op[0].b, op[1].u);
-				op[2].objref.r.a = (uintptr_t)arr.Virtual(ctx);
+				op[2].objref.r.a = (uintptr_t)arr.v(ctx);
 				_stack->push<vOBJECTREF>(ctx, op[2].objref);
 				fwd = 1; break; 
 			}
@@ -721,8 +722,8 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[3].u = readUSI(ip + 1);
 				V<vNATIVEARRAY> arr = VMAKE(vNATIVEARRAY, ctx, ctx, op[0].b, op[1].u);
-				arr.Ptr(ctx)->cls = op[3].u;
-				op[2].objref.r.a = (uintptr_t)arr.Virtual(ctx);
+				arr.ptr(ctx)->cls = op[3].u;
+				op[2].objref.r.a = (uintptr_t)arr.v(ctx);
 				_stack->push<vOBJECTREF>(ctx, op[2].objref);
 				fwd = 2; break; 
 			}
@@ -730,7 +731,7 @@ namespace jaether {
 			{
 				op[0].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[0].objref.r.a);
-				_stack->push<vUINT>(ctx, arr.Ptr(ctx)->size);
+				_stack->push<vUINT>(ctx, arr.ptr(ctx)->size);
 				fwd = 0; break; 
 			}
 
@@ -740,7 +741,7 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
-				arr.Ptr(ctx)->set(ctx, (size_t)op[1].u, op[0].a);
+				arr.ptr(ctx)->set(ctx, (size_t)op[1].u, op[0].a);
 				fwd = 0; break; 
 			}
 			case bastore:
@@ -749,7 +750,7 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
-				arr.Ptr(ctx)->set(ctx, (size_t)op[1].u, op[0].b);
+				arr.ptr(ctx)->set(ctx, (size_t)op[1].u, op[0].b);
 				fwd = 0; break; 
 			}
 			case sastore:
@@ -758,7 +759,7 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
-				arr.Ptr(ctx)->set(ctx, (size_t)op[1].u, op[0].si);
+				arr.ptr(ctx)->set(ctx, (size_t)op[1].u, op[0].si);
 				fwd = 0; break; 
 			}
 			case iastore:
@@ -767,7 +768,7 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
-				arr.Ptr(ctx)->set(ctx, (size_t)op[1].u, op[0].i);
+				arr.ptr(ctx)->set(ctx, (size_t)op[1].u, op[0].i);
 				fwd = 0; break; 
 			}
 			case lastore:
@@ -776,7 +777,7 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
-				arr.Ptr(ctx)->set(ctx, (size_t)op[1].u, op[0].l);
+				arr.ptr(ctx)->set(ctx, (size_t)op[1].u, op[0].l);
 				fwd = 0; break; 
 			}
 			case castore:
@@ -785,7 +786,7 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
-				arr.Ptr(ctx)->set(ctx, (size_t)op[1].u, op[0].jc);
+				arr.ptr(ctx)->set(ctx, (size_t)op[1].u, op[0].jc);
 				fwd = 0; break; 
 			}
 			case fastore:
@@ -794,7 +795,7 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
-				arr.Ptr(ctx)->set(ctx, (size_t)op[1].u, op[0].f);
+				arr.ptr(ctx)->set(ctx, (size_t)op[1].u, op[0].f);
 				fwd = 0; break; 
 			}
 			case dastore:
@@ -803,7 +804,7 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
-				arr.Ptr(ctx)->set(ctx, (size_t)op[1].u, op[0].d);
+				arr.ptr(ctx)->set(ctx, (size_t)op[1].u, op[0].d);
 				fwd = 0; break; 
 			}
 			// Array load
@@ -812,7 +813,7 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
-				_stack->push(ctx, arr.Ptr(ctx)->get<vREF>(ctx, (size_t)op[1].u));
+				_stack->push(ctx, arr.ptr(ctx)->get<vREF>(ctx, (size_t)op[1].u));
 				fwd = 0; break; 
 			}
 			case baload:
@@ -820,7 +821,7 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
-				_stack->push(ctx, arr.Ptr(ctx)->get<vBYTE>(ctx, (size_t)op[1].u));
+				_stack->push(ctx, arr.ptr(ctx)->get<vBYTE>(ctx, (size_t)op[1].u));
 				fwd = 0; break; 
 			}
 			case saload:
@@ -828,7 +829,7 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
-				_stack->push(ctx, arr.Ptr(ctx)->get<vSHORT>(ctx, (size_t)op[1].u)); 
+				_stack->push(ctx, arr.ptr(ctx)->get<vSHORT>(ctx, (size_t)op[1].u)); 
 				fwd = 0; break; 
 			}
 			case iaload:
@@ -836,7 +837,7 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
-				_stack->push(ctx, arr.Ptr(ctx)->get<vINT>(ctx, (size_t)op[1].u));
+				_stack->push(ctx, arr.ptr(ctx)->get<vINT>(ctx, (size_t)op[1].u));
 				fwd = 0; break; 
 			}
 			case laload:
@@ -844,7 +845,7 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
-				_stack->push(ctx, arr.Ptr(ctx)->get<vLONG>(ctx, (size_t)op[1].u));
+				_stack->push(ctx, arr.ptr(ctx)->get<vLONG>(ctx, (size_t)op[1].u));
 				fwd = 0; break; 
 			}
 			case caload:
@@ -852,7 +853,7 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
-				_stack->push(ctx, arr.Ptr(ctx)->get<vJCHAR>(ctx, (size_t)op[1].u));
+				_stack->push(ctx, arr.ptr(ctx)->get<vJCHAR>(ctx, (size_t)op[1].u));
 				fwd = 0; break; 
 			}
 			case faload:
@@ -861,7 +862,7 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
-				_stack->push(ctx, arr.Ptr(ctx)->get<vFLOAT>(ctx, (size_t)op[1].u));
+				_stack->push(ctx, arr.ptr(ctx)->get<vFLOAT>(ctx, (size_t)op[1].u));
 				fwd = 0; break; 
 			}
 			case daload:
@@ -870,7 +871,7 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
-				_stack->push(ctx, arr.Ptr(ctx)->get<vDOUBLE>(ctx, (size_t)op[1].u));
+				_stack->push(ctx, arr.ptr(ctx)->get<vDOUBLE>(ctx, (size_t)op[1].u));
 				fwd = 0; break; 
 			}
 
@@ -1041,9 +1042,9 @@ namespace jaether {
 						auto& oldFrame = frames.top();
 						frames.pop();
 						auto& newFrame = frames.top();
-						newFrame.Ptr(ctx)->_stack.Ptr(ctx)->push<vCOMMON>(ctx, op[0]);
-						oldFrame.Ptr(ctx)->destroy(ctx);
-						oldFrame.Release(ctx);
+						newFrame.ptr(ctx)->_stack.ptr(ctx)->push<vCOMMON>(ctx, op[0]);
+						oldFrame.ptr(ctx)->destroy(ctx);
+						oldFrame.release(ctx);
 					} else {
 						frames.pop();
 					}
@@ -1067,9 +1068,9 @@ namespace jaether {
 			{
 				op[0].usi = readUSI(ip + 1);
 				op[1].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
-				std::string path = std::string((const char*)_class->toString(ctx, op[1].mr.clsIndex).Ptr(ctx)->s.Real(ctx));
-				std::string methodName = (const char*)_class->toString(ctx, op[1].mr.nameIndex).Ptr(ctx)->s.Real(ctx);
-				std::string desc = (const char*)_class->toString(ctx, op[1].mr.nameIndex, 1).Ptr(ctx)->s.Real(ctx);
+				std::string path = std::string((const char*)_class->toString(ctx, op[1].mr.clsIndex).ptr(ctx)->s.real(ctx));
+				std::string methodName = (const char*)_class->toString(ctx, op[1].mr.nameIndex).ptr(ctx)->s.real(ctx);
+				std::string desc = (const char*)_class->toString(ctx, op[1].mr.nameIndex, 1).ptr(ctx)->s.real(ctx);
 				auto nit = _natives.find(path + "/" + methodName + ":" + desc);
 				bool found = false;
 				if (nit != _natives.end()) {
@@ -1079,16 +1080,16 @@ namespace jaether {
 					auto it = lazyLoad(ctx, path);
 					if (it != _classes.end()) {
 						V<vClass> cls = it->second;
-						vClass* clsPtr = cls.Ptr(ctx);
+						vClass* clsPtr = cls.ptr(ctx);
 
 						if (opcode == invokevirtual || opcode == invokeinterface) {
 							vUINT argc = clsPtr->argsCount(desc.c_str());
 							vCOMMON objr = _stack->get<vCOMMON>(ctx, argc);
 							JObject obj(ctx, objr);
 							V<vClass> objCls = obj.GetClass();
-							if (objCls.IsValid()) {
+							if (objCls.isValid()) {
 								cls = objCls;
-								clsPtr = cls.Ptr(ctx);
+								clsPtr = cls.ptr(ctx);
 								path = clsPtr->getName(ctx);
 							}
 						}
@@ -1117,13 +1118,13 @@ namespace jaether {
 			{
 				op[0].usi = readUSI(ip + 1);
 				op[1].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
-				std::string path = std::string((const char*)_class->toString(ctx, op[1].mr.clsIndex).Ptr(ctx)->s.Real(ctx));
+				std::string path = std::string((const char*)_class->toString(ctx, op[1].mr.clsIndex).ptr(ctx)->s.real(ctx));
 				auto it = lazyLoad(ctx, path);
 				bool found = false;
 				if (it != _classes.end()) {
 					V<vClass> cls = it->second;
 					V<vOBJECT> obj = VMAKE(vOBJECT, ctx, ctx, cls);
-					vOBJECTREF ref; ref.r.a = (vULONG)obj.Virtual(ctx);
+					vOBJECTREF ref; ref.r.a = (vULONG)obj.v(ctx);
 					_stack->push<vOBJECTREF>(ctx, ref);
 					found = true;
 				}
@@ -1140,13 +1141,13 @@ namespace jaether {
 			{
 				op[0].usi = readUSI(ip + 1);
 				op[3].mr = _constPool->get<vMETHODREF>(ctx, op[0].usi);
-				std::string path = std::string((const char*)_class->toString(ctx, op[3].mr.clsIndex).Ptr(ctx)->s.Real(ctx));
-				std::string field = std::string((const char*)_class->toString(ctx, op[3].mr.nameIndex).Ptr(ctx)->s.Real(ctx));
+				std::string path = std::string((const char*)_class->toString(ctx, op[3].mr.clsIndex).ptr(ctx)->s.real(ctx));
+				std::string field = std::string((const char*)_class->toString(ctx, op[3].mr.nameIndex).ptr(ctx)->s.real(ctx));
 				auto it = lazyLoad(ctx, path);
 				bool found = false;
 				if (it != _classes.end()) {
 					V<vClass> cls = it->second;
-					vClass* clsPtr = cls.Ptr(ctx);
+					vClass* clsPtr = cls.ptr(ctx);
 					vFIELD* fld = clsPtr->getField(ctx, field.c_str());
 					if (fld) {
 						_stack->push<vCOMMON>(ctx, fld->value);
@@ -1164,13 +1165,13 @@ namespace jaether {
 			{
 				op[0].usi = readUSI(ip + 1);
 				op[3].mr = _constPool->get<vMETHODREF>(ctx, op[0].usi);
-				std::string path = std::string((const char*)_class->toString(ctx, op[3].mr.clsIndex).Ptr(ctx)->s.Real(ctx));
-				std::string field = std::string((const char*)_class->toString(ctx, op[3].mr.nameIndex).Ptr(ctx)->s.Real(ctx));
+				std::string path = std::string((const char*)_class->toString(ctx, op[3].mr.clsIndex).ptr(ctx)->s.real(ctx));
+				std::string field = std::string((const char*)_class->toString(ctx, op[3].mr.nameIndex).ptr(ctx)->s.real(ctx));
 				auto it = lazyLoad(ctx, path);
 				bool found = false;
 				if (it != _classes.end()) {
 					V<vClass> cls = it->second;
-					vClass* clsPtr = cls.Ptr(ctx);
+					vClass* clsPtr = cls.ptr(ctx);
 					vFIELD* fld = clsPtr->getField(ctx, field.c_str());
 					if (fld) {
 						fld->value = _stack->pop<vCOMMON>(ctx);
@@ -1188,9 +1189,9 @@ namespace jaether {
 				op[1].objref = _stack->pop<vOBJECTREF>(ctx);
 				op[3].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
 				V<vOBJECT> obj((vOBJECT*)op[1].objref.r.a);
-				V<vClass> cls = obj.Ptr(ctx)->cls;
-				const char* fieldName = (const char*)_class->toString(ctx, op[3].mr.nameIndex).Ptr(ctx)->s.Ptr(ctx);
-				vCOMMON* value = cls.Ptr(ctx)->getObjField(ctx, obj, fieldName);
+				V<vClass> cls = obj.ptr(ctx)->cls;
+				const char* fieldName = (const char*)_class->toString(ctx, op[3].mr.nameIndex).ptr(ctx)->s.ptr(ctx);
+				vCOMMON* value = cls.ptr(ctx)->getObjField(ctx, obj, fieldName);
 				bool found = value != 0;
 				if (found) {
 					_stack->push<vCOMMON>(ctx, *value);
@@ -1198,7 +1199,7 @@ namespace jaether {
 					fprintf(stderr, "[vCPU::sub_execute/%s] Couldn't find field index %s::%s #%d, #%d\n", 
 						Opcodes[opcode],
 						_class->getName(ctx),
-						_class->toString(ctx, op[3].mr.nameIndex).Ptr(ctx)->s.Ptr(ctx),
+						_class->toString(ctx, op[3].mr.nameIndex).ptr(ctx)->s.ptr(ctx),
 						op[3].mr.nameIndex,
 						op[0].usi);
 					_running = false;
@@ -1212,17 +1213,17 @@ namespace jaether {
 				op[1].objref = _stack->pop<vOBJECTREF>(ctx);
 				op[3].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
 				V<vOBJECT> obj((vOBJECT*)op[1].objref.r.a);
-				V<vClass> cls = obj.Ptr(ctx)->cls;
-				const char* fieldName = (const char*)_class->toString(ctx, op[3].mr.nameIndex).Ptr(ctx)->s.Ptr(ctx);
-				vCOMMON* value = cls.Ptr(ctx)->getObjField(ctx, obj, fieldName);
+				V<vClass> cls = obj.ptr(ctx)->cls;
+				const char* fieldName = (const char*)_class->toString(ctx, op[3].mr.nameIndex).ptr(ctx)->s.ptr(ctx);
+				vCOMMON* value = cls.ptr(ctx)->getObjField(ctx, obj, fieldName);
 				bool found = value != 0;
 				if (found) {
 					*value = op[2];
 				} else {
 					fprintf(stderr, "[vCPU::sub_execute/%s] Couldn't find field index %s::%s #%d\n",
 						Opcodes[opcode],
-						cls.Ptr(ctx)->getName(ctx),
-						cls.Ptr(ctx)->toString(ctx, op[3].mr.nameIndex).Ptr(ctx)->s.Ptr(ctx),
+						cls.ptr(ctx)->getName(ctx),
+						cls.ptr(ctx)->toString(ctx, op[3].mr.nameIndex).ptr(ctx)->s.ptr(ctx),
 						op[3].mr.nameIndex); 
 					_running = false;
 				}
@@ -1239,7 +1240,7 @@ namespace jaether {
 				fwd = 0; break;
 			}
 			_frame->incrpc(fwd + 1);
-			ctx->OnInstruction();
+			ctx->onInstruction();
 		}
 		_running = true;
 		return ops;
