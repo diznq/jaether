@@ -5,6 +5,9 @@
 
 namespace jaether {
 
+#define JAETHER_OBJ_TAG 4002
+#define JAETHER_ARR_TAG 4003
+
 	typedef int8_t		vCHAR;
 	typedef wchar_t		vJCHAR;
 	typedef int16_t		vSHORT;
@@ -195,8 +198,16 @@ namespace jaether {
 		};
 		vBYTE type;
 
-		template<class T> static vCOMMON create(T value) {
+		template<class T> static vCOMMON create(const T& value) {
 			vCOMMON var;
+			memset(&var, 0, sizeof(vCOMMON));
+			memcpy(&var, &value, sizeof(T));
+			var.type = vTypes::type<T>();
+			return var;
+		}
+
+		template<class T> vCOMMON& set(const T& value) {
+			vCOMMON& var = *this;
 			memset(&var, 0, sizeof(vCOMMON));
 			memcpy(&var, &value, sizeof(T));
 			var.type = vTypes::type<T>();
@@ -227,10 +238,14 @@ namespace jaether {
 	typedef vFIELD vMETHOD;
 
 	struct vNATIVEARRAY {
+		int TAG = JAETHER_ARR_TAG;
 		V<vBYTE> data;
+		V<vClass> cls;
+		vCOMMON x;
+
 		vUINT size;
 		vBYTE type;
-		vUSHORT cls;
+
 		vNATIVEARRAY(vContext* ctx, vBYTE type, vUINT size);
 		static vUINT unitSize(vBYTE type) {
 			switch (type) {
@@ -264,7 +279,7 @@ namespace jaether {
 				printf("vNATIVEARRAY::set out of bounds (index: %llu)\n", index);
 				return;
 			}
-			vBYTE* base = data.ptr(ctx) + scaledIndex;
+			vBYTE* base = data(ctx) + scaledIndex;
 			*(T*)base = value;
 		}
 
@@ -275,14 +290,16 @@ namespace jaether {
 				printf("vNATIVEARRAY::get out of bounds (index: %llu)\n", index);
 				return *(T*)0;
 			}
-			vBYTE* base = data.ptr(ctx) + scaledIndex;
+			vBYTE* base = data(ctx) + scaledIndex;
 			return *(T*)base;
 		}
 	};
 
 	struct vOBJECT {
+		int TAG = JAETHER_OBJ_TAG;
 		V<vCOMMON> fields;
 		V<vClass> cls;
+		vCOMMON x;
 		vOBJECT(vContext* ctx, const V<vClass>& klass);
 	};
 

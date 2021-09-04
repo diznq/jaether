@@ -50,6 +50,14 @@ namespace jaether {
 			return (A*)((uintptr_t)_addr);
 		}
 
+		A* operator()(vContext* ctx) const {
+			return real(ctx);
+		}
+		
+		A& operator()(vContext* ctx, size_t index) const {
+			return real(ctx)[index];
+		}
+
 		/*A* operator->() const {
 			return Real();
 		}
@@ -70,6 +78,10 @@ namespace jaether {
 		A& operator[](const VCtxIdx& index) const {
 			return real(index.ctx)[index.index];
 		}
+
+		/*A* operator[](const vContext* ctx) const {
+			return real(ctx);
+		}*/
 
 		operator bool() const {
 			return isValid();

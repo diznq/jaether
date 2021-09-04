@@ -14,10 +14,13 @@ namespace jaether {
 	class vClass;
 	class vFrame;
 
+#define JAETHER_CLASS_TAG 4000
+
 	typedef std::function<void(vContext* ctx, const std::string& className, vCPU* cpu, vStack* stack, vBYTE opcode)> vNATIVE;
 
 	class vClass {
 	public:
+		int TAG = JAETHER_CLASS_TAG;
 		V<vMemory> _constPool = V<vMemory>::nullPtr();
 		V<vFIELD> _methods = V<vFIELD>::nullPtr();
 		V<vFIELD> _fields = V<vFIELD>::nullPtr();
@@ -35,7 +38,7 @@ namespace jaether {
 		vUSHORT _methodOffset = 0;
 		vBYTE _initialized = 0;
 
-		vClass(vContext* ctx, vCPU* cpu, const char* name);
+		vClass(vContext* ctx, vCPU* cpu, const char* name, const int nesting);
 		~vClass();
 		void destroy(vContext* ctx);
 

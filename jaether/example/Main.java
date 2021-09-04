@@ -2,10 +2,11 @@ package example;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Random;
 
 class Main {
 
-    public static void main(String[] args){
+    public static void test1(){
         String[] arr = new String[]{"Hello, ", "world!"};
         ArrayList<String> strings = new ArrayList<>();
         HashMap<String, String> stuff = new HashMap<>();
@@ -33,5 +34,20 @@ class Main {
             System.out.println(key);
             System.out.println(stuff.get(key));
         }
+    }
+
+    public static void test2(){
+        Random rnd = new Random();
+        for(int i=0; i<10; i++){
+            System.out.println(rnd.nextInt());
+        }
+    }
+
+    public static void test3(){
+        System.out.println(String.class.getName());
+    }
+
+    public static void main(String[] args){
+        test2();
     }
 }

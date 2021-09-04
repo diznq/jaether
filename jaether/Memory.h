@@ -27,7 +27,7 @@ namespace jaether {
 		template<class T> vMemory& set(vContext* ctx, const size_t index, const T& value) {
 			const size_t size = sizeof(vCOMMON);
 			assert(index < _size);
-			vBYTE* ptr = (vBYTE*)&_memory[VCtxIdx{ ctx, index }];
+			vBYTE* ptr = (vBYTE*)&_memory( ctx,  index);
 			memset(ptr, 0, size);
 			memcpy(ptr, &value, sizeof(T));
 			if constexpr (!std::is_same_v<T, vCOMMON>) {
@@ -43,7 +43,7 @@ namespace jaether {
 		template<class T> T& get(vContext* ctx, const size_t index) const {
 			const size_t size = sizeof(vCOMMON);
 			assert(index < _size);
-			return *(T*)&_memory[VCtxIdx{ ctx, index }];
+			return *(T*)&_memory( ctx,  index);
 		}
 	};
 

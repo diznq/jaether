@@ -4,14 +4,13 @@
 
 namespace jaether {
 
-	vClass::vClass(vContext* ctx, vCPU* cpu, const char* name) {
+	vClass::vClass(vContext* ctx, vCPU* cpu, const char* name, const int nesting) {
 		std::ifstream f(name, std::ios::binary);
 		if (f) {
 			vUINT magic = readUI(f);
 			vUSHORT minor = readUSI(f), major = readUSI(f);
 			vUSHORT consts = readUSI(f);
 			vCOMMON ops[8];
-			DPRINTF("Loading class %s, ver: %d.%d, magic: %08X, constants: %d\n", name, major, minor, magic, consts);
 			_constPool = VMAKE(vMemory, ctx, ctx, (size_t)consts);
 			//_fieldLookup = VMAKEARRAY(vUSHORT, ctx, (size_t)consts);
 			// memset(_fieldLookup.Real(ctx), 0xFF, consts * sizeof(vUSHORT));
@@ -23,63 +22,63 @@ namespace jaether {
 				{
 					ops[0].usi = readUSI(f);
 					V<vUTF8BODY> str = VMAKE(vUTF8BODY, ctx);
-					str.ptr(ctx)->len = ops[0].usi;
-					str.ptr(ctx)->s = VMAKEARRAY(vBYTE, ctx, (size_t)str.ptr(ctx)->len + 1);
-					memset(str.ptr(ctx)->s.real(ctx), 0, (size_t)str.ptr(ctx)->len + 1);
-					for (vUSHORT k = 0; k < ops[0].usi; k++) str.ptr(ctx)->s[VCtxIdx{ ctx, k }] = (vBYTE)f.get();
+					str(ctx)->len = ops[0].usi;
+					str(ctx)->s = VMAKEARRAY(vBYTE, ctx, (size_t)str(ctx)->len + 1);
+					memset(str(ctx)->s.real(ctx), 0, (size_t)str(ctx)->len + 1);
+					for (vUSHORT k = 0; k < ops[0].usi; k++) str(ctx)->s( ctx,  k) = (vBYTE)f.get();
 					vUTF8 wrap;
 					wrap.r.a = (vULONG)str.v(ctx);
-					_constPool.ptr(ctx)->set<vUTF8>(ctx, i, wrap);
-					//printf("Read string at %d: %s\n", i, str.Ptr(ctx)->s.Ptr(ctx));
+					_constPool(ctx)->set<vUTF8>(ctx, i, wrap);
+					//printf("Read string at %d: %s\n", i, str(ctx)->s(ctx));
 					break;
 				}
 				case vCT_STRING:
 					ops[0].str.strIndex = readUSI(f);
-					_constPool.ptr(ctx)->set<vSTRING>(ctx, i, ops[0].str);
+					_constPool(ctx)->set<vSTRING>(ctx, i, ops[0].str);
 					break;
 				case vCT_CLASS:
 					ops[0].cls.clsIndex = readUSI(f);
-					_constPool.ptr(ctx)->set<vCLASS>(ctx, i, ops[0].cls);
+					_constPool(ctx)->set<vCLASS>(ctx, i, ops[0].cls);
 					break;
 				case vCT_METHODREF:
 				case vCT_IFACEMETHODREF:
 				case vCT_FIELDREF:
 					ops[0].mr.clsIndex = readUSI(f);
 					ops[0].mr.nameIndex = readUSI(f);
-					_constPool.ptr(ctx)->set<vMETHODREF>(ctx, i, ops[0].mr);
+					_constPool(ctx)->set<vMETHODREF>(ctx, i, ops[0].mr);
 					break;
 				case vCT_NAMEANDTYPE:
 					ops[0].nt.nameIndex = readUSI(f);
 					ops[0].nt.descIndex = readUSI(f);
-					_constPool.ptr(ctx)->set<vNAMEANDTYPE>(ctx, i, ops[0].nt);
+					_constPool(ctx)->set<vNAMEANDTYPE>(ctx, i, ops[0].nt);
 					break;
 				case vCT_METHODTYPE:
 					ops[0].mt.descIndex = readUSI(f);
-					_constPool.ptr(ctx)->set<vMETHODTYPE>(ctx, i, ops[0].mt);
+					_constPool(ctx)->set<vMETHODTYPE>(ctx, i, ops[0].mt);
 					break;
 				case vCT_INT:
-					_constPool.ptr(ctx)->set<vINT>(ctx, i, readInt(f));
+					_constPool(ctx)->set<vINT>(ctx, i, readInt(f));
 					break;
 				case vCT_FLOAT:
-					_constPool.ptr(ctx)->set<vFLOAT>(ctx, i, readFloat(f));
+					_constPool(ctx)->set<vFLOAT>(ctx, i, readFloat(f));
 					break;
 				case vCT_LONG:
-					_constPool.ptr(ctx)->set<vLONG>(ctx, i, readLong(f));
+					_constPool(ctx)->set<vLONG>(ctx, i, readLong(f));
 					i++;
 					break;
 				case vCT_DOUBLE:
-					_constPool.ptr(ctx)->set<vDOUBLE>(ctx, i, readDouble(f));
+					_constPool(ctx)->set<vDOUBLE>(ctx, i, readDouble(f));
 					i++;
 					break;
 				case vCT_INVOKEDYNAMIC:
 					ops[0].idyn.bootstrapMethodAttrIndex = readUSI(f);
 					ops[0].idyn.nameIndex = readUSI(f);
-					_constPool.ptr(ctx)->set<vINVOKEDYNAMIC>(ctx, i, ops[0].idyn);
+					_constPool(ctx)->set<vINVOKEDYNAMIC>(ctx, i, ops[0].idyn);
 					break;
 				case vCT_METHODHANDLE:
 					ops[0].mh.kind = (vBYTE)f.get();
 					ops[0].mh.index = readUSI(f);
-					_constPool.ptr(ctx)->set<vMETHODHANDLE>(ctx, i, ops[0].mh);
+					_constPool(ctx)->set<vMETHODHANDLE>(ctx, i, ops[0].mh);
 					break;
 				default:
 					fprintf(stderr, "[vClass::ctor] Unhandled tag type: %d\n", type);
@@ -92,14 +91,16 @@ namespace jaether {
 			_name = readUSI(f);
 			_super = readUSI(f);
 
+			ctx->getClasses()[getName(ctx)] = (vClass*)(((uintptr_t)this) - ctx->offset());
+
 			vClass* super = 0;
 
 			if (_super) {
-				auto super_it = cpu->lazyLoad(ctx, getSuperName(ctx));
+				auto super_it = cpu->lazyLoad(ctx, getSuperName(ctx), nesting + 2);
 				if (super_it != ctx->getClasses().end())
 				{
 					V<vClass> vsuper = super_it->second;
-					super = vsuper.ptr(ctx);
+					super = vsuper(ctx);
 				}
 			}
 
@@ -115,33 +116,33 @@ namespace jaether {
 			_interfaces = VMAKEARRAY(vUSHORT, ctx, (size_t)_interfaceCount);
 
 			for (vUSHORT i = 0; i < _interfaceCount; i++) {
-				_interfaces[VCtxIdx{ ctx, (size_t)i }] = readUSI(f);
+				_interfaces(ctx, (size_t)i) = readUSI(f);
 			}
 
 			_fieldCount = readUSI(f);
 			_fields = VMAKEARRAY(vFIELD, ctx, (size_t)_fieldCount + fieldOffset);
 
 			for (vUSHORT i = 0; i < _fieldCount; i++) {
-				readField(ctx, f, _fields[VCtxIdx{ ctx, (size_t)i }]);
+				readField(ctx, f, _fields(ctx, (size_t)i));
 			}
 
 			for (size_t i = _fieldCount; super && i < _fieldCount + fieldOffset; i++) {
-				vFIELD& field = super->_fields[VCtxIdx{ ctx, i - _fieldCount }];
-				vClass* fieldCls = (V<vClass>((vClass*)field.cls)).ptr(ctx);
-				_fields[VCtxIdx{ ctx, i }] = field;
+				vFIELD& field = super->_fields( ctx,  i - _fieldCount);
+				vClass* fieldCls = (V<vClass>((vClass*)field.cls))(ctx);
+				_fields(ctx, i) = field;
 			}
 
 			_methodCount = readUSI(f);
 			_methods = VMAKEARRAY(vFIELD, ctx, (size_t)_methodCount);
 
 			for (vUSHORT i = 0; i < _methodCount; i++) {
-				readField(ctx, f, _methods[VCtxIdx{ ctx, (size_t)i }]);
+				readField(ctx, f, _methods(ctx, (size_t)i));
 			}
 
 			_attributeCount = readUSI(f);
 			_attributes = VMAKEARRAY(vATTRIBUTE, ctx, (size_t)_attributeCount);
 			for (vUSHORT i = 0; i < _attributeCount; i++) {
-				readAttribute(ctx, f, _attributes[VCtxIdx{ ctx, (size_t)i }]);
+				readAttribute(ctx, f, _attributes(ctx, (size_t)i));
 			}
 
 			_fieldCount += _fieldOffset;
@@ -153,14 +154,14 @@ namespace jaether {
 	}
 
 	void vClass::destroy(vContext* ctx) {
-		_constPool.ptr(ctx)->destroy(ctx);
+		_constPool(ctx)->destroy(ctx);
 		_constPool.release(ctx);
 		//_fieldLookup.Release(ctx, true);
 		for (vUSHORT i = 0; i < _fieldCount; i++) {
-			_fields[VCtxIdx{ ctx, (size_t)i }].attributes.release(ctx, true);
+			_fields(ctx, (size_t)i).attributes.release(ctx, true);
 		}
 		for (vUSHORT i = 0; i < _methodCount; i++) {
-			_methods[VCtxIdx{ ctx, (size_t)i }].attributes.release(ctx, true);
+			_methods(ctx, (size_t)i).attributes.release(ctx, true);
 		}
 		_fields.release(ctx, true);
 		_methods.release(ctx, true);
@@ -168,12 +169,12 @@ namespace jaether {
 	}
 
 	const char* vClass::getName(vContext* ctx) {
-		return (const char*)toString(ctx, _name).ptr(ctx)->s.real(ctx);
+		return (const char*)toString(ctx, _name)(ctx)->s.real(ctx);
 	}
 
 	const char* vClass::getSuperName(vContext* ctx) {
 		if (_super == 0) return 0;
-		return (const char*)toString(ctx, _super).ptr(ctx)->s.real(ctx);
+		return (const char*)toString(ctx, _super)(ctx)->s.real(ctx);
 	}
 
 	vUSHORT vClass::readUSI(vBYTE* ip) const {
@@ -274,19 +275,19 @@ namespace jaether {
 		field.cls = (vClass*)((uintptr_t)this - ctx->offset());
 		field.attributeCount = readUSI(f);
 		field.attributes = VMAKEARRAY(vATTRIBUTE, ctx, (size_t)field.attributeCount);
-		//printf("%s read field %s\n", getName(ctx), toString(ctx, field.name).Ptr(ctx)->s.Ptr(ctx));
+		//printf("%s read field %s\n", getName(ctx), toString(ctx, field.name)(ctx)->s(ctx));
 		memset(&field.value, 0, sizeof(vCOMMON));
 		for (vUSHORT i = 0; i < field.attributeCount; i++) {
-			readAttribute(ctx, f, field.attributes[VCtxIdx{ ctx, (size_t)i }]);
+			readAttribute(ctx, f, field.attributes(ctx, (size_t)i));
 		}
 	}
 
 	vATTRIBUTE* vClass::getAttribute(vContext* ctx, const vFIELD* field, const char* name) {
 		for (vUSHORT i = 0; i < field->attributeCount; i++) {
-			V<vUTF8BODY> str = toString(ctx, field->attributes[VCtxIdx{ ctx, (size_t)i }].name);
+			V<vUTF8BODY> str = toString(ctx, field->attributes(ctx, (size_t)i).name);
 			if (!str.isValid()) continue;
-			if (!strcmp((const char*)str.ptr(ctx)->s.real(ctx), name)) {
-				return &field->attributes[VCtxIdx{ ctx, (size_t)i }];
+			if (!strcmp((const char*)str(ctx)->s.real(ctx), name)) {
+				return &field->attributes(ctx, (size_t)i);
 			}
 		}
 		return 0;
@@ -294,11 +295,11 @@ namespace jaether {
 
 	vFIELD* vClass::getField(vContext* ctx, const char* name) {
 		for (vUSHORT i = 0; i < _fieldCount; i++) {
-			V<vUTF8BODY> str = toString(ctx, _fields[VCtxIdx{ ctx, (size_t)i }].name);
+			V<vUTF8BODY> str = toString(ctx, _fields(ctx, (size_t)i).name);
 			if (!str.isValid()) continue;
-			if (!strcmp((const char*)str.ptr(ctx)->s.real(ctx), name)) {
+			if (!strcmp((const char*)str(ctx)->s.real(ctx), name)) {
 				//printf("Found %s\n", name);
-				return &_fields[VCtxIdx{ ctx, (size_t)i }];
+				return &_fields(ctx, (size_t)i);
 			}
 		}
 		//printf("Cannot find %s\n", name);
@@ -308,7 +309,7 @@ namespace jaether {
 			if (it != classes.end()) {
 				//printf("Trying super class\n");
 				V<vClass> super((vClass*)it->second);
-				return super.ptr(ctx)->getField(ctx, name);
+				return super(ctx)->getField(ctx, name);
 			}
 		}
 		return 0;
@@ -316,22 +317,22 @@ namespace jaether {
 
 	vMETHOD* vClass::getMethod(vContext* ctx, const char* name, const char* desc) {
 		for (vUSHORT i = 0; i < _methodCount; i++) {
-			V<vUTF8BODY> str = toString(ctx, _methods[VCtxIdx{ ctx, i }].name);
+			V<vUTF8BODY> str = toString(ctx, _methods(ctx, i).name);
 			if (!str.isValid()) continue;
-			if (!strcmp((const char*)str.ptr(ctx)->s.real(ctx), name)) {
+			if (!strcmp((const char*)str(ctx)->s.real(ctx), name)) {
 				if (desc != 0) {
-					V<vUTF8BODY> descstr = toString(ctx, _methods[VCtxIdx{ ctx, (size_t)i }].desc);
+					V<vUTF8BODY> descstr = toString(ctx, _methods(ctx, (size_t)i).desc);
 					if (!descstr.isValid()) continue;
-					if (strcmp(desc, (const char*)descstr.ptr(ctx)->s.real(ctx))) continue;
+					if (strcmp(desc, (const char*)descstr(ctx)->s.real(ctx))) continue;
 				}
-				return &_methods[VCtxIdx{ ctx, (size_t)i }];
+				return &_methods(ctx, (size_t)i);
 			}
 		}
 		return 0;
 	}
 
 	V<vUTF8BODY> vClass::toString(vContext* ctx, vUSHORT index, int selector) const {
-		vCOMMON str = _constPool.ptr(ctx)->get<vCOMMON>(ctx, index);
+		vCOMMON str = _constPool(ctx)->get<vCOMMON>(ctx, index);
 		// printf("to string %d, type: %d\n", index, str.type);
 		if (str.type == vTypes::type<vCLASS>()) {
 			return toString(ctx, str.cls.clsIndex);
@@ -360,7 +361,7 @@ namespace jaether {
 		if (!method) return 0;
 		V<vUTF8BODY> desc = toString(ctx, method->desc);
 		if (!desc.isValid()) return 0;
-		const char* str = (const char*)desc.ptr(ctx)->s.real(ctx);
+		const char* str = (const char*)desc(ctx)->s.real(ctx);
 		return argsCount(str);
 	}
 
@@ -393,21 +394,21 @@ namespace jaether {
 	vCOMMON* vClass::getObjField(vContext* ctx, V<vOBJECT> obj, const char* name) {
 		//printf("This: %p\n", this);
 		for (vUSHORT i = 0; i < _fieldCount; i++) {
-			vFIELD& field = _fields[VCtxIdx{ ctx, (size_t)i }];
+			vFIELD& field = _fields(ctx, (size_t)i);
 			//printf("Xdd %p\n", &field);
 			V<vClass> vcls((vClass*)field.cls);
 			if (!vcls.isValid()) return 0;
-			vClass* cls = (vcls).ptr(ctx);
-			const char* fieldName = (const char*)cls->toString(ctx, field.name).ptr(ctx)->s.real(ctx);
+			vClass* cls = (vcls)(ctx);
+			const char* fieldName = (const char*)cls->toString(ctx, field.name)(ctx)->s.real(ctx);
 			if (!strcmp(fieldName, name)) {
-				return &obj.ptr(ctx)->fields[VCtxIdx{ ctx, i }];
+				return &obj(ctx)->fields(ctx, i);
 			}
 		}
 		return 0;
 	}
 
 	vCOMMON* vClass::getObjField(vContext* ctx, V<vOBJECTREF> objref, const char* name) {
-		return getObjField(ctx, V<vOBJECT>((vOBJECT*)objref.ptr(ctx)->r.a), name);
+		return getObjField(ctx, V<vOBJECT>((vOBJECT*)objref(ctx)->r.a), name);
 	}
 
 
@@ -430,14 +431,14 @@ namespace jaether {
 		}
 
 		V<vFrame> nFrame((vFrame*)nnFrame);
-		cpu->run(ctx, nFrame);
+		cpu->run(ctx, nFrame, nesting);
 		vCOMMON subret;
 		memset(&subret, 0, sizeof(subret));
-		if (nFrame.ptr(ctx)->_returns) {
-			subret = nFrame.ptr(ctx)->_stack.ptr(ctx)->pop<vCOMMON>(ctx);
+		if (nFrame(ctx)->_returns) {
+			subret = nFrame(ctx)->_stack(ctx)->pop<vCOMMON>(ctx);
 			_stack->push<vCOMMON>(ctx, subret);
 		}
-		nFrame.ptr(ctx)->destroy(ctx);
+		nFrame(ctx)->destroy(ctx);
 		nFrame.release(ctx);
 		return std::make_tuple(true, subret);
 	}
@@ -460,11 +461,11 @@ namespace jaether {
 			for (vUINT i = 0; i < args; i++) {
 				vUINT j = args - i;
 				if (opcode == invokestatic) j--;
-				nFrame.ptr(ctx)->_local.ptr(ctx)->set<vCOMMON>(ctx, (size_t)j, _stack->pop<vCOMMON>(ctx));
+				nFrame(ctx)->_local(ctx)->set<vCOMMON>(ctx, (size_t)j, _stack->pop<vCOMMON>(ctx));
 			}
 			if (opcode != invokestatic)
-				nFrame.ptr(ctx)
-				->_local.ptr(ctx)
+				nFrame(ctx)
+				->_local(ctx)
 				->set<vCOMMON>(ctx, 0, _stack->pop<vCOMMON>(ctx));
 			return std::make_tuple(true, nFrame.v(ctx));
 		} else if (super.isValid()) {
@@ -474,11 +475,11 @@ namespace jaether {
 				if (it != classes.end()) {
 					V<vClass> kls((vClass*)it->second);
 					if (kls.isValid())
-						return kls.ptr(ctx)->createFrame(ctx, kls, super, cpu, _stack, opcode, methodName, desc, nesting + 1);
+						return kls(ctx)->createFrame(ctx, kls, super, cpu, _stack, opcode, methodName, desc, nesting + 1);
 				}
 			}
 			if (super.isValid())
-				return super.ptr(ctx)->createFrame(ctx, super, V<vClass>::nullPtr(), cpu, _stack, opcode, methodName, desc, nesting + 1);
+				return super(ctx)->createFrame(ctx, super, V<vClass>::nullPtr(), cpu, _stack, opcode, methodName, desc, nesting + 1);
 		}
 		return std::make_tuple(false, V<vFrame>::nullPtr().v(ctx));
 	}

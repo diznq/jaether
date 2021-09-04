@@ -29,7 +29,7 @@ namespace jaether {
 
 		template<class T> vStack& push(vContext* ctx, const T& value) {
 			const size_t size = sizeof(vCOMMON);
-			vBYTE* ptr = &_memory[VCtxIdx{ ctx, (size_t)_index }];
+			vBYTE* ptr = &_memory(ctx, (size_t)_index);
 			char lastByte = ((char*)&value)[sizeof(T) - 1];
 			bool isNegative = lastByte < 0;
 			memset(ptr, isNegative ? 0xFF : 0, size);
@@ -52,13 +52,13 @@ namespace jaether {
 			_index -= size;
 			//dbgStack("pop");
 			assert(_index <= _size);
-			return *(T*)&_memory[VCtxIdx{ ctx, (size_t)_index }];
+			return *(T*)&_memory(ctx, (size_t)_index);
 		}
 
 		template<class T> T& get(vContext* ctx, size_t index) {
 			const size_t offset = sizeof(vCOMMON) * index;
 			assert(_offset <= _index);
-			return *(T*)&_memory[VCtxIdx{ ctx, _index - offset - sizeof(vCOMMON) }];
+			return *(T*)&_memory( ctx,  _index - offset - sizeof(vCOMMON));
 		}
 
 		void dbgStack(vContext* ctx, const char* op) {
@@ -66,7 +66,7 @@ namespace jaether {
 			for (vLONG i = 0; i < (vLONG)_index; i++) {
 				if (i > 0 && i % (sizeof(vCOMMON)) == 0)
 					printf("\n");
-				printf("%02X ", _memory[VCtxIdx{ ctx, (size_t)i }]);
+				printf("%02X ", _memory(ctx, (size_t)i));
 			}
 			printf("\n");
 		}

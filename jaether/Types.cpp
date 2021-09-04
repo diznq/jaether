@@ -4,12 +4,12 @@
 namespace jaether {
 
 	vOBJECT::vOBJECT(vContext* ctx, const V<vClass>& klass) : cls(klass) {
-		vClass* kls = cls.ptr(ctx);
+		vClass* kls = cls(ctx);
 		fields = VMAKEARRAY(vCOMMON, ctx, kls->_fieldCount + kls->_fieldOffset);
-		// printf("Klass of %p: %s\n", this, klass.Ptr(ctx)->getName(ctx));
+		// printf("Klass of %p: %s\n", this, klass(ctx)->getName(ctx));
 		this->cls = klass;
 		for (vUSHORT i = 0; i < kls->_fieldCount + kls->_fieldOffset; i++) {
-			memset(&fields[VCtxIdx{ ctx, i }], 0, sizeof(vCOMMON));
+			memset(&fields(ctx, i), 0, sizeof(vCOMMON));
 		}
 	}
 
@@ -19,7 +19,7 @@ namespace jaether {
 		this->type = type;
 		this->size = size;
 		this->cls = 0;
-		memset(data.ptr(ctx), 0, arrSize);
+		memset(data(ctx), 0, arrSize);
 	}
 
 }

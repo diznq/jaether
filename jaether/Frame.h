@@ -27,19 +27,19 @@ namespace jaether {
 			_local = VMAKE(vMemory, ctx, ctx, maxLocals);
 			_pc = 0;
 			_class = classFile;
-			_program = classFile.ptr(ctx)->getCode(ctx, method);
+			_program = classFile(ctx)->getCode(ctx, method);
 			if (!_program.isValid()) {
 				DPRINTF("Method %s/%s:%s has no code\n",
-					classFile.ptr(ctx)->getName(ctx),
-					classFile.ptr(ctx)->toString(ctx, method->name).ptr(ctx)->s.ptr(ctx),
-					classFile.ptr(ctx)->toString(ctx, method->desc).ptr(ctx)->s.ptr(ctx)
+					classFile(ctx)->getName(ctx),
+					classFile(ctx)->toString(ctx, method->name)(ctx)->s(ctx),
+					classFile(ctx)->toString(ctx, method->desc)(ctx)->s(ctx)
 				);
 			}
-			V<vUTF8BODY> desc = classFile.ptr(ctx)->toString(ctx, method->desc);
+			V<vUTF8BODY> desc = classFile(ctx)->toString(ctx, method->desc);
 			_returns = false;
 			if (desc.isValid()) {
-				size_t len = strlen((const char*)desc.ptr(ctx)->s.real(ctx));
-				_returns = desc.ptr(ctx)->s[VCtxIdx{ ctx, len - 1 }] != 'V';
+				size_t len = strlen((const char*)desc(ctx)->s.real(ctx));
+				_returns = desc(ctx)->s( ctx,  len - 1) != 'V';
 			}
 		}
 
@@ -47,9 +47,9 @@ namespace jaether {
 		}
 
 		void destroy(vContext* ctx) {
-			_stack.ptr(ctx)->destroy(ctx);
+			_stack(ctx)->destroy(ctx);
 			_stack.release(ctx);
-			_local.ptr(ctx)->destroy(ctx);
+			_local(ctx)->destroy(ctx);
 			_local.release(ctx);
 		}
 

@@ -15,12 +15,12 @@ int main(int argc, const char** argv) {
 	if (argc >= 3) MethodPath = argv[2];
 	if (argc >= 4) SecureContext = argv[3][0] == '1';
 
-	Allocator* allocator = new Allocator(2 * 1024 * 1024);
+	Allocator* allocator = new Allocator(16 * 1024 * 1024);
 	vContext* ctx = new vContext(allocator, SecureContext);
 
 	vCPU* cpu = new vCPU();
 	auto cls = cpu->load(ctx, ClsPath);
-	auto frame = VMAKE(vFrame, ctx, ctx, cls.ptr(ctx)->getMethod(ctx, MethodPath), cls);
+	auto frame = VMAKE(vFrame, ctx, ctx, cls(ctx)->getMethod(ctx, MethodPath), cls);
 
 	auto start = cpu->getTime();
 	cpu->run(ctx, frame);

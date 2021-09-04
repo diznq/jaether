@@ -20,7 +20,7 @@ namespace jaether {
 		V<vOBJECT> _obj;
 	public:
 		JObject(vContext* ctx, V<vOBJECTREF> objref) : _ctx(ctx) {
-			_obj = V<vOBJECT>((vOBJECT*)objref.ptr(ctx)->r.a);
+			_obj = V<vOBJECT>((vOBJECT*)objref(ctx)->r.a);
 		}
 		JObject(vContext* ctx, vOBJECTREF objref) : _ctx(ctx) {
 			_obj = V<vOBJECT>((vOBJECT*)objref.r.a);
@@ -31,19 +31,31 @@ namespace jaether {
 		JObject(vContext* ctx, V<vOBJECT> obj) : _ctx(ctx), _obj(obj) {
 
 		}
+
 		vCOMMON& operator[](const char* idx) const {
-			vCOMMON* ptr = _obj.ptr(_ctx)->cls.ptr(_ctx)->getObjField(_ctx, _obj, idx);
+			vCOMMON* ptr = _obj(_ctx)->cls(_ctx)->getObjField(_ctx, _obj, idx);
 			if (!ptr) throw FieldNotFoundException();
 			return *ptr;
 		}
-		void* Ptr() const {
-			return _obj.ptr(_ctx);
+
+		void* ptr() const {
+			return _obj(_ctx);
 		}
+
 		operator bool() const {
 			return _obj.isValid();
 		}
-		V<vClass> GetClass() const {
-			return _obj.ptr(_ctx)->cls;
+
+		V<vClass> getClass() const {
+			return _obj(_ctx)->cls;
+		}
+
+		V<vCOMMON> fields() const {
+			return _obj(_ctx)->fields;
+		}
+
+		vCOMMON& x() const {
+			return _obj(_ctx)->x;
 		}
 	};
 
@@ -55,7 +67,7 @@ namespace jaether {
 		V<vNATIVEARRAY> _obj;
 	public:
 		JArray(vContext* ctx, V<vOBJECTREF> objref) : _ctx(ctx) {
-			_obj = V<vNATIVEARRAY>((vNATIVEARRAY*)objref.ptr(ctx)->r.a);
+			_obj = V<vNATIVEARRAY>((vNATIVEARRAY*)objref(ctx)->r.a);
 		}
 		JArray(vContext* ctx, vOBJECTREF objref) : _ctx(ctx) {
 			_obj = V<vNATIVEARRAY>((vNATIVEARRAY*)objref.r.a);
@@ -67,22 +79,22 @@ namespace jaether {
 
 		}
 		T& operator[](const size_t idx) const {
-			return _obj.ptr(_ctx)->get<T>(_ctx, idx);
+			return _obj(_ctx)->get<T>(_ctx, idx);
 		}
 		size_t length() const {
-			return _obj.ptr(_ctx)->size;
+			return _obj(_ctx)->size;
 		}
 		vBYTE type() const {
-			return _obj.ptr(_ctx)->type;
+			return _obj(_ctx)->type;
 		}
 		vUSHORT cls() const {
-			return _obj.ptr(_ctx)->cls;
+			return _obj(_ctx)->cls;
 		}
 		T* data() const {
-			return (T*)_obj.ptr(_ctx)->data.ptr(_ctx);
+			return (T*)_obj(_ctx)->data(_ctx);
 		}
-		void* Ptr() const {
-			return _obj.ptr(_ctx);
+		void* ptr() const {
+			return _obj(_ctx);
 		}
 		operator bool() const {
 			return _obj.isValid();
