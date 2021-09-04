@@ -21,15 +21,31 @@ namespace jaether {
 	public:
 		JObject(vContext* ctx, V<vOBJECTREF> objref) : _ctx(ctx) {
 			_obj = V<vOBJECT>((vOBJECT*)objref(ctx)->r.a);
+			checkTag();
 		}
 		JObject(vContext* ctx, vOBJECTREF objref) : _ctx(ctx) {
 			_obj = V<vOBJECT>((vOBJECT*)objref.r.a);
+			checkTag();
 		}
 		JObject(vContext* ctx, vCOMMON objref) : _ctx(ctx) {
 			_obj = V<vOBJECT>((vOBJECT*)objref.objref.r.a);
+			checkTag();
 		}
 		JObject(vContext* ctx, V<vOBJECT> obj) : _ctx(ctx), _obj(obj) {
 
+		}
+
+		const int TAG() const {
+			return _obj(_ctx)->TAG;
+		}
+
+		void checkTag() const {
+			if (!_obj.isValid()) {
+				throw std::runtime_error("invalid object reference");
+			} else if(TAG() != JAETHER_OBJ_TAG) {
+				printf("invalid tag detected: %d\n", TAG());
+				throw std::runtime_error("invalid object tag: " + std::to_string(TAG()));
+			}
 		}
 
 		vCOMMON& operator[](const char* idx) const {

@@ -47,6 +47,12 @@ class Main {
         System.out.println(String.class.getName());
     }
 
+    public static void test4(String str){
+        if(str == null){
+            System.out.println("NULL");
+        } else System.out.println(str);
+    }
+
     public static void main(String[] args){
         test2();
     }

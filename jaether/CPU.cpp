@@ -74,15 +74,17 @@ namespace jaether {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 			auto& currentThread = getObject<vOBJECTREF>(ctx, "java/lang/Thread/currentThread/1", [this, stack](vContext* ctx) -> vOBJECTREF {
 				auto objref = createObject(ctx, "java/lang/Thread", 20);
-				auto group = createObject(ctx, "java/lang/ThreadGroup", 20);
+				auto groupref = createObject(ctx, "java/lang/ThreadGroup", 20);
 				JObject obj(ctx, objref);
-				JObject groupObj(ctx, group);
-				obj["name"].set(createString(ctx, stack, L"CurrentThread"));
-				obj["group"].set(group);
+				JObject group(ctx, groupref);
+				vOBJECTREF nullref; nullref.r.a = (uintptr_t)V<vOBJECT>::nullPtr().v(ctx);
+				obj["name"].set<vOBJECTREF>(createString(ctx, stack, L"CurrentThread"));
+				obj["group"].set<vOBJECTREF>(groupref);
 				obj["tid"].set<vLONG>(1LL);
 				obj["priority"].set<vLONG>(1LL);
 				obj.x().set<vLONG>(1000);
-				groupObj.x().set<vLONG>(1007);
+				group["parent"].set<vOBJECTREF>(nullref);
+				group.x().set<vLONG>(1007);
 				return objref;
 			});
 			stack->push<vOBJECTREF>(ctx, currentThread);
@@ -110,8 +112,16 @@ namespace jaether {
 		addNative("java/lang/System/registerNatives", "()V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 		});
-
+		
 		addNative("java/lang/Class/registerNatives", "()V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+		});
+
+		addNative("jdk/internal/misc/Unsafe/registerNatives", "()V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+		});
+
+		addNative("java/lang/Thread/registerNatives", "()V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 		});
 
@@ -271,7 +281,7 @@ namespace jaether {
 			}
 			vBYTE* ip = _frame->fetch(ctx);
 			vBYTE& opcode = *ip; ops++;
-			//RPRINTF("|Execute %s (%d)\n", Opcodes[opcode], opcode);
+			RPRINTF("|Execute %s (%d)\n", Opcodes[opcode], opcode);
 			switch (opcode) {
 			case nop:
 				fwd = 0; break;
@@ -318,7 +328,8 @@ namespace jaether {
 				_stack->push<vFLOAT>(ctx, 2.0f);
 				fwd = 0; break;
 			case aconst_null:
-				_stack->push<vREF>(ctx, vREF{ 0 });
+				op[0].a.a = ~0;
+				_stack->push<vREF>(ctx, op[0].a);
 				fwd = 0; break;
 
 			case bipush:
@@ -996,14 +1007,14 @@ namespace jaether {
 			case ifnull:
 				op[0].usi = readUSI(ip + 1);
 				op[1].a = _stack->pop<vREF>(ctx);
-				if (op[1].a.a == 0)
+				if (op[1].a.a == ~0)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2;
 				break;
 			case ifnonnull:
 				op[0].usi = readUSI(ip + 1);
 				op[1].a = _stack->pop<vREF>(ctx);
-				if (op[1].a.a != 0)
+				if (op[1].a.a != ~0)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2;
 				break;
@@ -1162,6 +1173,7 @@ namespace jaether {
 						vUINT argc = clsPtr->argsCount(desc.c_str());
 						RPRINTF("-Pre resolve path: %s::%s, %s (args: %d)\n", path.c_str(), methodName.c_str(), desc.c_str(), argc);
 						if (opcode == invokevirtual || opcode == invokeinterface) {
+							_stack->dbgStack(ctx, "invoke");
 							vCOMMON& objr = _stack->get<vCOMMON>(ctx, argc);
 							JObject obj(ctx, objr);
 							V<vClass> objCls = obj.getClass();
@@ -1276,6 +1288,7 @@ namespace jaether {
 				vCOMMON* value = cls(ctx)->getObjField(ctx, obj, fieldName);
 				bool found = value != 0;
 				if (found) {
+					printf("Get field: %s\n", fieldName);
 					_stack->push<vCOMMON>(ctx, *value);
 				} else {
 					fprintf(stderr, "[vCPU::run/%s] Couldn't find field %s::%s (index: %d)\n",

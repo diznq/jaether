@@ -38,7 +38,9 @@ namespace jaether {
 			return ~U();
 		}
 
+		// resolve virtual address to real address
 		A* real(vContext* ctx) const {
+			// ctx->getAllocator()->touchSegment(_addr)
 			return (A*)(((uintptr_t)_addr) + ctx->offset());
 		}
 
