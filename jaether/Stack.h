@@ -72,7 +72,7 @@ namespace jaether {
 			if (start > end) {
 				size_t cleaned = 0;
 				for (; end < start; end++, cleaned++) {
-					_memory(ctx, end) = 0xCC;
+					_memory(ctx, end) = 0;
 				}
 				return cleaned;
 			}

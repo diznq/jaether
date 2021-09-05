@@ -76,7 +76,7 @@ namespace jaether {
 	size_t Allocator::gcCycle() {
 		const size_t step = 1ULL << _align;
 		std::set<unsigned int> candidates = _gc;	// hard copy
-		for (size_t i = 0, id = 0; i < _size; i += step, id++) {
+		for (size_t i = 0, id = 0, j = _free.size(); i < j; i += step, id++) {
 			if (_free[id]) continue;
 			vCOMMON& v = *(vCOMMON*)((char*)_pool + i);
 			// candidate
@@ -106,9 +106,6 @@ namespace jaether {
 				V<vOBJECT> obj((vOBJECT*)va);
 				collected += obj.ptr(this)->release(this);
 				collected += obj.release(this);
-				rem = true;
-			} else {
-				collected += freeRaw(ptr);
 				rem = true;
 			}
 			if (rem) {

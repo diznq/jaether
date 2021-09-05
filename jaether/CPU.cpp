@@ -198,6 +198,15 @@ namespace jaether {
 			//vLONG millis = (vLONG)ms.count();
 			stack->push<vLONG>(ctx, ctx->ops() / 50000);
 		});
+
+
+		addNative("java/lang/System/gc", "()V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			for (int GCC = 0; GCC < 2; GCC++) {
+				
+				printf("Freed %llu bytes\n", ctx->getAllocator()->gcCycle());
+			}
+		});
 	}
 
 	std::chrono::steady_clock::time_point vCPU::getTime() const {

@@ -246,7 +246,7 @@ namespace jaether {
 	struct vNATIVEARRAY {
 		template<typename T> friend class JArray;
 		int TAG = JAETHER_ARR_TAG;
-		vCOMMON dataRef;
+		V<vBYTE> dataObj;
 		V<vClass> cls;
 		vCOMMON x;
 
@@ -306,19 +306,17 @@ namespace jaether {
 		size_t release(vContext* ctx) {
 			//printf("Release arr\n");
 			size_t rel = data().release(ctx, true);
-			dataRef.a.a = 0;
 			return rel;
 		}
 
 		size_t release(Allocator* ctx) {
 			//printf("Release arr\n");
 			size_t rel = data().release(ctx, true);
-			dataRef.a.a = 0;
 			return rel;
 		}
 
 		V<vBYTE> data() const {
-			return V<vBYTE>((vBYTE*)dataRef.a.a);
+			return dataObj;
 		}
 	};
 
@@ -326,24 +324,22 @@ namespace jaether {
 		friend class JObject;
 		friend class JString;
 		int TAG = JAETHER_OBJ_TAG;
-		vCOMMON fieldsRef;
+		V<vCOMMON> fieldsObj;
 		V<vClass> cls;
 		vCOMMON x;
 		vOBJECT(vContext* ctx, const V<vClass>& klass);
 		size_t release(vContext* ctx) {
 			//printf("Release object\n");
 			size_t rel = fields().release(ctx, true);
-			fieldsRef.a.a = 0;
 			return rel;
 		}
 		size_t release(Allocator* ctx) {
 			//printf("Release object\n");
 			size_t rel = fields().release(ctx, true);
-			fieldsRef.a.a = 0;
 			return rel;
 		}
 		V<vCOMMON> fields() const {
-			return V<vCOMMON>((vCOMMON*)fieldsRef.a.a);
+			return fieldsObj;
 		}
 	};
 
