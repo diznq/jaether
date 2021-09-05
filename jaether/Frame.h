@@ -29,11 +29,12 @@ namespace jaether {
 			_class = classFile;
 			_program = classFile(ctx)->getCode(ctx, method);
 			if (!_program.isValid()) {
-				DPRINTF("Method %s/%s:%s has no code\n",
+				fprintf(stderr, "Method %s/%s:%s has no code\n",
 					classFile(ctx)->getName(ctx),
 					classFile(ctx)->toString(ctx, method->name)(ctx)->s(ctx),
 					classFile(ctx)->toString(ctx, method->desc)(ctx)->s(ctx)
 				);
+				throw std::runtime_error("method has no code");
 			}
 			V<vUTF8BODY> desc = classFile(ctx)->toString(ctx, method->desc);
 			_returns = false;

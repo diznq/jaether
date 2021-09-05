@@ -5,7 +5,7 @@
 #include <string>
 #include "Allocator.h"
 
-#define JVM_DEBUG
+//#define JVM_DEBUG
 #ifdef JVM_DEBUG
 #define RPRINTF(fmt, ...) fprintf(stdout, "%*s" fmt, nesting + (int)frames.size(), "", __VA_ARGS__)
 #define DPRINTF(fmt, ...) fprintf(stdout, fmt, __VA_ARGS__)
@@ -67,6 +67,8 @@ namespace jaether {
 		size_t ops() const {
 			return _ops;
 		}
+
+		void touchVirtual(void* memory);
 	};
 
 }

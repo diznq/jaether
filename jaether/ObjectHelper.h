@@ -63,7 +63,10 @@ namespace jaether {
 		}
 
 		V<vClass> getClass() const {
-			return _obj(_ctx)->cls;
+			V<vClass> klass = _obj(_ctx)->cls;
+			const int tag = klass(_ctx)->TAG;
+			if (tag != JAETHER_CLASS_TAG) throw std::runtime_error("invalid class tag: " + std::to_string(tag));
+			return klass;
 		}
 
 		V<vCOMMON> fields() const {

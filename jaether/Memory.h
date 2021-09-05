@@ -27,24 +27,28 @@ namespace jaether {
 		template<class T> vMemory& set(vContext* ctx, const size_t index, const T& value) {
 			const size_t size = sizeof(vCOMMON);
 			assert(index < _size);
-			vBYTE* ptr = (vBYTE*)&_memory( ctx,  index);
+			vBYTE* ptr = (vBYTE*)&_memory(ctx, index);
 			memset(ptr, 0, size);
 			memcpy(ptr, &value, sizeof(T));
+			vCOMMON* vc = (vCOMMON*)ptr;	
 			if constexpr (!std::is_same_v<T, vCOMMON>) {
-				vCOMMON* vc = (vCOMMON*)ptr;
 				if (!(
-					(vc->type == vTypes::type<vOBJECTREF>() || vc->type == vTypes::type<vSTRING>()) 
-					&& vTypes::type<T>() == vTypes::type<vREF>()))
+						(vc->type == vTypes::type<vOBJECTREF>() || vc->type == vTypes::type<vSTRING>()) 
+						&& vTypes::type<T>() == vTypes::type<vREF>())
+					)
 					vc->type = vTypes::type<T>();
 			}
+			//if (vc->type == 0) throw std::runtime_error("invalid type");
 			return *this;
 		}
 
 		template<class T> T& get(vContext* ctx, const size_t index) const {
 			const size_t size = sizeof(vCOMMON);
 			assert(index < _size);
-			return *(T*)&_memory( ctx,  index);
+			return *(T*)&_memory(ctx, index);
 		}
+
+		vULONG size() const { return _size; }
 	};
 
 }

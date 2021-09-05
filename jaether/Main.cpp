@@ -32,9 +32,9 @@ int main(int argc, const char** argv) {
 	printf("Execution time          : %.3f ms\n", duration_s * 1000);
 	printf("VM Ops                  : %lld\n", ctx->ops());
 	printf("VM kOps/s               : %.3f\n", ctx->ops() / duration_s / 1000.0);
-	printf("Alloc c/a               : %lld\n", ctx->getAllocator()->GetAvgCycles());
-	printf("Currently managed memory: %lld\n", ctx->getAllocator()->GetManagedSize());
-	printf("Peak managed memory     : %lld\n", ctx->getAllocator()->GetPeakSize());
+	printf("Alloc c/a               : %lld\n", ctx->getAllocator()->getAvgCycles());
+	printf("Currently managed memory: %lld\n", ctx->getAllocator()->getManagedSize());
+	printf("Peak managed memory     : %lld\n", ctx->getAllocator()->getPeakSize());
 	printf("Signature               : ");
 	for (int i = 0; i < 32; i++) {
 		printf("%02x", sig[i] & 255);

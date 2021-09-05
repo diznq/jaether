@@ -2,6 +2,7 @@
 #include "Pointer.h"
 #include "Types.h"
 #include <type_traits>
+#include <exception>
 #include <stdio.h>
 #include <assert.h>
 
@@ -34,13 +35,15 @@ namespace jaether {
 			bool isNegative = lastByte < 0;
 			memset(ptr, isNegative ? 0xFF : 0, size);
 			memcpy(ptr, &value, sizeof(T));
+			vCOMMON* vc = (vCOMMON*)ptr;
 			if constexpr (!(std::is_same_v<T, vCOMMON>)) {
-				vCOMMON* vc = (vCOMMON*)ptr;
 				if (!(
 					(vc->type == vTypes::type<vOBJECTREF>() || vc->type == vTypes::type<vSTRING>())
-					&& vTypes::type<T>() == vTypes::type<vREF>()))
+					&& vTypes::type<T>() == vTypes::type<vREF>())
+				)
 					vc->type = vTypes::type<T>();
 			}
+			//if (vc->type == 0) throw std::runtime_error("invalid type");
 			_index += size;
 			//dbgStack(ctx, "push");
 			assert(_index <= _size);
@@ -50,14 +53,14 @@ namespace jaether {
 		template<class T> T& pop(vContext* ctx) {
 			const size_t size = sizeof(vCOMMON);
 			_index -= size;
-			//dbgStack("pop");
+			//dbgStack(ctx, "pop");
 			assert(_index <= _size);
 			return *(T*)&_memory(ctx, (size_t)_index);
 		}
 
 		template<class T> T& get(vContext* ctx, size_t index) {
 			const size_t offset = sizeof(vCOMMON) * index;
-			assert(_offset <= _index);
+			assert(offset <= _index);
 			return *(T*)&_memory( ctx,  _index - offset - sizeof(vCOMMON));
 		}
 

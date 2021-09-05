@@ -12,8 +12,6 @@ namespace jaether {
 			vUSHORT consts = readUSI(f);
 			vCOMMON ops[8];
 			_constPool = VMAKE(vMemory, ctx, ctx, (size_t)consts);
-			//_fieldLookup = VMAKEARRAY(vUSHORT, ctx, (size_t)consts);
-			// memset(_fieldLookup.Real(ctx), 0xFF, consts * sizeof(vUSHORT));
 			// Parse const pool
 			for (vUSHORT i = 1; i < consts; i++) {
 				vBYTE type = (vBYTE)f.get();
@@ -295,19 +293,19 @@ namespace jaether {
 
 	vFIELD* vClass::getField(vContext* ctx, const char* name) {
 		for (vUSHORT i = 0; i < _fieldCount; i++) {
-			V<vUTF8BODY> str = toString(ctx, _fields(ctx, (size_t)i).name);
+			vFIELD& field = _fields(ctx, (size_t)i);
+			if ((field.access & 8) != 8) continue;	// static flag
+			V<vClass> cls((vClass*)field.cls);
+			V<vUTF8BODY> str = cls(ctx)->toString(ctx, field.name);
 			if (!str.isValid()) continue;
 			if (!strcmp((const char*)str(ctx)->s.real(ctx), name)) {
-				//printf("Found %s\n", name);
 				return &_fields(ctx, (size_t)i);
 			}
 		}
-		//printf("Cannot find %s\n", name);
 		if (_super) {
 			auto& classes = ctx->getClasses();
 			auto it = classes.find(getSuperName(ctx));
 			if (it != classes.end()) {
-				//printf("Trying super class\n");
 				V<vClass> super((vClass*)it->second);
 				return super(ctx)->getField(ctx, name);
 			}
@@ -399,6 +397,7 @@ namespace jaether {
 			V<vClass> vcls((vClass*)field.cls);
 			if (!vcls.isValid()) return 0;
 			vClass* cls = (vcls)(ctx);
+			if (cls->TAG != JAETHER_CLASS_TAG) throw std::runtime_error("invalid class tag: " + std::to_string(cls->TAG));
 			const char* fieldName = (const char*)cls->toString(ctx, field.name)(ctx)->s.real(ctx);
 			if (!strcmp(fieldName, name)) {
 				return &obj(ctx)->fields(ctx, i);
@@ -427,6 +426,7 @@ namespace jaether {
 		if (!exists) {
 			vCOMMON empty;
 			memset(&empty, 0, sizeof(vCOMMON));
+			throw std::runtime_error("couldnt create frame");
 			return std::make_tuple(false, empty);
 		}
 

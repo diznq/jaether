@@ -1,9 +1,15 @@
 #pragma once
 #include <string.h>
 #include <assert.h>
+#include <exception>
+#include <stdexcept>
 #include "Pointer.h"
 
 namespace jaether {
+
+	template<class T> class JArray;
+	class JObject;
+	class JString;
 
 #define JAETHER_OBJ_TAG 4002
 #define JAETHER_ARR_TAG 4003
@@ -238,6 +244,7 @@ namespace jaether {
 	typedef vFIELD vMETHOD;
 
 	struct vNATIVEARRAY {
+		template<typename T> friend class JArray;
 		int TAG = JAETHER_ARR_TAG;
 		V<vBYTE> data;
 		V<vClass> cls;
@@ -279,8 +286,8 @@ namespace jaether {
 				printf("vNATIVEARRAY::set out of bounds (index: %llu)\n", index);
 				return;
 			}
-			vBYTE* base = data(ctx) + scaledIndex;
-			*(T*)base = value;
+			vBYTE& base = data(ctx, scaledIndex);
+			*(T*)&base = value;
 		}
 
 		template<typename T> T& get(vContext* ctx, size_t index) {
@@ -296,6 +303,8 @@ namespace jaether {
 	};
 
 	struct vOBJECT {
+		friend class JObject;
+		friend class JString;
 		int TAG = JAETHER_OBJ_TAG;
 		V<vCOMMON> fields;
 		V<vClass> cls;

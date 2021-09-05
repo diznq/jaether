@@ -18,7 +18,7 @@ namespace jaether {
 	class V {
 		A* _addr = 0;
 	public:
-		V() : _addr((A*)~(uintptr_t)0) {}
+		V() : _addr((A*)(uintptr_t)0) {}
 		V(A* addr) : _addr((A*)((uintptr_t)addr)) { }
 
 		uintptr_t U() const { return (uintptr_t)_addr; }
@@ -30,18 +30,24 @@ namespace jaether {
 		bool release(vContext* ctx, bool arr = false) {
 			if (!isValid()) return false;
 			ctx->freeType<A>(real(ctx), arr);
-			_addr = (A*)~(uintptr_t)0;
+			_addr = (A*)(uintptr_t)0;
 			return true;
 		}
 
 		bool isValid() const {
-			return ~U();
+			return U();
 		}
 
-		// resolve virtual address to real address
 		A* real(vContext* ctx) const {
-			// ctx->getAllocator()->touchSegment(_addr)
-			return (A*)(((uintptr_t)_addr) + ctx->offset());
+			uintptr_t res = (uintptr_t)_addr;
+			ctx->touchVirtual((void*)res);
+			return (A*)((res) + ctx->offset());
+		}
+
+		A* real(vContext* ctx, size_t offset) const {
+			uintptr_t res = (uintptr_t)_addr + offset * sizeof(A);
+			ctx->touchVirtual((void*)res);
+			return (A*)((res)+ctx->offset());
 		}
 
 		A* ptr(vContext* ctx) const {
@@ -57,7 +63,7 @@ namespace jaether {
 		}
 		
 		A& operator()(vContext* ctx, size_t index) const {
-			return real(ctx)[index];
+			return *real(ctx, index);
 		}
 
 		/*A* operator->() const {
@@ -69,16 +75,16 @@ namespace jaether {
 		}*/
 
 		V<A> operator+(const size_t index) const {
-			return V<A>(v() + index);
+			return V<A>(v() + index * sizeof(A));
 		}
 
 		V<A>& operator+=(const size_t index) {
-			_addr += index;
+			_addr += index * sizeof(A);
 			return *this;
 		}
 
 		A& operator[](const VCtxIdx& index) const {
-			return real(index.ctx)[index.index];
+			return real(index.ctx, index.index);
 		}
 
 		/*A* operator[](const vContext* ctx) const {

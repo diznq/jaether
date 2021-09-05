@@ -22,13 +22,15 @@ class Main {
         for(String word : arr){
             System.out.println(word);
             strings.add(word);
-            stuff.put(word, "haha");
-        }
-        for(String word : strings){
             sb.append(word);
         }
+
         System.out.println(666);
         System.out.println(sb.toString());
+
+        for(String word : strings){
+            stuff.put(word, "haha");
+        }
 
         for(String key : stuff.keySet()){
             System.out.println(key);
@@ -54,6 +56,8 @@ class Main {
     }
 
     public static void main(String[] args){
-        test2();
+        test1();
+        test3();
+        test4("Ahojky!");
     }
 }
