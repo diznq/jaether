@@ -139,9 +139,6 @@ namespace jaether {
 		template<> vBYTE type<vDOUBLE>() {
 			return 7;
 		}
-		template<> vBYTE type<vREF>() {
-			return 8;
-		}
 		template<> vBYTE type<vCONST>() {
 			return 9;
 		}
@@ -159,6 +156,9 @@ namespace jaether {
 		}
 		template<> vBYTE type<vNAMEANDTYPE>() {
 			return 14;
+		}
+		template<> vBYTE type<vREF>() {
+			return 15;
 		}
 		template<> vBYTE type<vOBJECTREF>() {
 			return 15;
@@ -246,7 +246,7 @@ namespace jaether {
 	struct vNATIVEARRAY {
 		template<typename T> friend class JArray;
 		int TAG = JAETHER_ARR_TAG;
-		V<vBYTE> data;
+		vCOMMON dataRef;
 		V<vClass> cls;
 		vCOMMON x;
 
@@ -284,9 +284,10 @@ namespace jaether {
 			assert(index < size);
 			if (index >= size) {
 				printf("vNATIVEARRAY::set out of bounds (index: %llu)\n", index);
+				throw std::runtime_error("out of bounds");
 				return;
 			}
-			vBYTE& base = data(ctx, scaledIndex);
+			vBYTE& base = data()(ctx, scaledIndex);
 			*(T*)&base = value;
 		}
 
@@ -295,10 +296,29 @@ namespace jaether {
 			assert(index < size);
 			if (index >= size) {
 				printf("vNATIVEARRAY::get out of bounds (index: %llu)\n", index);
+				throw std::runtime_error("out of bounds");
 				return *(T*)0;
 			}
-			vBYTE* base = data(ctx) + scaledIndex;
+			vBYTE* base = data()(ctx) + scaledIndex;
 			return *(T*)base;
+		}
+
+		size_t release(vContext* ctx) {
+			//printf("Release arr\n");
+			size_t rel = data().release(ctx, true);
+			dataRef.a.a = 0;
+			return rel;
+		}
+
+		size_t release(Allocator* ctx) {
+			//printf("Release arr\n");
+			size_t rel = data().release(ctx, true);
+			dataRef.a.a = 0;
+			return rel;
+		}
+
+		V<vBYTE> data() const {
+			return V<vBYTE>((vBYTE*)dataRef.a.a);
 		}
 	};
 
@@ -306,10 +326,25 @@ namespace jaether {
 		friend class JObject;
 		friend class JString;
 		int TAG = JAETHER_OBJ_TAG;
-		V<vCOMMON> fields;
+		vCOMMON fieldsRef;
 		V<vClass> cls;
 		vCOMMON x;
 		vOBJECT(vContext* ctx, const V<vClass>& klass);
+		size_t release(vContext* ctx) {
+			//printf("Release object\n");
+			size_t rel = fields().release(ctx, true);
+			fieldsRef.a.a = 0;
+			return rel;
+		}
+		size_t release(Allocator* ctx) {
+			//printf("Release object\n");
+			size_t rel = fields().release(ctx, true);
+			fieldsRef.a.a = 0;
+			return rel;
+		}
+		V<vCOMMON> fields() const {
+			return V<vCOMMON>((vCOMMON*)fieldsRef.a.a);
+		}
 	};
 
 }

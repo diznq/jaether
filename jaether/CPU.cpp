@@ -15,7 +15,7 @@ namespace jaether {
 	V<vClass> vCPU::load(vContext* ctx, const std::string& path, const int nesting) {
 		auto& _classes = ctx->getClasses();
 		auto it = _classes.find(path);
-		if (it != _classes.end()) return V<vClass>((vClass*)it->second);
+		if (it != _classes.end()) return it->second;
 		if (!std::filesystem::exists(path + ".class")) {
 			return V<vClass>::nullPtr();
 		}
@@ -39,13 +39,14 @@ namespace jaether {
 		return cls;
 	}
 
-	std::map<std::string, vClass*>::iterator vCPU::lazyLoad(vContext* ctx, const std::string& path, const int nesting) {
+	V<vClass> vCPU::lazyLoad(vContext* ctx, const std::string& path, const int nesting) {
 		auto& _classes = ctx->getClasses();
 		auto it = _classes.find(path);
-		if (it != _classes.end()) return it;
+		if (it != _classes.end()) return it->second;
 		load(ctx, path, nesting);
 		it = _classes.find(path);
-		return it;
+		if (it == _classes.end()) return V<vClass>::nullPtr();
+		return it->second;
 	}
 
 	bool vCPU::active() const {
@@ -106,8 +107,8 @@ namespace jaether {
 			V<vNATIVEARRAY> dstArr((vNATIVEARRAY*)dst.r.a);
 
 			auto unit = srcArr(ctx)->unitSize(srcArr(ctx)->type);
-			vBYTE* pSrc = srcArr(ctx)->data(ctx);
-			vBYTE* pDst = dstArr(ctx)->data(ctx);
+			vBYTE* pSrc = srcArr(ctx)->data()(ctx);
+			vBYTE* pDst = dstArr(ctx)->data()(ctx);
 
 			memmove(pDst + (size_t)dstPos * unit, pSrc + (size_t)srcPos * unit, (size_t)len * unit);
 
@@ -205,9 +206,8 @@ namespace jaether {
 
 	vOBJECTREF vCPU::createObject(vContext* ctx, const char* className, const int nesting) {
 		auto& classes = ctx->getClasses();
-		auto clsIt = lazyLoad(ctx, className, nesting);
-		if (clsIt != classes.end()) {
-			V<vClass> cls(clsIt->second);
+		auto cls = lazyLoad(ctx, className, nesting);
+		if (cls) {
 			V<vOBJECT> obj = VMAKE(vOBJECT, ctx, ctx, cls);
 			vOBJECTREF ref; ref.r.a = (vULONG)obj.v(ctx);
 			return ref;
@@ -248,16 +248,14 @@ namespace jaether {
 	}
 
 	vOBJECTREF vCPU::createString(vContext* ctx, vStack* _stack, const std::wstring& text, vMemory* _constPool, vUSHORT* backref, const int nesting) {
-		V<vNATIVEARRAY> arr = VMAKE(vNATIVEARRAY, ctx, ctx, 5, (vUINT)(text.length())); // 5 = JCHAR
+		V<vNATIVEARRAY> arr = VMAKEGC(vNATIVEARRAY, ctx, ctx, 5, (vUINT)(text.length())); // 5 = JCHAR
 		arr(ctx)->x.set<vLONG>(1006);
 		for (size_t i = 0, j = text.length(); i < j; i++) {
 			arr(ctx)->set<vJCHAR>(ctx, i, text[i]);
 		}
 		vOBJECTREF wchRef; wchRef.r.a = (uintptr_t)arr.v(ctx);
-		auto it = lazyLoad(ctx, "java/lang/String", nesting);
-		auto& _classes = ctx->getClasses();
-		if (it != _classes.end()) {
-			V<vClass> strCls = it->second;
+		auto strCls = lazyLoad(ctx, "java/lang/String", nesting);
+		if (strCls) {
 			V<vOBJECT> strObj = VMAKE(vOBJECT, ctx, ctx, strCls);
 			strObj(ctx)->x.set<vLONG>(1003);
 			vOBJECTREF ref; ref.r.a = (vULONG)strObj.v(ctx);
@@ -312,6 +310,7 @@ namespace jaether {
 				}
 				frameChanged = false;
 			}
+			size_t startIndex = _stack->index();
 			vBYTE* ip = _frame->fetch(ctx);
 			vBYTE& opcode = *ip; ops++;
 			RPRINTF("|Execute %s (%d)\n", Opcodes[opcode], opcode);
@@ -384,6 +383,14 @@ namespace jaether {
 				_stack->push<vCOMMON>(ctx, op[1]);
 				fwd = 0; break;
 
+			case dup2:
+				op[0] = _stack->pop<vCOMMON>(ctx);
+				op[1] = _stack->pop<vCOMMON>(ctx);
+				_stack->push<vCOMMON>(ctx, op[1]);
+				_stack->push<vCOMMON>(ctx, op[0]);
+				_stack->push<vCOMMON>(ctx, op[1]);
+				_stack->push<vCOMMON>(ctx, op[0]);
+				fwd = 0; break;
 			case i2b:
 				_stack->push<vBYTE>(ctx, (vBYTE)(_stack->pop<vUINT>(ctx) & 255));
 				fwd = 0; break;
@@ -800,7 +807,7 @@ namespace jaether {
 			{
 				op[0].b = read<vBYTE>(ip + 1);
 				op[1].u = _stack->pop<vUINT>(ctx);
-				V<vNATIVEARRAY> arr = VMAKE(vNATIVEARRAY, ctx, ctx, op[0].b, op[1].u);
+				V<vNATIVEARRAY> arr = VMAKEGC(vNATIVEARRAY, ctx, ctx, op[0].b, op[1].u);
 				op[2].objref.r.a = (uintptr_t)arr.v(ctx);
 				arr(ctx)->x.set<vLONG>(1005);
 				_stack->push<vOBJECTREF>(ctx, op[2].objref);
@@ -811,12 +818,11 @@ namespace jaether {
 				op[0].b = 1;
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[3].u = readUSI(ip + 1);
-				V<vNATIVEARRAY> arr = VMAKE(vNATIVEARRAY, ctx, ctx, op[0].b, op[1].u);
+				V<vNATIVEARRAY> arr = VMAKEGC(vNATIVEARRAY, ctx, ctx, op[0].b, op[1].u);
 				auto& classes = ctx->getClasses();
 				vCLASS cls = _constPool->get<vCLASS>(ctx, (size_t)op[3].u);
 				auto className = std::string((const char*)_class->toString(ctx, cls.clsIndex)(ctx)->s(ctx));
-				auto clsObj = lazyLoad(ctx, className, nesting + (int)frames.size());
-				arr(ctx)->cls = V<vClass>((vClass*)clsObj->second);
+				arr(ctx)->cls = lazyLoad(ctx, className, nesting + (int)frames.size());
 				op[2].objref.r.a = (uintptr_t)arr.v(ctx);
 				arr(ctx)->x.set<vLONG>(1006);
 				_stack->push<vOBJECTREF>(ctx, op[2].objref);
@@ -1177,17 +1183,14 @@ namespace jaether {
 			{
 
 				if (unwrapCallstack) {
+					auto& oldFrame = frames.top(); frames.pop();
 					if (_frame->_returns) {
-						op[0] = _stack->pop<vCOMMON>(ctx);
-						auto& oldFrame = frames.top();
-						frames.pop();
+						op[0] = _stack->pop<vCOMMON>(ctx); 
 						auto& newFrame = frames.top();
 						newFrame(ctx)->_stack(ctx)->push<vCOMMON>(ctx, op[0]);
-						oldFrame(ctx)->destroy(ctx);
-						oldFrame.release(ctx);
-					} else {
-						frames.pop();
 					}
+					oldFrame(ctx)->destroy(ctx);
+					oldFrame.release(ctx);
 					RPRINTF("<%s: %llu\n", Opcodes[opcode], op[0].ul);
 					frameChanged = true;
 				} else {
@@ -1217,9 +1220,9 @@ namespace jaether {
 					nit->second(ctx, path, this, _stack, opcode);
 					found = true;
 				} else {
-					auto it = lazyLoad(ctx, path, nesting + (int)frames.size());
-					if (it != _classes.end()) {
-						V<vClass> cls = it->second;
+					auto cls = lazyLoad(ctx, path, nesting + (int)frames.size());
+					if (cls) {
+						auto superClass = cls;
 						vClass* clsPtr = cls(ctx);
 						vUINT argc = clsPtr->argsCount(desc.c_str());
 						RPRINTF("-Pre resolve path: %s::%s, %s (args: %d)\n", path.c_str(), methodName.c_str(), desc.c_str(), argc);
@@ -1237,14 +1240,14 @@ namespace jaether {
 
 						RPRINTF(">%s: %s/%s\n", Opcodes[opcode], path.c_str(), (methodName + desc).c_str());
 						if (unwrapCallstack) {
-							auto [methodFound, ret] = clsPtr->createFrame(ctx, cls, it->second, this, _stack, opcode, methodName, desc);
+							auto [methodFound, ret] = clsPtr->createFrame(ctx, cls, superClass, this, _stack, opcode, methodName, desc);
 							if (methodFound) {
 								frames.push(ret);
 								frameChanged = true;
 							}
 							found = methodFound;
 						} else {
-							auto [methodFound, ret] = clsPtr->invoke(ctx, cls, it->second, this, _stack, opcode, methodName, desc);
+							auto [methodFound, ret] = clsPtr->invoke(ctx, cls, superClass, this, _stack, opcode, methodName, desc);
 							found = methodFound;
 						}
 					}
@@ -1260,13 +1263,17 @@ namespace jaether {
 				op[0].usi = readUSI(ip + 1);
 				op[1].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
 				std::string path = std::string((const char*)_class->toString(ctx, op[1].mr.clsIndex)(ctx)->s.real(ctx));
-				auto it = lazyLoad(ctx, path, nesting + (int)frames.size());
+				auto cls = lazyLoad(ctx, path, nesting + (int)frames.size());
 				bool found = false;
-				if (it != _classes.end()) {
-					V<vClass> cls = it->second;
-					V<vOBJECT> obj = VMAKE(vOBJECT, ctx, ctx, cls);
+				if (cls) {
+					V<vOBJECT> obj = VMAKEGC(vOBJECT, ctx, ctx, cls);
 					vOBJECTREF ref; ref.r.a = (vULONG)obj.v(ctx);
 					obj(ctx)->x.set<vLONG>(1004);
+					/*printf("Real object is at: %llX, fields are at: %llX, ref at: %llX\n",
+						(uintptr_t)obj.v(),
+						(uintptr_t)obj(ctx)->fields.v(),
+						_stack->index() + (uintptr_t)_stack->vbase()
+					);*/
 					_stack->push<vOBJECTREF>(ctx, ref);
 					found = true;
 				}
@@ -1283,9 +1290,8 @@ namespace jaether {
 				JObject obj(ctx, op[1].objref);
 				op[2].cls = _constPool->get<vCLASS>(ctx, (size_t)op[0].usi);
 				auto& classes = ctx->getClasses();
-				auto it = lazyLoad(ctx, (const char*)_class->toString(ctx, op[2].cls.clsIndex)(ctx)->s(ctx), nesting + (int)frames.size());
-				if (it != classes.end()) {
-					V<vClass> cls((vClass*)it->second);
+				auto cls = lazyLoad(ctx, (const char*)_class->toString(ctx, op[2].cls.clsIndex)(ctx)->s(ctx), nesting + (int)frames.size());
+				if (cls) {
 					printf(
 						"Check instanceof: %s < %s ?\n",
 						obj.getClass()(ctx)->getName(ctx),
@@ -1309,11 +1315,10 @@ namespace jaether {
 				std::string path = std::string((const char*)_class->toString(ctx, op[3].mr.clsIndex)(ctx)->s.real(ctx));
 				std::string field = std::string((const char*)_class->toString(ctx, op[3].mr.nameIndex)(ctx)->s.real(ctx));
 				
-				auto it = lazyLoad(ctx, path, nesting + (int)frames.size());
+				auto cls = lazyLoad(ctx, path, nesting + (int)frames.size());
 				bool found = false;
 				
-				if (it != _classes.end()) {
-					V<vClass> cls = it->second;
+				if (cls) {
 					vClass* clsPtr = cls(ctx);
 					vFIELD* fld = clsPtr->getField(ctx, field.c_str());
 					if (fld) {
@@ -1321,6 +1326,7 @@ namespace jaether {
 						found = true;
 					}
 				}
+
 				if (!found) {
 					printf("Didnt find static, lol\n");
 					vCOMMON dummy;
@@ -1335,10 +1341,9 @@ namespace jaether {
 				op[3].mr = _constPool->get<vMETHODREF>(ctx, op[0].usi);
 				std::string path = std::string((const char*)_class->toString(ctx, op[3].mr.clsIndex)(ctx)->s.real(ctx));
 				std::string field = std::string((const char*)_class->toString(ctx, op[3].mr.nameIndex)(ctx)->s.real(ctx));
-				auto it = lazyLoad(ctx, path, nesting + (int)frames.size());
+				auto cls = lazyLoad(ctx, path, nesting + (int)frames.size());
 				bool found = false;
-				if (it != _classes.end()) {
-					V<vClass> cls = it->second;
+				if (cls) {
 					vClass* clsPtr = cls(ctx);
 					vFIELD* fld = clsPtr->getField(ctx, field.c_str());
 					if (fld) {
@@ -1416,6 +1421,9 @@ namespace jaether {
 				if (unwrapCallstack) return 0;
 				fwd = 0; break;
 			}
+			size_t endIndex = _stack->index();
+			//printf("Op: %s, start: %lld, end: %lld\n", Opcodes[opcode], startIndex, endIndex);
+			_stack->purify(ctx, startIndex, endIndex);
 			_frame->incrpc(fwd + 1);
 			ctx->onInstruction();
 		}

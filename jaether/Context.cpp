@@ -15,15 +15,15 @@ namespace jaether {
 		delete _hashContext;
 	}
 
-	void* vContext::alloc(size_t size) {
-		char* ptr = (char*)_alloc->allocRaw(size); // new char[size];
+	void* vContext::alloc(size_t size, bool gc) {
+		char* ptr = (char*)_alloc->allocRaw(size, gc); // new char[size];
 		ptr -= offset();
 		return ptr;
 	}
 
-	void vContext::free(void* mem, bool arr) {
+	size_t vContext::free(void* mem, bool arr) {
 		char* ptr = (char*)mem;
-		_alloc->freeRaw(ptr);
+		return _alloc->freeRaw(ptr);
 	}
 
 	void vContext::onInstruction() {
@@ -33,7 +33,7 @@ namespace jaether {
 		void* start = _alloc->getBase();
 		size_t align = _alloc->getAlignment();
 		auto& segments = _alloc->getTouchedVSegments();
-		const size_t segmentSize = 1ULL << align;
+		const size_t segmentSize = (1ULL << align) + ((1ULL << align) >> 1);
 		for (auto id : segments) {
 			sha256_update(sha, (const BYTE*)&id, sizeof(id));
 			unsigned int offset = id << align;

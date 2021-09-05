@@ -20,8 +20,8 @@ namespace jaether {
 			vContext* ctx,
 			vMETHOD* method,
 			const V<vClass>& classFile,
-			size_t maxStackItems = 64,
-			size_t maxLocals = 512
+			size_t maxStackItems = 16,
+			size_t maxLocals = 64
 		) {
 			_stack = VMAKE(vStack, ctx, ctx, maxStackItems * sizeof(vCOMMON));
 			_local = VMAKE(vMemory, ctx, ctx, maxLocals);

@@ -70,7 +70,7 @@ namespace jaether {
 		}
 
 		V<vCOMMON> fields() const {
-			return _obj(_ctx)->fields;
+			return _obj(_ctx)->fields();
 		}
 
 		vCOMMON& x() const {
@@ -110,7 +110,7 @@ namespace jaether {
 			return _obj(_ctx)->cls;
 		}
 		T* data() const {
-			return (T*)_obj(_ctx)->data(_ctx);
+			return (T*)_obj(_ctx)->data()(_ctx);
 		}
 		void* ptr() const {
 			return _obj(_ctx);

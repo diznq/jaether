@@ -16,11 +16,8 @@
 
 namespace jaether {
 
+	template<class T> class V;
 	class vClass;
-
-	struct vDummy {
-		vDummy(int i) {}
-	};
 
 	struct vContext {
 	private:
@@ -32,8 +29,9 @@ namespace jaether {
 	public:
 		vContext(Allocator* alloc, bool secure = false);
 		~vContext();
-		void* alloc(size_t mem);
-		void free(void* mem, bool arr = false);
+		void* alloc(size_t mem, bool gc = false);
+		size_t free(void* mem, bool arr = false);
+
 		template<typename T, typename... Args>
 		T* allocType(Args&&... args) {
 			char* mem = ((char*)alloc(sizeof(T)));
@@ -46,9 +44,24 @@ namespace jaether {
 		T* allocArray(size_t size) {
 			return (T*)alloc(sizeof(T) * size);
 		}
+
+
+		template<typename T, typename... Args>
+		T* allocTypeGc(Args&&... args) {
+			char* mem = ((char*)alloc(sizeof(T), true));
+			new ((T*)(mem + offset())) T(
+				std::forward<Args>(args)...
+			);
+			return (T*)mem;
+		}
 		template<typename T>
-		void freeType(T* obj, bool arr = false) {
-			free((void*)obj, arr);
+		T* allocArrayGc(size_t size) {
+			return (T*)alloc(sizeof(T) * size, true);
+		}
+
+		template<typename T>
+		size_t freeType(T* obj, bool arr = false) {
+			return free((void*)obj, arr);
 		}
 
 		void onInstruction();

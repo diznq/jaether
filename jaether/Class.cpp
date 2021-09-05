@@ -94,10 +94,9 @@ namespace jaether {
 			vClass* super = 0;
 
 			if (_super) {
-				auto super_it = cpu->lazyLoad(ctx, getSuperName(ctx), nesting + 2);
-				if (super_it != ctx->getClasses().end())
+				auto vsuper = cpu->lazyLoad(ctx, getSuperName(ctx), nesting + 2);
+				if (vsuper)
 				{
-					V<vClass> vsuper = super_it->second;
 					super = vsuper(ctx);
 				}
 			}
@@ -304,10 +303,9 @@ namespace jaether {
 		}
 		if (_super) {
 			auto& classes = ctx->getClasses();
-			auto it = classes.find(getSuperName(ctx));
-			if (it != classes.end()) {
-				V<vClass> super((vClass*)it->second);
-				return super(ctx)->getField(ctx, name);
+			auto superClass = classes.find(getSuperName(ctx));
+			if (superClass != classes.end()) {
+				return V<vClass>(superClass->second)(ctx)->getField(ctx, name);
 			}
 		}
 		return 0;
@@ -400,7 +398,7 @@ namespace jaether {
 			if (cls->TAG != JAETHER_CLASS_TAG) throw std::runtime_error("invalid class tag: " + std::to_string(cls->TAG));
 			const char* fieldName = (const char*)cls->toString(ctx, field.name)(ctx)->s.real(ctx);
 			if (!strcmp(fieldName, name)) {
-				return &obj(ctx)->fields(ctx, i);
+				return &obj(ctx)->fields()(ctx, i);
 			}
 		}
 		return 0;
@@ -473,7 +471,7 @@ namespace jaether {
 				auto& classes = ctx->getClasses();
 				auto it = classes.find(getSuperName(ctx));
 				if (it != classes.end()) {
-					V<vClass> kls((vClass*)it->second);
+					V<vClass> kls = it->second;
 					if (kls.isValid())
 						return kls(ctx)->createFrame(ctx, kls, super, cpu, _stack, opcode, methodName, desc, nesting + 1);
 				}

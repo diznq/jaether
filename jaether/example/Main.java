@@ -55,9 +55,17 @@ class Main {
         } else System.out.println(str);
     }
 
+    public static int test5(){
+        int s = 0;
+        for(int i=0; i<1000000; i++){
+            Rectangle rekt = new Rectangle();
+            rekt.nums[i&255] += i;
+            s += rekt.nums[i&127];
+        }
+        return s;
+    }
+
     public static void main(String[] args){
-        test1();
-        test3();
-        test4("Ahojky!");
+        System.out.println(test5());
     }
 }

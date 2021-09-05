@@ -28,6 +28,10 @@ namespace jaether {
 			_memory.release(ctx, true);
 		}
 
+		void* vbase() const {
+			return (void*)_memory.v();
+		}
+
 		template<class T> vStack& push(vContext* ctx, const T& value) {
 			const size_t size = sizeof(vCOMMON);
 			vBYTE* ptr = &_memory(ctx, (size_t)_index);
@@ -62,6 +66,21 @@ namespace jaether {
 			const size_t offset = sizeof(vCOMMON) * index;
 			assert(offset <= _index);
 			return *(T*)&_memory( ctx,  _index - offset - sizeof(vCOMMON));
+		}
+
+		size_t purify(vContext* ctx, size_t start, size_t end) {
+			if (start > end) {
+				size_t cleaned = 0;
+				for (; end < start; end++, cleaned++) {
+					_memory(ctx, end) = 0xCC;
+				}
+				return cleaned;
+			}
+			return 0;
+		}
+
+		size_t index() const {
+			return _index;
 		}
 
 		void dbgStack(vContext* ctx, const char* op) {
