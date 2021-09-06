@@ -182,7 +182,7 @@ namespace jaether {
 			vOBJECTREF arg = stack->pop<vOBJECTREF>(ctx);
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 			JString str(ctx, arg);
-			auto& ref = getObject<vOBJECTREF>(ctx, "java/lang/Class/getPrimitiveClass:" + str.str(), [this, arg](vContext* ctx) -> vOBJECTREF {
+			auto& ref = getObject<vOBJECTREF>(ctx, "ldc:java/lang/Class:" + str.str(), [this, arg](vContext* ctx) -> vOBJECTREF {
 				auto obj = createObject(ctx, "java/lang/Class", 20);
 				JObject wrap(ctx, obj);
 				wrap["name"].set(arg);
@@ -206,6 +206,122 @@ namespace jaether {
 				
 				printf("Freed %llu bytes\n", ctx->getAllocator()->gcCycle());
 			}
+		});
+
+		addNative("jdk/internal/misc/Unsafe/arrayBaseOffset0", "(Ljava/lang/Class;)I", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			JObject classObj(ctx, stack->pop<vOBJECTREF>(ctx));
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			JString name(ctx, classObj["name"]);
+			//printf("array base offset: %s, %s\n", classObj.getClass()(ctx)->getName(ctx), name.str().c_str());
+			stack->push<vINT>(ctx, 0);
+		});
+
+
+		addNative("jdk/internal/misc/Unsafe/arrayIndexScale0", "(Ljava/lang/Class;)I", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			JObject classObj(ctx, stack->pop<vOBJECTREF>(ctx));
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			JString name(ctx, classObj["name"]);
+			int scale = 0;
+			std::string tmp = name.str();
+			if (tmp[0] == '[') {
+				switch (tmp[1]) {
+					case 'Z': case 'B': scale = sizeof(vBYTE); break;
+					case 'S': scale = sizeof(vSHORT); break;
+					case 'I': scale = sizeof(vINT); break;
+					case 'J': scale = sizeof(vLONG); break;
+					case 'D': scale = sizeof(vDOUBLE); break;
+					case 'F': scale = sizeof(vFLOAT); break;
+					case 'L': scale = sizeof(vCOMMON); break;
+				}
+			}
+			printf("array index scale: %s, %s\n", classObj.getClass()(ctx)->getName(ctx), name.str().c_str());
+			stack->push<vINT>(ctx, scale);
+		});
+
+		//jdk/internal/misc/Unsafe/objectFieldOffset1:(Ljava/lang/Class;Ljava/lang/String;)J
+		addNative("jdk/internal/misc/Unsafe/objectFieldOffset1", "(Ljava/lang/Class;Ljava/lang/String;)J", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			JString fieldName(ctx, stack->pop<vOBJECTREF>(ctx));
+			JObject classObj(ctx, stack->pop<vOBJECTREF>(ctx));
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			JString name(ctx, classObj["name"]);
+			printf("object field offset - type: %s, field: %s\n", name.str().c_str(), fieldName.str().c_str());
+			stack->push<vLONG>(ctx, 0);
+		});
+
+		addNative("java/lang/Class/forName0", "(Ljava/lang/String;ZLjava/lang/ClassLoader;Ljava/lang/Class;)Ljava/lang/Class;", [this](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vOBJECTREF classRef = stack->pop<vOBJECTREF>(ctx);
+			vOBJECTREF classLoader = stack->pop<vOBJECTREF>(ctx);
+			vBYTE whatever = stack->pop<vBYTE>(ctx);
+			vOBJECTREF classNameRef = stack->pop<vOBJECTREF>(ctx);
+			JString className(ctx, classNameRef);
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			std::string saneName;
+			std::string tmp = className.str();
+			for (char c : tmp) {
+				if (c == '.') saneName += '/';
+				else saneName += c;
+			}
+
+			auto& ref = getObject<vOBJECTREF>(ctx, "ldc:java/lang/Class:" + saneName, [this, classNameRef](vContext* ctx) -> vOBJECTREF {
+				auto obj = createObject(ctx, "java/lang/Class", 20);
+				JObject wrap(ctx, obj);
+				wrap["name"].set(classNameRef);
+				wrap.x().set<vLONG>(1010);
+				return obj;
+			});
+
+			stack->push<vOBJECTREF>(ctx, ref);
+		});
+
+		//java/security/AccessController/getStackAccessControlContext:()Ljava/security/AccessControlContext;
+
+		addNative("java/security/AccessController/getStackAccessControlContext", "()Ljava/security/AccessControlContext;", [this](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			auto& ref = getObject<vOBJECTREF>(ctx, "java/security/AccessController/getStackAccessControlContext", [this](vContext* ctx) -> vOBJECTREF {
+				auto obj = createObject(ctx, "java/security/AccessControlContext", 20);
+				JObject wrap(ctx, obj);
+				wrap.x().set<vLONG>(1011);
+				return obj;
+			});
+			stack->push<vOBJECTREF>(ctx, ref);
+		});
+
+		addNative("java/security/AccessController/getInheritedAccessControlContext", "()Ljava/security/AccessControlContext;", [this](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			auto& ref = getObject<vOBJECTREF>(ctx, "java/security/AccessController/getInheritedAccessControlContext", [this](vContext* ctx) -> vOBJECTREF {
+				auto obj = createObject(ctx, "java/security/AccessControlContext", 20);
+				JObject wrap(ctx, obj);
+				wrap.x().set<vLONG>(1012);
+				return obj;
+			});
+			stack->push<vOBJECTREF>(ctx, ref);
+		});
+
+		//java/lang/Thread/setPriority0:(I)V
+
+		addNative("java/lang/Thread/setPriority0", "(I)V", [this](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vINT priority = stack->pop<vINT>(ctx);
+			if (opcode != invokestatic) {
+				JObject thr(ctx, stack->pop<vCOMMON>(ctx));
+				thr["priority"].set(priority);
+			}
+		});
+
+		addNative("java/lang/Thread/isAlive", "()Z", [this](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vBYTE alive = 1;
+			if (opcode != invokestatic) {
+				JObject thr(ctx, stack->pop<vCOMMON>(ctx));
+			}
+			stack->push<vBYTE>(ctx, alive);
+		});
+
+		//java/lang/Throwable/fillInStackTrace:(I)Ljava/lang/Throwable;
+		addNative("java/lang/Throwable/fillInStackTrace", "(I)Ljava/lang/Throwable;", [this](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vINT a = stack->pop<vINT>(ctx);
+			if (opcode != invokestatic) {
+				stack->pop<vCOMMON>(ctx);
+			}
+			stack->push<vOBJECTREF>(ctx, createObject(ctx, "java/lang/Throwable"));
 		});
 	}
 
@@ -257,7 +373,7 @@ namespace jaether {
 	}
 
 	vOBJECTREF vCPU::createString(vContext* ctx, vStack* _stack, const std::wstring& text, vMemory* _constPool, vUSHORT* backref, const int nesting) {
-		V<vNATIVEARRAY> arr = VMAKEGC(vNATIVEARRAY, ctx, ctx, 5, (vUINT)(text.length())); // 5 = JCHAR
+		V<vNATIVEARRAY> arr = VMAKE(vNATIVEARRAY, ctx, ctx, 5, (vUINT)(text.length())); // 5 = JCHAR
 		arr(ctx)->x.set<vLONG>(1006);
 		for (size_t i = 0, j = text.length(); i < j; i++) {
 			arr(ctx)->set<vJCHAR>(ctx, i, text[i]);
@@ -1023,7 +1139,7 @@ namespace jaether {
 					auto& clsInfo = op[1].cls.clsIndex;
 					std::string className = (const char*)_class->toString(ctx, clsInfo)(ctx)->s(ctx);
 					int nest = nesting + (int)frames.size();
-					auto& objref = getObject<vOBJECTREF>(ctx, "ldc:java/lang/Class" + className, [this, nest, &className, _stack](vContext* ctx) -> vOBJECTREF {
+					auto& objref = getObject<vOBJECTREF>(ctx, "ldc:java/lang/Class:" + className, [this, nest, &className, _stack](vContext* ctx) -> vOBJECTREF {
 						auto obj = createObject(ctx, "java/lang/Class", nest);
 						JObject wrap(ctx, obj);
 						std::wstring wName;
@@ -1278,11 +1394,6 @@ namespace jaether {
 					V<vOBJECT> obj = VMAKEGC(vOBJECT, ctx, ctx, cls);
 					vOBJECTREF ref; ref.r.a = (vULONG)obj.v(ctx);
 					obj(ctx)->x.set<vLONG>(1004);
-					/*printf("Real object is at: %llX, fields are at: %llX, ref at: %llX\n",
-						(uintptr_t)obj.v(),
-						(uintptr_t)obj(ctx)->fields.v(),
-						_stack->index() + (uintptr_t)_stack->vbase()
-					);*/
 					_stack->push<vOBJECTREF>(ctx, ref);
 					found = true;
 				}

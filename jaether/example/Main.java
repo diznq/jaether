@@ -66,11 +66,6 @@ class Main {
     }
 
     public static void main(String[] args){
-        test1();
-        test3();
-        test4("Ahojky");
-        System.gc();
-        System.out.println(test5());
-        System.gc();
+        test2();
     }
 }

@@ -14,7 +14,7 @@ namespace jaether {
 	class vClass;
 	class vFrame;
 
-#define JAETHER_CLASS_TAG 4000
+#define JAETHER_CLASS_TAG 0x33000033
 
 	typedef std::function<void(vContext* ctx, const std::string& className, vCPU* cpu, vStack* stack, vBYTE opcode)> vNATIVE;
 

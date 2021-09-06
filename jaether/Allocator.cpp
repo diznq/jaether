@@ -65,7 +65,9 @@ namespace jaether {
 			for (int GCC = 0; GCC < 2; GCC++) {
 				size_t collect = gcCycle();
 				totalGc += collect;
-				//printf("Collected %llu garbage in round %d, total cleanup: %llu, objects: %llu\n", collect, GCC, totalGc, _gc.size());
+#ifdef JVM_DEBUG
+				printf("Collected %llu garbage in round %d, total cleanup: %llu, objects: %llu\n", collect, GCC, totalGc, _gc.size());
+#endif
 			}
 		}
 		printf("Alloc failed, requested memory: %llu bytes\n", mem);
@@ -74,6 +76,7 @@ namespace jaether {
 	}
 
 	size_t Allocator::gcCycle() {
+
 		const size_t step = 1ULL << _align;
 		std::set<unsigned int> candidates = _gc;	// hard copy
 		for (size_t i = 0, id = 0, j = _free.size(); i < j; i += step, id++) {

@@ -11,8 +11,8 @@ namespace jaether {
 	class JObject;
 	class JString;
 
-#define JAETHER_OBJ_TAG 4002
-#define JAETHER_ARR_TAG 4003
+#define JAETHER_OBJ_TAG 0x33010133
+#define JAETHER_ARR_TAG 0x33020233
 
 	typedef int8_t		vCHAR;
 	typedef wchar_t		vJCHAR;
@@ -257,7 +257,7 @@ namespace jaether {
 		static vUINT unitSize(vBYTE type) {
 			switch (type) {
 			case 1: // V_REF
-				return sizeof(vOBJECTREF);
+				return sizeof(vCOMMON);
 			case 4:	// T_BOOLEAN
 				return sizeof(vBYTE);
 			case 5: // T_CHAR
@@ -281,23 +281,21 @@ namespace jaether {
 
 		template<typename T> void set(vContext* ctx, size_t index, const T& value) {
 			size_t scaledIndex = index * unitSize(type);
-			assert(index < size);
 			if (index >= size) {
-				printf("vNATIVEARRAY::set out of bounds (index: %llu)\n", index);
 				throw std::runtime_error("out of bounds");
-				return;
 			}
 			vBYTE& base = data()(ctx, scaledIndex);
 			*(T*)&base = value;
+			if (type == 1) {
+				vCOMMON* c = (vCOMMON*)&base;
+				c->type = vTypes::type<vOBJECTREF>();
+			}
 		}
 
 		template<typename T> T& get(vContext* ctx, size_t index) {
 			size_t scaledIndex = index * unitSize(type);
-			assert(index < size);
 			if (index >= size) {
-				printf("vNATIVEARRAY::get out of bounds (index: %llu)\n", index);
 				throw std::runtime_error("out of bounds");
-				return *(T*)0;
 			}
 			vBYTE* base = data()(ctx) + scaledIndex;
 			return *(T*)base;
