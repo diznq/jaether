@@ -62,6 +62,8 @@ namespace jaether {
 		size_t getAlignment() const {
 			return _align;
 		}
+
+		void dump(const char* file);
 	};
 
 }

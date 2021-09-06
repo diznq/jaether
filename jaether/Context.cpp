@@ -28,6 +28,9 @@ namespace jaether {
 
 	void vContext::onInstruction() {
 		_ops++;
+		if ((_ops & 255) == 255) {
+			_alloc->gcCycle();
+		}
 		if (!_secure) return;
 		SHA256_CTX* sha = (SHA256_CTX*)_hashContext;
 		void* start = _alloc->getBase();

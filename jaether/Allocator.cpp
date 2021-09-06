@@ -1,6 +1,8 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "Allocator.h"
 #include "Types.h"
 #include "Pointer.h"
+
 
 namespace jaether {
 
@@ -25,6 +27,7 @@ namespace jaether {
 	void* Allocator::allocRaw(size_t mem, bool gc) {
 		for (int GCI = 0; GCI < 2; GCI++) {
 			const int MOD = (1 << _align) - 1;
+			if (mem < MOD) mem = static_cast<size_t>(MOD + 1LL);
 			size_t required = (mem >> _align) + 1;
 			if ((mem & MOD) == 0) required--;
 			_managedSize += required;
@@ -76,18 +79,17 @@ namespace jaether {
 	}
 
 	size_t Allocator::gcCycle() {
-
 		const size_t step = 1ULL << _align;
 		std::set<unsigned int> candidates = _gc;	// hard copy
-		for (size_t i = 0, id = 0, j = _free.size(); i < j; i += step, id++) {
+		for (size_t i = 0, id = 0, j = _free.size(); id < j; i += step, id++) {
 			if (_free[id]) continue;
 			vCOMMON& v = *(vCOMMON*)((char*)_pool + i);
 			// candidate
-			if (v.type == vTypes::type<vREF>() && v.a.a < _size) {
-				//printf("Found reference: %08llX\n", v.a.a);
+			if (v.type == vTypes::type<vREF>() && v.a.a <= _size) {
+				//printf("Found reference: %08llu\n", v.a.a);
 				auto it = candidates.find(static_cast<unsigned int>(v.a.a));
 				if (it != candidates.end()) {	// if found, consider referenced and no longer GC candidate
-					//printf("%08llX is referenced at %08llX!\n", v.a.a, i);
+					//printf("%08llu is referenced at %08llX!\n", v.a.a, i);
 					candidates.erase(it);
 				}
 			}
@@ -102,10 +104,13 @@ namespace jaether {
 			bool rem = false;
 			if (TYPE[0] == JAETHER_ARR_TAG) {	// treat nativearray in special way
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)va);
+				vNATIVEARRAY* parr = arr.ptr(this);
+				//printf("Releasing array at #%u, type: %d, size: %u, origin: %d\n", candidate, parr->type, parr->size, parr->x.i);
 				collected += arr.ptr(this)->release(this);
 				collected += arr.release(this);
 				rem = true;
 			} else if (TYPE[0] == JAETHER_OBJ_TAG) {	// treat object special way
+				//printf("Releasing object at #%u\n", candidate);
 				V<vOBJECT> obj((vOBJECT*)va);
 				collected += obj.ptr(this)->release(this);
 				collected += obj.release(this);
@@ -139,5 +144,21 @@ namespace jaether {
 		unsigned int id = (unsigned int)(offset >> _align);
 		_touched.insert(id);
 		//_touched.insert(id + 1);
+	}
+
+	void Allocator::dump(const char* file) {
+		FILE* f = fopen(file, "w");
+		unsigned char* mem = (unsigned char*)_pool;
+		for (size_t i = 0; i < _size; i++) {
+			fprintf(f, "%02X ", mem[i]);
+			if (i % 16 == 15) fprintf(f, "\n");
+		}
+		fprintf(f, "\n");
+		fprintf(f, "\n\n\n");
+		for (size_t i = 0; i < _size; i++) {
+			fprintf(f, "%02X ", mem[i]);
+		}
+		fprintf(f, "\n");
+		fclose(f);
 	}
 }

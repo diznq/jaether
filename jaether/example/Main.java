@@ -66,6 +66,9 @@ class Main {
     }
 
     public static void main(String[] args){
-        test2();
+        for(int i=0; i<1000; i++){
+            test1();
+        }
+        System.gc();
     }
 }

@@ -32,12 +32,9 @@ namespace jaether {
 			memcpy(ptr, &value, sizeof(T));
 			vCOMMON* vc = (vCOMMON*)ptr;	
 			if constexpr (!std::is_same_v<T, vCOMMON>) {
-				if (!(
-						(vc->type == vTypes::type<vOBJECTREF>() || vc->type == vTypes::type<vSTRING>()) 
-						&& vTypes::type<T>() == vTypes::type<vREF>())
-					)
-					vc->type = vTypes::type<T>();
+				vc->type = vTypes::type<T>();
 			}
+			//dbgMem(ctx);
 			//if (vc->type == 0) throw std::runtime_error("invalid type");
 			return *this;
 		}
@@ -49,6 +46,19 @@ namespace jaether {
 		}
 
 		vULONG size() const { return _size; }
+
+		void dbgMem(vContext* ctx) {
+			if (_size >= 512 / sizeof(vCOMMON)) return;
+			vBYTE* ptr = (vBYTE*)_memory(ctx);
+			printf("------Memory-----\n");
+			for (size_t i = 0; i < _size * sizeof(vCOMMON); i++) {
+				printf("%02X ", ptr[i]);
+				if (i % 16 == 15) {
+					printf("\n");
+				}
+			}
+			printf("\n");
+		}
 	};
 
 }

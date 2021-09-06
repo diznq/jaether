@@ -375,6 +375,7 @@ namespace jaether {
 	vOBJECTREF vCPU::createString(vContext* ctx, vStack* _stack, const std::wstring& text, vMemory* _constPool, vUSHORT* backref, const int nesting) {
 		V<vNATIVEARRAY> arr = VMAKE(vNATIVEARRAY, ctx, ctx, 5, (vUINT)(text.length())); // 5 = JCHAR
 		arr(ctx)->x.set<vLONG>(1006);
+		printf("Created array at %llu\n", (uintptr_t)arr.v());
 		for (size_t i = 0, j = text.length(); i < j; i++) {
 			arr(ctx)->set<vJCHAR>(ctx, i, text[i]);
 		}
@@ -414,12 +415,14 @@ namespace jaether {
 		vMemory* _constPool = 0;
 		vFrame* _frame = 0;
 		auto& _classes = ctx->getClasses();
-		vCOMMON op[8];
+		V<vCOMMON> opBackend = VMAKEARRAY(vCOMMON, ctx, 8);
+		vCOMMON* op = opBackend(ctx);
 		size_t ops = 0;
 		size_t fwd = 0;
 		_running = true;
 		bool unwrapCallstack = true;
 		while (_running) {
+			memset(op, 0, sizeof(vCOMMON) * 4);
 			if (unwrapCallstack && frames.empty()) {
 				return 0;
 			}
@@ -933,6 +936,8 @@ namespace jaether {
 				op[0].b = read<vBYTE>(ip + 1);
 				op[1].u = _stack->pop<vUINT>(ctx);
 				V<vNATIVEARRAY> arr = VMAKEGC(vNATIVEARRAY, ctx, ctx, op[0].b, op[1].u);
+				//printf("Create array of %d: %d at #%llu\n", op[0].b, op[1].u, (uintptr_t)arr.v());
+
 				op[2].objref.r.a = (uintptr_t)arr.v(ctx);
 				arr(ctx)->x.set<vLONG>(1005);
 				_stack->push<vOBJECTREF>(ctx, op[2].objref);
@@ -944,38 +949,42 @@ namespace jaether {
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[3].u = readUSI(ip + 1);
 				V<vNATIVEARRAY> arr = VMAKEGC(vNATIVEARRAY, ctx, ctx, op[0].b, op[1].u);
-				auto& classes = ctx->getClasses();
 				vCLASS cls = _constPool->get<vCLASS>(ctx, (size_t)op[3].u);
 				auto className = std::string((const char*)_class->toString(ctx, cls.clsIndex)(ctx)->s(ctx));
+				//printf("Create array of %s: %d at #%llu\n", className.c_str(), op[1].u, (uintptr_t)arr.v());
+
 				arr(ctx)->cls = lazyLoad(ctx, className, nesting + (int)frames.size());
 				op[2].objref.r.a = (uintptr_t)arr.v(ctx);
-				arr(ctx)->x.set<vLONG>(1006);
+				arr(ctx)->x.set<vLONG>(1012);
 				_stack->push<vOBJECTREF>(ctx, op[2].objref);
 				fwd = 2; break; 
 			}
 			case arraylength:
 			{
-				op[0].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[0] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[0].objref.r.a);
-				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
+				if (arr(ctx)->TAG != JAETHER_ARR_TAG) {
+					//ctx->getAllocator()->dump("memory.log");
+					throw std::runtime_error("invalid array");
+				}
 				_stack->push<vUINT>(ctx, arr(ctx)->size);
 				fwd = 0; break; 
 			}
 			case aastore:
 			{
-				op[0].a = _stack->pop<vREF>(ctx);
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
-				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
+				op[0] = _stack->pop<vCOMMON>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[1] = _stack->pop<vCOMMON>(ctx);
+				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[1].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
-				arr(ctx)->set(ctx, (size_t)op[1].u, op[0].a);
+				arr(ctx)->set(ctx, (size_t)op[2].u, op[0].a);
 				fwd = 0; break; 
 			}
 			case bastore:
 			{
 				op[0].b = _stack->pop<vBYTE>(ctx);
 				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				arr(ctx)->set(ctx, (size_t)op[1].u, op[0].b);
@@ -985,7 +994,7 @@ namespace jaether {
 			{
 				op[0].si = _stack->pop<vSHORT>(ctx);
 				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				arr(ctx)->set(ctx, (size_t)op[1].u, op[0].si);
@@ -995,7 +1004,7 @@ namespace jaether {
 			{
 				op[0].i = _stack->pop<vINT>(ctx);
 				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				arr(ctx)->set(ctx, (size_t)op[1].u, op[0].i);
@@ -1005,7 +1014,7 @@ namespace jaether {
 			{
 				op[0].l = _stack->pop<vLONG>(ctx);
 				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				arr(ctx)->set(ctx, (size_t)op[1].u, op[0].l);
@@ -1015,7 +1024,7 @@ namespace jaether {
 			{
 				op[0].jc = _stack->pop<vJCHAR>(ctx);
 				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				arr(ctx)->set(ctx, (size_t)op[1].u, op[0].jc);
@@ -1025,7 +1034,7 @@ namespace jaether {
 			{
 				op[0].f = _stack->pop<vFLOAT>(ctx);
 				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				arr(ctx)->set(ctx, (size_t)op[1].u, op[0].f);
@@ -1035,7 +1044,7 @@ namespace jaether {
 			{
 				op[0].d = _stack->pop<vDOUBLE>(ctx);
 				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				arr(ctx)->set(ctx, (size_t)op[1].u, op[0].d);
@@ -1045,7 +1054,7 @@ namespace jaether {
 			case aaload:
 			{
 				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				op[3] = arr(ctx)->get<vCOMMON>(ctx, (size_t)op[1].u);
@@ -1055,7 +1064,7 @@ namespace jaether {
 			case baload:
 			{
 				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				_stack->push(ctx, arr(ctx)->get<vBYTE>(ctx, (size_t)op[1].u));
@@ -1064,7 +1073,7 @@ namespace jaether {
 			case saload:
 			{
 				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				_stack->push(ctx, arr(ctx)->get<vSHORT>(ctx, (size_t)op[1].u)); 
@@ -1073,7 +1082,7 @@ namespace jaether {
 			case iaload:
 			{
 				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				_stack->push(ctx, arr(ctx)->get<vINT>(ctx, (size_t)op[1].u));
@@ -1082,7 +1091,7 @@ namespace jaether {
 			case laload:
 			{
 				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				_stack->push(ctx, arr(ctx)->get<vLONG>(ctx, (size_t)op[1].u));
@@ -1091,7 +1100,7 @@ namespace jaether {
 			case caload:
 			{
 				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				_stack->push(ctx, arr(ctx)->get<vJCHAR>(ctx, (size_t)op[1].u));
@@ -1101,7 +1110,7 @@ namespace jaether {
 			{
 				op[0].f = _stack->pop<vFLOAT>(ctx);
 				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				_stack->push(ctx, arr(ctx)->get<vFLOAT>(ctx, (size_t)op[1].u));
@@ -1111,7 +1120,7 @@ namespace jaether {
 			{
 				op[0].d = _stack->pop<vDOUBLE>(ctx);
 				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				_stack->push(ctx, arr(ctx)->get<vDOUBLE>(ctx, (size_t)op[1].u));
@@ -1187,14 +1196,14 @@ namespace jaether {
 				break;
 			case ifnull:
 				op[0].usi = readUSI(ip + 1);
-				op[1].a = _stack->pop<vREF>(ctx);
+				op[1] = _stack->pop<vCOMMON>(ctx);
 				if (!op[1].a.a)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2;
 				break;
 			case ifnonnull:
 				op[0].usi = readUSI(ip + 1);
-				op[1].a = _stack->pop<vREF>(ctx);
+				op[1] = _stack->pop<vCOMMON>(ctx);
 				if (op[1].a.a)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2;
@@ -1268,15 +1277,15 @@ namespace jaether {
 				else fwd = 2; break;
 			case if_acmpeq:
 				op[0].usi = readUSI(ip + 1);
-				op[2].a = _stack->pop<vREF>(ctx);
-				op[1].a = _stack->pop<vREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[1] = _stack->pop<vCOMMON>(ctx);
 				if (op[1].a.a == op[2].a.a)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2; break;
 			case if_acmpne:
 				op[0].usi = readUSI(ip + 1);
-				op[2].a = _stack->pop<vREF>(ctx);
-				op[1].a = _stack->pop<vREF>(ctx);
+				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[1] = _stack->pop<vCOMMON>(ctx);
 				if (op[1].a.a != op[2].a.a)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2; break;
@@ -1406,7 +1415,7 @@ namespace jaether {
 			case instanceof:
 			{
 				op[0].usi = readUSI(ip + 1);
-				op[1].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[1] = _stack->pop<vCOMMON>(ctx);
 				JObject obj(ctx, op[1].objref);
 				op[2].cls = _constPool->get<vCLASS>(ctx, (size_t)op[0].usi);
 				auto& classes = ctx->getClasses();
@@ -1448,7 +1457,7 @@ namespace jaether {
 				}
 
 				if (!found) {
-					printf("Didnt find static, lol\n");
+					throw std::runtime_error("didn't find static field");
 					vCOMMON dummy;
 					memset(&dummy, 0, sizeof(vCOMMON));
 					_stack->push<vCOMMON>(ctx, dummy);
@@ -1472,6 +1481,7 @@ namespace jaether {
 					}
 				}
 				if (!found) {
+					throw std::runtime_error("didn't find static field");
 					_stack->pop<vCOMMON>(ctx);
 				}
 				fwd = 2; break;
@@ -1479,7 +1489,7 @@ namespace jaether {
 			case getfield:
 			{
 				op[0].usi = readUSI(ip + 1);
-				op[1].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[1] = _stack->pop<vCOMMON>(ctx);
 				op[3].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
 				V<vOBJECT> obj((vOBJECT*)op[1].objref.r.a);
 				V<vClass> cls = obj(ctx)->cls;
@@ -1506,7 +1516,7 @@ namespace jaether {
 			{
 				op[0].usi = readUSI(ip + 1);
 				op[2] = _stack->pop<vCOMMON>(ctx);
-				op[1].objref = _stack->pop<vOBJECTREF>(ctx);
+				op[1] = _stack->pop<vCOMMON>(ctx);
 				op[3].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
 				V<vOBJECT> obj((vOBJECT*)op[1].objref.r.a);
 				V<vClass> cls = obj(ctx)->cls;

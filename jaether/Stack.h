@@ -50,7 +50,7 @@ namespace jaether {
 			//if (vc->type == 0) throw std::runtime_error("invalid type");
 			_index += size;
 			//dbgStack(ctx, "push");
-			assert(_index <= _size);
+			if (_index > _size) throw std::runtime_error("out of stack bounds");
 			return *this;
 		}
 
@@ -58,6 +58,7 @@ namespace jaether {
 			const size_t size = sizeof(vCOMMON);
 			_index -= size;
 			//dbgStack(ctx, "pop");
+			if (_index > _size) throw std::runtime_error("out of stack bounds");
 			assert(_index <= _size);
 			return *(T*)&_memory(ctx, (size_t)_index);
 		}

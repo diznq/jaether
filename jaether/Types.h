@@ -232,13 +232,14 @@ namespace jaether {
 	};
 
 	struct vFIELD {
-		vUSHORT access;
-		vUSHORT name;
-		vUSHORT desc;
-		vUSHORT attributeCount;
-		V<vATTRIBUTE> attributes;
-		vClass* cls;
-		vCOMMON value;
+		vCOMMON value;	// 16
+		vUSHORT access;	// 18
+		vUSHORT name;	// 20
+		vUSHORT desc;	// 22
+		vUSHORT attributeCount;	// 24
+		V<vATTRIBUTE> attributes;	// 32
+		vClass* cls;	// 40
+		char reserve[8];
 	};
 
 	typedef vFIELD vMETHOD;

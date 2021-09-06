@@ -460,6 +460,8 @@ namespace jaether {
 				vUINT j = args - i;
 				if (opcode == invokestatic) j--;
 				nFrame(ctx)->_local(ctx)->set<vCOMMON>(ctx, (size_t)j, _stack->pop<vCOMMON>(ctx));
+				//vCOMMON arg = nFrame(ctx)->_local(ctx)->get<vCOMMON>(ctx, j);
+				//printf("Set arg %u as %llu, %d\n", j, arg.a.a, arg.type);
 			}
 			if (opcode != invokestatic)
 				nFrame(ctx)
