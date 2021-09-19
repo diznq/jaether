@@ -125,7 +125,6 @@ namespace jaether {
 
 			for (size_t i = _fieldCount; super && i < _fieldCount + fieldOffset; i++) {
 				vFIELD& field = super->_fields( ctx,  i - _fieldCount);
-				vClass* fieldCls = (V<vClass>((vClass*)field.cls))(ctx);
 				_fields(ctx, i) = field;
 			}
 
@@ -294,7 +293,7 @@ namespace jaether {
 		for (vUSHORT i = 0; i < _fieldCount; i++) {
 			vFIELD& field = _fields(ctx, (size_t)i);
 			if ((field.access & 8) != 8) continue;	// static flag
-			V<vClass> cls((vClass*)field.cls);
+			V<vClass>& cls = field.cls;// ((vClass*)field.cls);
 			V<vUTF8BODY> str = cls(ctx)->toString(ctx, field.name);
 			if (!str.isValid()) continue;
 			if (!strcmp((const char*)str(ctx)->s.real(ctx), name)) {
@@ -325,6 +324,19 @@ namespace jaether {
 			}
 		}
 		return 0;
+	}
+
+	vOBJECTREF& vClass::getJavaClass(vCPU* cpu, vContext* ctx, vStack* stack, bool gc) {
+		return cpu->getJavaClass(ctx, stack, getName(ctx), 0, gc);
+	}
+
+
+	std::string vClass::toStdString(vContext* ctx, vUSHORT index, int selector) const {
+		return toCString(ctx, index, selector);
+	}
+
+	const char* vClass::toCString(vContext* ctx, vUSHORT index, int selector) const {
+		return (const char*)toString(ctx, index, selector)(ctx)->s(ctx);
 	}
 
 	V<vUTF8BODY> vClass::toString(vContext* ctx, vUSHORT index, int selector) const {
@@ -392,7 +404,7 @@ namespace jaether {
 		for (vUSHORT i = 0; i < _fieldCount; i++) {
 			vFIELD& field = _fields(ctx, (size_t)i);
 			//printf("Xdd %p\n", &field);
-			V<vClass> vcls((vClass*)field.cls);
+			V<vClass>& vcls = field.cls; // ((vClass*)field.cls);
 			if (!vcls.isValid()) return 0;
 			vClass* cls = (vcls)(ctx);
 			if (cls->TAG != JAETHER_CLASS_TAG) throw std::runtime_error("invalid class tag: " + std::to_string(cls->TAG));
@@ -482,6 +494,21 @@ namespace jaether {
 				return super(ctx)->createFrame(ctx, super, V<vClass>::nullPtr(), cpu, _stack, opcode, methodName, desc, nesting + 1);
 		}
 		return std::make_tuple(false, V<vFrame>::nullPtr().v(ctx));
+	}
+
+	bool vClass::instanceOf(vContext* ctx, V<vClass> cls) {
+		vClass* sThis = cls(ctx);
+		if (sThis == this) return true;
+		if (!_super) return false;
+		if (_super) {
+			auto& classes = ctx->getClasses();
+			auto it = classes.find(getSuperName(ctx));
+			if (it != classes.end()) {
+				V<vClass> kls = it->second;
+				return kls(ctx)->instanceOf(ctx, cls);
+			}
+		}
+		return false;
 	}
 
 }

@@ -149,6 +149,7 @@
     <ClCompile Include="Class.cpp" />
     <ClCompile Include="Context.cpp" />
     <ClCompile Include="CPU.cpp" />
+    <ClCompile Include="CPUNative.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="ObjectHelper.cpp" />
     <ClCompile Include="sha256.cpp" />
@@ -167,6 +168,9 @@
     <ClInclude Include="Stack.h" />
     <ClInclude Include="Types.h" />
     <ClInclude Include="Pointer.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="SystemProperties.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

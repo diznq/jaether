@@ -16,7 +16,7 @@ namespace jaether {
 
 #define JAETHER_CLASS_TAG 0x33000033
 
-	typedef std::function<void(vContext* ctx, const std::string& className, vCPU* cpu, vStack* stack, vBYTE opcode)> vNATIVE;
+	typedef std::function<void(vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode)> vNATIVE;
 
 	class vClass {
 	public:
@@ -69,8 +69,13 @@ namespace jaether {
 		vCOMMON*	getObjField(vContext* ctx, V<vOBJECT> obj, const char* name);
 		vCOMMON*	getObjField(vContext* ctx, V<vOBJECTREF> objref, const char* name);
 
+		bool		instanceOf(vContext* ctx, V<vClass> cls);
+
 		V<vUTF8BODY> toString(vContext* ctx, vUSHORT index, int selector = 0) const;
+		std::string toStdString(vContext* ctx, vUSHORT index, int selector = 0) const;
+		const char* toCString(vContext* ctx, vUSHORT index, int selector = 0) const;
 		V<vBYTE>	getCode(vContext* ctx, vMETHOD* method);
+		vOBJECTREF& getJavaClass(vCPU* cpu, vContext* ctx, vStack* stack, bool gc = false);
 		vUINT		argsCount(vContext* ctx, vMETHOD* method);
 		vUINT		argsCount(const char* desc);
 

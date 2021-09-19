@@ -4,6 +4,7 @@
 #include "Stack.h"
 #include "Memory.h"
 #include "Class.h"
+#include <string>
 
 namespace jaether {
 
@@ -13,6 +14,7 @@ namespace jaether {
 		V<vStack>	_stack;
 		V<vMemory>	_local;
 		V<vClass>	_class;
+		V<vMETHOD>  _method;
 		vULONG		_pc;
 		bool		_returns;
 
@@ -27,6 +29,7 @@ namespace jaether {
 			_local = VMAKE(vMemory, ctx, ctx, maxLocals);
 			_pc = 0;
 			_class = classFile;
+			_method = (vMETHOD*)((uintptr_t)method - (uintptr_t)ctx->getAllocator()->getBase());
 			_program = classFile(ctx)->getCode(ctx, method);
 			if (!_program.isValid()) {
 				fprintf(stderr, "Method %s/%s:%s has no code\n",
@@ -45,6 +48,7 @@ namespace jaether {
 		}
 
 		~vFrame() {
+
 		}
 
 		void destroy(vContext* ctx) {
@@ -64,6 +68,14 @@ namespace jaether {
 
 		vULONG& incrpc(size_t step) {
 			return (_pc) += step;
+		}
+
+		std::string getName(vContext* ctx) const {
+			return std::string(_class(ctx)->getName(ctx))
+				+ "/" +
+				(const char*)_class(ctx)->toString(ctx, _method(ctx)->name)(ctx)->s(ctx)
+				+ ":" +
+				(const char*)_class(ctx)->toString(ctx, _method(ctx)->desc)(ctx)->s(ctx);
 		}
 	};
 

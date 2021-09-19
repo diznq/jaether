@@ -35,6 +35,8 @@ namespace jaether {
 
 		}
 
+		JObject(vContext* ctx, V<vClass> cls, bool gc = true);
+
 		const int TAG() const {
 			return _obj(_ctx)->TAG;
 		}
@@ -52,6 +54,11 @@ namespace jaether {
 			vCOMMON* ptr = _obj(_ctx)->cls(_ctx)->getObjField(_ctx, _obj, idx);
 			if (!ptr) throw FieldNotFoundException();
 			return *ptr;
+		}
+
+		vCOMMON& operator[](size_t idx) {
+			if (idx >= _obj(_ctx)->cls(_ctx)->_fieldCount) throw std::runtime_error("invalid field index");
+			return _obj(_ctx)->fields()(_ctx, idx);
 		}
 
 		void* ptr() const {
@@ -73,9 +80,20 @@ namespace jaether {
 			return _obj(_ctx)->fields();
 		}
 
-		vCOMMON& x() const {
+		vCOMMON& x() {
 			return _obj(_ctx)->x;
 		}
+
+		vOBJECTREF ref() const {
+			vOBJECTREF objr; objr.r.a = (vULONG)_obj.v();
+			return objr;
+		}
+
+		operator vOBJECTREF() const {
+			return ref();
+		}
+
+
 	};
 
 
@@ -97,6 +115,13 @@ namespace jaether {
 		JArray(vContext* ctx, V<vNATIVEARRAY> obj) : _ctx(ctx), _obj(obj) {
 
 		}
+		JArray(vContext* ctx, size_t size, vUINT type = 1, bool gc = true) : _ctx(ctx) {
+			if (gc) {
+				_obj = VMAKEGC(vNATIVEARRAY, ctx, ctx, type, (vUINT)size);
+			} else {
+				_obj = VMAKE(vNATIVEARRAY, ctx, ctx, type, (vUINT)size);
+			}
+		}
 		T& operator[](const size_t idx) const {
 			return _obj(_ctx)->get<T>(_ctx, idx);
 		}
@@ -114,6 +139,13 @@ namespace jaether {
 		}
 		void* ptr() const {
 			return _obj(_ctx);
+		}
+		vOBJECTREF ref() const {
+			vOBJECTREF objr; objr.r.a = (vULONG)_obj.v();
+			return objr;
+		}
+		operator vOBJECTREF() const {
+			return ref();
 		}
 		operator bool() const {
 			return _obj.isValid();

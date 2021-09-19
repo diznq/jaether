@@ -6,7 +6,7 @@ import java.util.Random;
 
 class Main {
 
-    public static void test1(){
+    public static void test1() {
         String[] arr = new String[]{"Hello, ", "world!"};
         ArrayList<String> strings = new ArrayList<>();
         HashMap<String, String> stuff = new HashMap<>();
@@ -38,24 +38,25 @@ class Main {
         }
     }
 
-    public static void test2(){
+    public static void test2() {
         Random rnd = new Random();
-        for(int i=0; i<10; i++){
+        for(int i=0; i<10; i++) {
             System.out.println(rnd.nextInt());
         }
     }
 
-    public static void test3(){
+    public static void test3() {
         System.out.println(String.class.getName());
+        System.out.println(int.class.getName());
     }
 
-    public static void test4(String str){
+    public static void test4(String str) {
         if(str == null){
             System.out.println("NULL");
         } else System.out.println(str);
     }
 
-    public static int test5(){
+    public static int test5() {
         int s = 0;
         for(int i=0; i<1000000; i++){
             Rectangle rekt = new Rectangle();
@@ -65,10 +66,7 @@ class Main {
         return s;
     }
 
-    public static void main(String[] args){
-        for(int i=0; i<1000; i++){
-            test1();
-        }
-        System.gc();
+    public static void main(String[] args) {
+        System.out.println("Ahoj".indexOf('h'));
     }
 }

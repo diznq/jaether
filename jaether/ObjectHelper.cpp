@@ -5,6 +5,16 @@
 #endif
 
 namespace jaether {
+
+	JObject::JObject(vContext* ctx, V<vClass> cls, bool gc) {
+		_ctx = ctx;
+		if (gc) {
+			_obj = VMAKEGC(vOBJECT, ctx, ctx, cls);
+		} else {
+			_obj = VMAKE(vOBJECT, ctx, ctx, cls);
+		}
+	}
+
 	std::string JString::str() const {
 		vBYTE coder = 1;
 		try {

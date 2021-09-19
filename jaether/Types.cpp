@@ -24,4 +24,14 @@ namespace jaether {
 		dataObj = Data;
 	}
 
+	std::string vFIELD::getName(vContext* ctx) {
+		auto szName = cls(ctx)->toString(ctx, name)(ctx)->s(ctx);
+		return std::string((const char*)szName);
+	}
+
+	std::string vFIELD::getDesc(vContext* ctx) {
+		auto szName = cls(ctx)->toString(ctx, desc)(ctx)->s(ctx);
+		return std::string((const char*)szName);
+	}
+
 }

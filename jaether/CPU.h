@@ -38,9 +38,12 @@ namespace jaether {
 		size_t run(vContext* ctx, const V<vFrame>& frame, const int nesting=0);
 		std::chrono::steady_clock::time_point getTime() const;
 
-		vOBJECTREF createString(vContext* ctx, vClass* _class, vStack* _stack, vMemory* _constPool, vUSHORT strIndex, vUSHORT* backref, const int nesting = 0);
-		vOBJECTREF createString(vContext* ctx, vStack* _stack, const std::wstring& text, vMemory* _constPool = 0, vUSHORT* backref = 0, const int nesting = 0);
-		vOBJECTREF createObject(vContext* ctx, const char* className, const int nesting = 0);
+		vOBJECTREF createString(vContext* ctx, vClass* _class, vStack* _stack, vMemory* _constPool, vUSHORT strIndex, vUSHORT* backref, bool gc = true, const int nesting = 0);
+		vOBJECTREF createString(vContext* ctx, vStack* _stack, const std::wstring& text, vMemory* _constPool = 0, vUSHORT* backref = 0, bool gc = true, const int nesting = 0);
+		vOBJECTREF createString(vContext* ctx, vStack* _stack, const std::string& text, bool gc = true, const int nesting = 0);
+		vOBJECTREF createObject(vContext* ctx, const char* className, bool gc = true, const int nesting = 0);
+
+		vOBJECTREF& getJavaClass(vContext* ctx, vStack* stack, const char* className, vOBJECTREF* ref=0, bool gc = false);
 			
 		template<class T> T read(vBYTE* ip) const {
 			return *(T*)ip;

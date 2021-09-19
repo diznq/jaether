@@ -58,291 +58,30 @@ namespace jaether {
 		_natives[path + ":" + desc] = native;
 	}
 
-	void vCPU::registerNatives() {
-		
-
-		addNative("java/io/PrintStream/println", "(I)V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			vINT arg = stack->pop<vINT>(ctx);
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			printf("%d\n", arg);
-		});
-
-
-		addNative("java/io/PrintStream/println", "(J)V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			vLONG arg = stack->pop<vLONG>(ctx);
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			printf("%lld\n", arg);
-		});
-
-		//java/lang/Thread/currentThread:()Ljava/lang/Thread;
-
-		addNative("java/lang/Thread/currentThread", "()Ljava/lang/Thread;", [this](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			auto& currentThread = getObject<vOBJECTREF>(ctx, "java/lang/Thread/currentThread/1", [this, stack](vContext* ctx) -> vOBJECTREF {
-				auto objref = createObject(ctx, "java/lang/Thread", 20);
-				auto groupref = createObject(ctx, "java/lang/ThreadGroup", 20);
-				JObject obj(ctx, objref);
-				JObject group(ctx, groupref);
-				vOBJECTREF nullref; nullref.r.a = (uintptr_t)V<vOBJECT>::nullPtr().v(ctx);
-				obj["name"].set<vOBJECTREF>(createString(ctx, stack, L"CurrentThread"));
-				obj["group"].set<vOBJECTREF>(groupref);
-				obj["tid"].set<vLONG>(1LL);
-				obj["priority"].set<vLONG>(1LL);
-				obj.x().set<vLONG>(1000);
-				group["parent"].set<vOBJECTREF>(nullref);
-				group.x().set<vLONG>(1007);
-				return objref;
-			});
-			stack->push<vOBJECTREF>(ctx, currentThread);
-		});
-
-		addNative("java/lang/System/arraycopy", "(Ljava/lang/Object;ILjava/lang/Object;II)V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			vINT len = stack->pop<vINT>(ctx);
-			vINT dstPos = stack->pop<vINT>(ctx);
-			vOBJECTREF dst = stack->pop<vOBJECTREF>(ctx);
-			vINT srcPos = stack->pop<vINT>(ctx);
-			vOBJECTREF src = stack->pop<vOBJECTREF>(ctx);
-
-			V<vNATIVEARRAY> srcArr((vNATIVEARRAY*)src.r.a);
-			V<vNATIVEARRAY> dstArr((vNATIVEARRAY*)dst.r.a);
-
-			auto unit = srcArr(ctx)->unitSize(srcArr(ctx)->type);
-			vBYTE* pSrc = srcArr(ctx)->data()(ctx);
-			vBYTE* pDst = dstArr(ctx)->data()(ctx);
-
-			memmove(pDst + (size_t)dstPos * unit, pSrc + (size_t)srcPos * unit, (size_t)len * unit);
-
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-		});
-
-		addNative("java/lang/System/registerNatives", "()V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-		});
-		
-		addNative("java/lang/Class/registerNatives", "()V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-		});
-
-		addNative("jdk/internal/misc/Unsafe/registerNatives", "()V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-		});
-
-		addNative("java/lang/Thread/registerNatives", "()V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-		});
-
-		addNative("java/util/concurrent/atomic/AtomicLong/VMSupportsCS8", "()Z", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			stack->push<vBYTE>(ctx, 0);
-		});
-
-		addNative("java/lang/StringUTF16/isBigEndian", "()Z", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			stack->push<vBYTE>(ctx, 1);
-		});
-
-		addNative("java/lang/Class/desiredAssertionStatus", "()Z", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			stack->push<vBYTE>(ctx, 1);
-		});
-
-		addNative("java/lang/Float/floatToRawIntBits", "(F)I", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			vFLOAT flt = stack->pop<vFLOAT>(ctx);
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			stack->push<vINT>(ctx, *(vINT*)&flt);
-		});
-
-		addNative("java/lang/Double/doubleToRawLongBits", "(D)J", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			vDOUBLE flt = stack->pop<vDOUBLE>(ctx);
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			stack->push<vLONG>(ctx, *(vLONG*)&flt);
-		});
-
-
-		addNative("java/lang/Float/intBitsToFloat", "(I)F", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			vINT flt = stack->pop<vINT>(ctx);
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			stack->push<vFLOAT>(ctx, *(vFLOAT*)&flt);
-		});
-
-		addNative("java/lang/Double/longBitsToDouble", "(J)D", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			vLONG flt = stack->pop<vLONG>(ctx);
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			stack->push<vDOUBLE>(ctx, *(vDOUBLE*)&flt);
-		});
-
-		addNative("java/io/PrintStream/println", "(Ljava/lang/String;)V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			vOBJECTREF arg = stack->pop<vOBJECTREF>(ctx);
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			JString str(ctx, arg);
-			fprintf(stdout, "%s\n", str.str().c_str());
-		});
-
-		addNative("java/lang/Class/getPrimitiveClass", "(Ljava/lang/String;)Ljava/lang/Class;", [this](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			vOBJECTREF arg = stack->pop<vOBJECTREF>(ctx);
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			JString str(ctx, arg);
-			auto& ref = getObject<vOBJECTREF>(ctx, "ldc:java/lang/Class:" + str.str(), [this, arg](vContext* ctx) -> vOBJECTREF {
-				auto obj = createObject(ctx, "java/lang/Class", 20);
-				JObject wrap(ctx, obj);
-				wrap["name"].set(arg);
-				wrap.x().set<vLONG>(1001);
-				return obj;
-			});
-			stack->push<vOBJECTREF>(ctx, ref);
-		});
-
-		addNative("java/lang/System/currentTimeMillis", "()J", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			//std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-			//vLONG millis = (vLONG)ms.count();
-			stack->push<vLONG>(ctx, ctx->ops() / 50000);
-		});
-
-
-		addNative("java/lang/System/gc", "()V", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			for (int GCC = 0; GCC < 2; GCC++) {
-				
-				printf("Freed %llu bytes\n", ctx->getAllocator()->gcCycle());
-			}
-		});
-
-		addNative("jdk/internal/misc/Unsafe/arrayBaseOffset0", "(Ljava/lang/Class;)I", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			JObject classObj(ctx, stack->pop<vOBJECTREF>(ctx));
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			JString name(ctx, classObj["name"]);
-			//printf("array base offset: %s, %s\n", classObj.getClass()(ctx)->getName(ctx), name.str().c_str());
-			stack->push<vINT>(ctx, 0);
-		});
-
-
-		addNative("jdk/internal/misc/Unsafe/arrayIndexScale0", "(Ljava/lang/Class;)I", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			JObject classObj(ctx, stack->pop<vOBJECTREF>(ctx));
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			JString name(ctx, classObj["name"]);
-			int scale = 0;
-			std::string tmp = name.str();
-			if (tmp[0] == '[') {
-				switch (tmp[1]) {
-					case 'Z': case 'B': scale = sizeof(vBYTE); break;
-					case 'S': scale = sizeof(vSHORT); break;
-					case 'I': scale = sizeof(vINT); break;
-					case 'J': scale = sizeof(vLONG); break;
-					case 'D': scale = sizeof(vDOUBLE); break;
-					case 'F': scale = sizeof(vFLOAT); break;
-					case 'L': scale = sizeof(vCOMMON); break;
-				}
-			}
-			printf("array index scale: %s, %s\n", classObj.getClass()(ctx)->getName(ctx), name.str().c_str());
-			stack->push<vINT>(ctx, scale);
-		});
-
-		//jdk/internal/misc/Unsafe/objectFieldOffset1:(Ljava/lang/Class;Ljava/lang/String;)J
-		addNative("jdk/internal/misc/Unsafe/objectFieldOffset1", "(Ljava/lang/Class;Ljava/lang/String;)J", [](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			JString fieldName(ctx, stack->pop<vOBJECTREF>(ctx));
-			JObject classObj(ctx, stack->pop<vOBJECTREF>(ctx));
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			JString name(ctx, classObj["name"]);
-			printf("object field offset - type: %s, field: %s\n", name.str().c_str(), fieldName.str().c_str());
-			stack->push<vLONG>(ctx, 0);
-		});
-
-		addNative("java/lang/Class/forName0", "(Ljava/lang/String;ZLjava/lang/ClassLoader;Ljava/lang/Class;)Ljava/lang/Class;", [this](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			vOBJECTREF classRef = stack->pop<vOBJECTREF>(ctx);
-			vOBJECTREF classLoader = stack->pop<vOBJECTREF>(ctx);
-			vBYTE whatever = stack->pop<vBYTE>(ctx);
-			vOBJECTREF classNameRef = stack->pop<vOBJECTREF>(ctx);
-			JString className(ctx, classNameRef);
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			std::string saneName;
-			std::string tmp = className.str();
-			for (char c : tmp) {
-				if (c == '.') saneName += '/';
-				else saneName += c;
-			}
-
-			auto& ref = getObject<vOBJECTREF>(ctx, "ldc:java/lang/Class:" + saneName, [this, classNameRef](vContext* ctx) -> vOBJECTREF {
-				auto obj = createObject(ctx, "java/lang/Class", 20);
-				JObject wrap(ctx, obj);
-				wrap["name"].set(classNameRef);
-				wrap.x().set<vLONG>(1010);
-				return obj;
-			});
-
-			stack->push<vOBJECTREF>(ctx, ref);
-		});
-
-		//java/security/AccessController/getStackAccessControlContext:()Ljava/security/AccessControlContext;
-
-		addNative("java/security/AccessController/getStackAccessControlContext", "()Ljava/security/AccessControlContext;", [this](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			auto& ref = getObject<vOBJECTREF>(ctx, "java/security/AccessController/getStackAccessControlContext", [this](vContext* ctx) -> vOBJECTREF {
-				auto obj = createObject(ctx, "java/security/AccessControlContext", 20);
-				JObject wrap(ctx, obj);
-				wrap.x().set<vLONG>(1011);
-				return obj;
-			});
-			stack->push<vOBJECTREF>(ctx, ref);
-		});
-
-		addNative("java/security/AccessController/getInheritedAccessControlContext", "()Ljava/security/AccessControlContext;", [this](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			auto& ref = getObject<vOBJECTREF>(ctx, "java/security/AccessController/getInheritedAccessControlContext", [this](vContext* ctx) -> vOBJECTREF {
-				auto obj = createObject(ctx, "java/security/AccessControlContext", 20);
-				JObject wrap(ctx, obj);
-				wrap.x().set<vLONG>(1012);
-				return obj;
-			});
-			stack->push<vOBJECTREF>(ctx, ref);
-		});
-
-		//java/lang/Thread/setPriority0:(I)V
-
-		addNative("java/lang/Thread/setPriority0", "(I)V", [this](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			vINT priority = stack->pop<vINT>(ctx);
-			if (opcode != invokestatic) {
-				JObject thr(ctx, stack->pop<vCOMMON>(ctx));
-				thr["priority"].set(priority);
-			}
-		});
-
-		addNative("java/lang/Thread/isAlive", "()Z", [this](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			vBYTE alive = 1;
-			if (opcode != invokestatic) {
-				JObject thr(ctx, stack->pop<vCOMMON>(ctx));
-			}
-			stack->push<vBYTE>(ctx, alive);
-		});
-
-		//java/lang/Throwable/fillInStackTrace:(I)Ljava/lang/Throwable;
-		addNative("java/lang/Throwable/fillInStackTrace", "(I)Ljava/lang/Throwable;", [this](vContext* ctx, const std::string& cls, vCPU* cpu, vStack* stack, vBYTE opcode) {
-			vINT a = stack->pop<vINT>(ctx);
-			if (opcode != invokestatic) {
-				stack->pop<vCOMMON>(ctx);
-			}
-			stack->push<vOBJECTREF>(ctx, createObject(ctx, "java/lang/Throwable"));
-		});
-	}
-
 	std::chrono::steady_clock::time_point vCPU::getTime() const {
 		return std::chrono::high_resolution_clock::now();
 	}
 
-	vOBJECTREF vCPU::createObject(vContext* ctx, const char* className, const int nesting) {
+	vOBJECTREF vCPU::createObject(vContext* ctx, const char* className, bool gc, const int nesting) {
 		auto& classes = ctx->getClasses();
 		auto cls = lazyLoad(ctx, className, nesting);
 		if (cls) {
-			V<vOBJECT> obj = VMAKE(vOBJECT, ctx, ctx, cls);
-			vOBJECTREF ref; ref.r.a = (vULONG)obj.v(ctx);
-			return ref;
+			V<vOBJECT> obj;
+			if (gc) {
+				obj = VMAKEGC(vOBJECT, ctx, ctx, cls);
+			} else {
+				obj = VMAKE(vOBJECT, ctx, ctx, cls);
+			}
+			return Ref(obj);
 		} else {
 			DPRINTF("%*sFailed to find class %s for object creation\n", nesting, "", className);
+			throw std::runtime_error("class not found");
 		}
 		return vOBJECTREF{};
 	}
 
-	vOBJECTREF vCPU::createString(vContext* ctx, vClass* _class, vStack* _stack, vMemory* _constPool, vUSHORT strIndex, vUSHORT* backref, const int nesting) {
+	vOBJECTREF vCPU::createString(vContext* ctx, vClass* _class, vStack* _stack, vMemory* _constPool, vUSHORT strIndex, vUSHORT* backref, bool gc, const int nesting) {
+		const bool cvtEndian = true;
 		V<vUTF8BODY> str = _class->toString(ctx, strIndex);
 		const vUINT size = (vUINT)str(ctx)->len;
 		const size_t utfCapacity = (size_t)size + 10;
@@ -352,57 +91,154 @@ namespace jaether {
 		memset(arr, 0, sizeof(vJCHAR) * utfCapacity);
 		for (vUINT i = 0; i < size; i++) {
 			vBYTE b = src[i] & 255;
+			//printf("B: %x\n", b);
 			if (b >= 1 && b <= 0x7F) {	// 1 byte
-				arr[utf16len++] = (b << 8);	// fix endian
+				arr[utf16len++] = cvtEndian ? (b << 8) : b;	// fix endian
 			} else if ((b & 0xE0) == 0xC0) { // 2 bytes
 				vUSHORT x = (vUSHORT)src[i++] & 255;
 				vUSHORT y = (vUSHORT)src[i] & 255;
 				vUSHORT R = (vUSHORT)(((x & 0x1f) << 6) | (y & 0x3f));
-				arr[utf16len++] = (vJCHAR)((R >> 8) | (R << 8));	// fix endian
+				arr[utf16len++] = cvtEndian ? (vJCHAR)((R >> 8) | (R << 8)) : (vJCHAR)R;
 			} else if ((b & 0xE0) == 0xE0) { // 3 bytes
 				vUSHORT x = (vUSHORT)src[i++] & 255;
 				vUSHORT y = (vUSHORT)src[i++] & 255;
 				vUSHORT z = (vUSHORT)src[i] & 255;
 				vUSHORT R = (vUSHORT)(((x & 0xf) << 12) | ((y & 0x3f) << 6) | (z & 0x3f));
-				arr[utf16len++] = (vJCHAR)((R >> 8) | (R << 8));	// fix endian
+				arr[utf16len++] = cvtEndian ? (vJCHAR)((R >> 8) | (R << 8)) : (vJCHAR)R;
 			}
 		}
 		std::wstring utf16Str(arr, arr + utf16len);
 		delete[] arr;
-		return createString(ctx, _stack, utf16Str, _constPool, backref, nesting);
+		return createString(ctx, _stack, utf16Str, _constPool, backref, gc, nesting);
 	}
 
-	vOBJECTREF vCPU::createString(vContext* ctx, vStack* _stack, const std::wstring& text, vMemory* _constPool, vUSHORT* backref, const int nesting) {
-		V<vNATIVEARRAY> arr = VMAKE(vNATIVEARRAY, ctx, ctx, 5, (vUINT)(text.length())); // 5 = JCHAR
+	vOBJECTREF vCPU::createString(vContext* ctx, vStack* _stack, const std::string& text, bool gc, const int nesting) {
+		const bool cvtEndian = true;
+		const vUINT size = (vUINT)text.length();
+		const size_t utfCapacity = (size_t)size + 10;
+		const vBYTE* src = (const vBYTE*)text.data();
+		size_t utf16len = 0;
+		vJCHAR* arr = new vJCHAR[utfCapacity];
+		memset(arr, 0, sizeof(vJCHAR) * utfCapacity);
+		for (vUINT i = 0; i < size; i++) {
+			vBYTE b = src[i] & 255;
+			if (b >= 1 && b <= 0x7F) {	// 1 byte
+				arr[utf16len++] = cvtEndian ? (b << 8) : b;	// fix endian
+			}
+			else if ((b & 0xE0) == 0xC0) { // 2 bytes
+				vUSHORT x = (vUSHORT)src[i++] & 255;
+				vUSHORT y = (vUSHORT)src[i] & 255;
+				vUSHORT R = (vUSHORT)(((x & 0x1f) << 6) | (y & 0x3f));
+				arr[utf16len++] = cvtEndian ? (vJCHAR)((R >> 8) | (R << 8)) : (vJCHAR)R;
+			}
+			else if ((b & 0xE0) == 0xE0) { // 3 bytes
+				vUSHORT x = (vUSHORT)src[i++] & 255;
+				vUSHORT y = (vUSHORT)src[i++] & 255;
+				vUSHORT z = (vUSHORT)src[i] & 255;
+				vUSHORT R = (vUSHORT)(((x & 0xf) << 12) | ((y & 0x3f) << 6) | (z & 0x3f));
+				arr[utf16len++] = cvtEndian ? (vJCHAR)((R >> 8) | (R << 8)) : (vJCHAR)R;
+			}
+		}
+		std::wstring utf16Str(arr, arr + utf16len);
+		delete[] arr;
+		return createString(ctx, _stack, utf16Str, 0, 0, gc, nesting);
+	}
+
+	vOBJECTREF vCPU::createString(vContext* ctx, vStack* _stack, const std::wstring& text, vMemory* _constPool, vUSHORT* backref, bool gc, const int nesting) {
+		V<vNATIVEARRAY> arr;
+		const bool properStrings = false;
+		const bool cvtEndian = true;
+		if (gc) {
+			arr = VMAKEGC(vNATIVEARRAY, ctx, ctx, 5, (vUINT)(text.length())); // 5 = JCHAR
+		} else {
+			arr = VMAKE(vNATIVEARRAY, ctx, ctx, 5, (vUINT)(text.length())); // 5 = JCHAR
+		}
 		arr(ctx)->x.set<vLONG>(1006);
-		printf("Created array at %llu\n", (uintptr_t)arr.v());
+		// printf("Created array at %llu\n", (uintptr_t)arr.v());
 		for (size_t i = 0, j = text.length(); i < j; i++) {
 			arr(ctx)->set<vJCHAR>(ctx, i, text[i]);
 		}
-		vOBJECTREF wchRef; wchRef.r.a = (uintptr_t)arr.v(ctx);
 		auto strCls = lazyLoad(ctx, "java/lang/String", nesting);
 		if (strCls) {
-			V<vOBJECT> strObj = VMAKE(vOBJECT, ctx, ctx, strCls);
+			V<vOBJECT> strObj;
+			if (gc) strObj = VMAKEGC(vOBJECT, ctx, ctx, strCls);
+			else strObj = VMAKE(vOBJECT, ctx, ctx, strCls);
 			strObj(ctx)->x.set<vLONG>(1003);
-			vOBJECTREF ref; ref.r.a = (vULONG)strObj.v(ctx);
-			_stack->push<vOBJECTREF>(ctx, ref);
-			_stack->push<vOBJECTREF>(ctx, wchRef);
+			if (properStrings) {
+				_stack->push<vOBJECTREF>(ctx, Ref(strObj));
+				_stack->push<vOBJECTREF>(ctx, Ref(arr));
+			}
 			if (_constPool && backref) {
-				_constPool->set<vOBJECTREF>(ctx, (size_t)*backref, ref);
+				_constPool->set<vOBJECTREF>(ctx, (size_t)*backref, Ref(strObj));
 			}
 			DPRINTF("%*s>Create string: %llu\n", nesting, "", text.length());
-			auto [ok, result] = strCls(ctx)->invoke(
-				ctx, strCls, strCls, this, _stack, invokespecial, "<init>", "([C)V", nesting + 2
-			);
+			JObject strWrap(ctx, strObj);
+			if (properStrings) {
+				auto [ok, result] = strCls(ctx)->invoke(
+					ctx, strCls, strCls, this, _stack, invokespecial, "<init>", "([C)V", nesting + 2
+				);
+			} else {
+				arr(ctx)->type = 8;
+				arr(ctx)->size <<= 1;
+				strWrap["value"].set<vOBJECTREF>(Ref(arr));
+				strWrap["coder"].set<vINT>(1);
+			}
+			// FIXME: ugly heuristics hack!!! :D
+			if (!properStrings) {
+				JArray<vBYTE> dbgArr(ctx, strWrap["value"]);
+				// swap endian in case it's big endian, FIX!
+				if (cvtEndian && dbgArr.length() > 0 && dbgArr[0] == 0) {
+					for (size_t K = 0; K < dbgArr.length(); K += 2) {
+						vBYTE tmp = dbgArr[K];
+						dbgArr[K] = dbgArr[K + 1];
+						dbgArr[K + 1] = tmp;
+					}
+				}
+			}
+			/*
+			JArray<vBYTE> dbgArr(ctx, strWrap["value"]);
+			if (strWrap["coder"].i) {
+				printf("LENGTH: %llu\n", dbgArr.length());
+				printf("%s\n", JString(ctx, Ref(strObj)).str().c_str());
+				for (size_t K = 0; K < dbgArr.length(); K++) {
+					printf("%02X ", dbgArr[K] & 255);
+				}
+				printf("\n");
+			}
+			*/
 			DPRINTF("%*s<String created: %s (len: %llu)\n", nesting, "",
-				JString(ctx, ref).str().c_str(),
-				JString(ctx, ref).str().length()
+				JString(ctx, Ref(strObj)).str().c_str(),
+				JString(ctx, Ref(strObj)).str().length()
 			);
-			return ref;
+			return Ref(strObj);
 		} else {
 			vOBJECTREF objr; objr.r.a = (vULONG)V<vOBJECT>::nullPtr().v(ctx);
 			return objr;
 		}
+	}
+
+	vOBJECTREF& vCPU::getJavaClass(vContext* ctx, vStack* stack, const char* name, vOBJECTREF* classNameRef, bool gc) {
+		std::string saneName = name;
+		if (saneName.back() == ';') {
+			saneName.pop_back();
+			saneName = saneName.substr(1);
+		}
+		std::wstring wName;
+		for (char& c : saneName) {
+			wName += c == '/' ? L'.' : (wchar_t)c;
+			if (c == '.') c = '/';
+		}
+		return getObject<vOBJECTREF>(ctx, "ldc:java/lang/Class:" + saneName, [this, classNameRef, stack, wName, gc](vContext* ctx) -> vOBJECTREF {
+			auto obj = createObject(ctx, "java/lang/Class", gc, 20);
+			JObject wrap(ctx, obj);
+			if (classNameRef) {
+				wrap["name"].set(*classNameRef);
+			} else {
+				wrap["name"].set(createString(ctx, stack, wName, 0, 0, gc));
+			}
+			wrap.x().set<vLONG>(1050);
+			return obj;
+		});
 	}
 
 	size_t vCPU::run(vContext* ctx, const V<vFrame>& frame, const int nesting) {
@@ -415,8 +251,8 @@ namespace jaether {
 		vMemory* _constPool = 0;
 		vFrame* _frame = 0;
 		auto& _classes = ctx->getClasses();
-		V<vCOMMON> opBackend = VMAKEARRAY(vCOMMON, ctx, 8);
-		vCOMMON* op = opBackend(ctx);
+		//V<vCOMMON> opBackend = VMAKEARRAY(vCOMMON, ctx, 8);
+		vCOMMON op[8];// = opBackend(ctx);
 		size_t ops = 0;
 		size_t fwd = 0;
 		_running = true;
@@ -441,7 +277,7 @@ namespace jaether {
 			size_t startIndex = _stack->index();
 			vBYTE* ip = _frame->fetch(ctx);
 			vBYTE& opcode = *ip; ops++;
-			RPRINTF("|Execute %s (%d)\n", Opcodes[opcode], opcode);
+			//RPRINTF("|Execute %s (%d)\n", Opcodes[opcode], opcode);
 			switch (opcode) {
 			case nop:
 				fwd = 0; break;
@@ -513,17 +349,23 @@ namespace jaether {
 
 			case dup2:
 				op[0] = _stack->pop<vCOMMON>(ctx);
-				op[1] = _stack->pop<vCOMMON>(ctx);
-				_stack->push<vCOMMON>(ctx, op[1]);
-				_stack->push<vCOMMON>(ctx, op[0]);
-				_stack->push<vCOMMON>(ctx, op[1]);
-				_stack->push<vCOMMON>(ctx, op[0]);
+				if (op[0].type == vTypes::type<vDOUBLE>() || op[0].type == vTypes::type<vLONG>()) {
+					_stack->push<vCOMMON>(ctx, op[0]);
+					_stack->push<vCOMMON>(ctx, op[0]);
+				} else {
+					op[1] = _stack->pop<vCOMMON>(ctx);
+					_stack->push<vCOMMON>(ctx, op[1]);
+					_stack->push<vCOMMON>(ctx, op[0]);
+					_stack->push<vCOMMON>(ctx, op[1]);
+					_stack->push<vCOMMON>(ctx, op[0]);
+				}
 				fwd = 0; break;
 			case i2b:
 				_stack->push<vBYTE>(ctx, (vBYTE)(_stack->pop<vUINT>(ctx) & 255));
 				fwd = 0; break;
 			case i2c:
-				_stack->push<vJCHAR>(ctx, (vJCHAR)(_stack->pop<vUINT>(ctx) & 65535));
+				op[0].jc = (vJCHAR)(_stack->pop<vUINT>(ctx) & 65535);
+				_stack->push<vJCHAR>(ctx, (op[0].jc >> 8) | (op[0].jc << 8));
 				fwd = 0; break;
 			case i2s:
 				_stack->push<vUSHORT>(ctx, (vUSHORT)(_stack->pop<vUINT>(ctx) & 65535));
@@ -951,8 +793,6 @@ namespace jaether {
 				V<vNATIVEARRAY> arr = VMAKEGC(vNATIVEARRAY, ctx, ctx, op[0].b, op[1].u);
 				vCLASS cls = _constPool->get<vCLASS>(ctx, (size_t)op[3].u);
 				auto className = std::string((const char*)_class->toString(ctx, cls.clsIndex)(ctx)->s(ctx));
-				//printf("Create array of %s: %d at #%llu\n", className.c_str(), op[1].u, (uintptr_t)arr.v());
-
 				arr(ctx)->cls = lazyLoad(ctx, className, nesting + (int)frames.size());
 				op[2].objref.r.a = (uintptr_t)arr.v(ctx);
 				arr(ctx)->x.set<vLONG>(1012);
@@ -1141,6 +981,7 @@ namespace jaether {
 						_constPool,
 						op[1].str.strIndex,
 						&op[0].usi,
+						false,
 						nesting + (int)frames.size() + 1
 					));
 				} else if (op[1].type == vTypes::type<vCLASS>()) {
@@ -1148,18 +989,7 @@ namespace jaether {
 					auto& clsInfo = op[1].cls.clsIndex;
 					std::string className = (const char*)_class->toString(ctx, clsInfo)(ctx)->s(ctx);
 					int nest = nesting + (int)frames.size();
-					auto& objref = getObject<vOBJECTREF>(ctx, "ldc:java/lang/Class:" + className, [this, nest, &className, _stack](vContext* ctx) -> vOBJECTREF {
-						auto obj = createObject(ctx, "java/lang/Class", nest);
-						JObject wrap(ctx, obj);
-						std::wstring wName;
-						for (char c : className) {
-							if (c == '/') wName += L'.';
-							else wName += (wchar_t)c;
-						}
-						wrap.x().set<vLONG>(1002);
-						wrap["name"].set(createString(ctx, _stack, wName, 0, 0, 20));
-						return obj;
-					});
+					auto& objref = getJavaClass(ctx, _stack, className.c_str(), 0, false);
 					_stack->push<vOBJECTREF>(ctx, objref);
 					RPRINTF("-Loaded class %s onto stack\n", (const char*)_class->toString(ctx, clsInfo)(ctx)->s(ctx));
 				} else {
@@ -1333,6 +1163,15 @@ namespace jaether {
 				fwd = 0; break;
 			}
 
+			case athrow:
+				fprintf(stderr, "Stack trace: \n");
+				while(!frames.empty()) {
+					fprintf(stderr, " %s\n", frames.top()(ctx)->getName(ctx).c_str());
+					frames.pop();
+				}
+				throw std::runtime_error("rt exception");
+				break;
+
 			case invokedynamic:
 				op[0].usi = readUSI(ip + 1);
 				op[1].mh = _constPool->get<vMETHODHANDLE>(ctx, (size_t)op[0].usi);
@@ -1348,29 +1187,34 @@ namespace jaether {
 				std::string path = std::string((const char*)_class->toString(ctx, op[1].mr.clsIndex)(ctx)->s.real(ctx));
 				std::string methodName = (const char*)_class->toString(ctx, op[1].mr.nameIndex)(ctx)->s.real(ctx);
 				std::string desc = (const char*)_class->toString(ctx, op[1].mr.nameIndex, 1)(ctx)->s.real(ctx);
+				auto cls = lazyLoad(ctx, path, nesting + (int)frames.size());
+
 				auto nit = _natives.find(path + "/" + methodName + ":" + desc);
 				bool found = false;
 				if (nit != _natives.end()) {
-					nit->second(ctx, path, this, _stack, opcode);
+					RPRINTF(">[NATIVE] %s: %s/%s\n", Opcodes[opcode], path.c_str(), (methodName + desc).c_str());
+					nit->second(ctx, this, _stack, opcode);
 					found = true;
 				} else {
-					auto cls = lazyLoad(ctx, path, nesting + (int)frames.size());
 					if (cls) {
 						auto superClass = cls;
 						vClass* clsPtr = cls(ctx);
 						vUINT argc = clsPtr->argsCount(desc.c_str());
-						RPRINTF("-Pre resolve path: %s::%s, %s (args: %d)\n", path.c_str(), methodName.c_str(), desc.c_str(), argc);
+						//RPRINTF("-Pre resolve path: %s::%s, %s (args: %d)\n", path.c_str(), methodName.c_str(), desc.c_str(), argc);
 						if (opcode == invokevirtual || opcode == invokeinterface) {
 							vCOMMON& objr = _stack->get<vCOMMON>(ctx, argc);
+							//RPRINTF("-Object reference: %016llX\n", objr.objref.r.a);
 							JObject obj(ctx, objr);
-							V<vClass> objCls = obj.getClass();
-							if (objCls.isValid()) {
-								cls = objCls;
-								clsPtr = cls(ctx);
-								path = clsPtr->getName(ctx);
+							if (obj) {
+								V<vClass> objCls = obj.getClass();
+								if (objCls.isValid()) {
+									cls = objCls;
+									clsPtr = cls(ctx);
+									path = clsPtr->getName(ctx);
+								}
 							}
-							RPRINTF("-Post resolve path: %s::%s, %s\n", path.c_str(), methodName.c_str(), desc.c_str());
 						}
+						//RPRINTF("-Post resolve path: %s::%s, %s\n", path.c_str(), methodName.c_str(), desc.c_str());
 
 						RPRINTF(">%s: %s/%s\n", Opcodes[opcode], path.c_str(), (methodName + desc).c_str());
 						if (unwrapCallstack) {
@@ -1401,9 +1245,8 @@ namespace jaether {
 				bool found = false;
 				if (cls) {
 					V<vOBJECT> obj = VMAKEGC(vOBJECT, ctx, ctx, cls);
-					vOBJECTREF ref; ref.r.a = (vULONG)obj.v(ctx);
 					obj(ctx)->x.set<vLONG>(1004);
-					_stack->push<vOBJECTREF>(ctx, ref);
+					_stack->push<vOBJECTREF>(ctx, Ref(obj));
 					found = true;
 				}
 				if (!found) {
@@ -1416,20 +1259,23 @@ namespace jaether {
 			{
 				op[0].usi = readUSI(ip + 1);
 				op[1] = _stack->pop<vCOMMON>(ctx);
-				JObject obj(ctx, op[1].objref);
 				op[2].cls = _constPool->get<vCLASS>(ctx, (size_t)op[0].usi);
 				auto& classes = ctx->getClasses();
 				auto cls = lazyLoad(ctx, (const char*)_class->toString(ctx, op[2].cls.clsIndex)(ctx)->s(ctx), nesting + (int)frames.size());
 				if (cls) {
-					printf(
-						"Check instanceof: %s < %s ?\n",
-						obj.getClass()(ctx)->getName(ctx),
-						cls(ctx)->getName(ctx));
-					_stack->push<vBYTE>(ctx, 1);
+					if (op[1].objref.r.a == 0) {
+						_stack->push<vBYTE>(ctx, 0);
+					} else {
+						JObject obj(ctx, op[1].objref);
+						bool iofr = obj.getClass()(ctx)->instanceOf(ctx, cls);
+						printf(
+							"Check instanceof: %s < %s: %d\n",
+							obj.getClass()(ctx)->getName(ctx),
+							cls(ctx)->getName(ctx),
+							iofr);
+						_stack->push<vBYTE>(ctx, iofr);
+					}
 				} else {
-					printf(
-						"Check instanceof: %s failed\n",
-						obj.getClass()(ctx)->getName(ctx));
 					_stack->push<vBYTE>(ctx, 0);
 				}
 				fwd = 2; break;
@@ -1548,6 +1394,7 @@ namespace jaether {
 				fprintf(stderr, "[vCPU::run] Executing undefined instruction with opcode %d (%s)\n", *ip, Opcodes[*ip]);
 				frames.pop();
 				frameChanged = true;
+				throw std::runtime_error("invalid instruction");
 				if (unwrapCallstack) return 0;
 				fwd = 0; break;
 			}

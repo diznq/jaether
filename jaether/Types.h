@@ -238,8 +238,10 @@ namespace jaether {
 		vUSHORT desc;	// 22
 		vUSHORT attributeCount;	// 24
 		V<vATTRIBUTE> attributes;	// 32
-		vClass* cls;	// 40
+		V<vClass>	cls;	// 40
 		char reserve[8];
+		std::string getName(vContext* ctx);
+		std::string getDesc(vContext* ctx);
 	};
 
 	typedef vFIELD vMETHOD;
@@ -342,4 +344,9 @@ namespace jaether {
 		}
 	};
 
+	template<class T>
+	vOBJECTREF Ref(T obj) {
+		vOBJECTREF objr; objr.r.a = (vULONG)obj.v();
+		return objr;
+	}
 }

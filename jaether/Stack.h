@@ -49,7 +49,6 @@ namespace jaether {
 			}
 			//if (vc->type == 0) throw std::runtime_error("invalid type");
 			_index += size;
-			//dbgStack(ctx, "push");
 			if (_index > _size) throw std::runtime_error("out of stack bounds");
 			return *this;
 		}
@@ -57,15 +56,15 @@ namespace jaether {
 		template<class T> T& pop(vContext* ctx) {
 			const size_t size = sizeof(vCOMMON);
 			_index -= size;
-			//dbgStack(ctx, "pop");
 			if (_index > _size) throw std::runtime_error("out of stack bounds");
-			assert(_index <= _size);
 			return *(T*)&_memory(ctx, (size_t)_index);
 		}
 
 		template<class T> T& get(vContext* ctx, size_t index) {
 			const size_t offset = sizeof(vCOMMON) * index;
-			assert(offset <= _index);
+			if (offset > _index) {
+				throw std::runtime_error("offset out of bounds");
+			}
 			return *(T*)&_memory( ctx,  _index - offset - sizeof(vCOMMON));
 		}
 
