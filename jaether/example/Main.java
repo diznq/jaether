@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
 
+import org.w3c.dom.CharacterData;
+
 class Main {
 
     public static void test1() {
@@ -67,7 +69,18 @@ class Main {
     }
 
     public static void main(String[] args) {
-        char[] buff = new char[]{'A', 'h', 'o', 'j'};
-        System.out.println(new String(buff));
+        int test = 50;
+        switch(test){
+            case 0:
+                System.out.println("Zero");
+                break;
+            case 1:
+                System.out.println("One");
+                break;
+            default:
+                System.out.println("Whatever");
+                break;
+        }
+        System.out.println(Character.getNumericValue('5'));
     }
 }

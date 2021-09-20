@@ -298,8 +298,8 @@ namespace jaether {
 				_stack->push<vBYTE>(ctx, (vBYTE)(_stack->pop<vUINT>(ctx) & 255));
 				fwd = 0; break;
 			case i2c:
-				op[0].jc = (vJCHAR)(_stack->pop<vUINT>(ctx) & 65535);
-				_stack->push<vJCHAR>(ctx, (op[0].jc >> 8) | (op[0].jc << 8));
+				op[0].jc = (vJCHAR)(_stack->pop<vUSHORT>(ctx) & 65535);
+				_stack->push<vJCHAR>(ctx, op[0].jc);
 				fwd = 0; break;
 			case i2s:
 				_stack->push<vUSHORT>(ctx, (vUSHORT)(_stack->pop<vUINT>(ctx) & 65535));
@@ -1320,6 +1320,69 @@ namespace jaether {
 			case monitorexit:
 				_stack->pop<vCOMMON>(ctx);
 				fwd = 0; break;
+			case lookupswitch:
+			{
+				op[0].i = _stack->pop<vINT>(ctx);
+				op[1].ul = _frame->pc();
+				for (int K = 0; K < 15; K++) {
+					printf("%02X ", ip[K] & 255);
+				}
+				op[2].ul = (3 - (op[1].ul & 3)) & 3;
+				op[3].u = readUI(ip + 1 + op[2].ul);
+				op[4].u = readUI(ip + 1 + op[2].ul + 4);
+				vINT& index = op[0].i;
+				vINT& def = op[3].i;
+				vINT& pairs = op[4].i;
+				vINT off = 0;
+
+				printf("Lookup switch, index: %d, pc: %llu, pad: %llu, def: %d, pairs: %d\n",
+					index,
+					op[1].ul, op[2].ul,
+					op[3].u, op[4].u);
+
+				bool found = false;
+
+				for (vINT Pair = 0; Pair < pairs; Pair++) {
+					vINT key = readUI(ip + 1 + op[2].ul + 8 + Pair * 8);
+					off = readUI(ip + 1 + op[2].ul + 8 + Pair * 8 + 4);
+					if (key == index) {
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					printf("Default!!\n");
+					fwd = (vULONG)(def - 1);
+				} else {
+					fwd = (vULONG)(off - 1);
+				}
+				break;
+			}
+			case tableswitch:
+			{
+				op[0].i = _stack->pop<vINT>(ctx);
+				op[1].ul = _frame->pc() + 1;
+				op[2].ul = (3 - (op[1].ul & 3))&3;
+				op[3].u = readUI(ip + 1 + op[2].ul);
+				op[4].u = readUI(ip + 1 + op[2].ul + 4);
+				op[5].u = readUI(ip + 1 + op[2].ul + 8);
+				vINT& index = op[0].i;
+				vINT& def = op[3].i;
+				vINT& lo = op[4].i;
+				vINT& hi = op[5].i;
+
+				DPRINTF("Table switch, index: %d, pc: %llu, pad: %llu, def: %d, lo: %d, hi: %d\n", 
+					index,
+					op[1].ul, op[2].ul,
+					op[3].u, op[4].u, op[5].u);
+				if (index < lo || index > hi) {
+					fwd = (vULONG)(def - 1ULL);
+				} else {
+					vINT off = index - lo;
+					fwd = readUI(ip + 1 + op[2].ul + 12 + off * sizeof(vINT)) - 1;
+				}
+				break;
+			}
 			default:
 				fprintf(stderr, "[vCPU::run] Executing undefined instruction with opcode %d (%s)\n", *ip, Opcodes[*ip]);
 				fprintf(stderr, "Stack trace: \n");

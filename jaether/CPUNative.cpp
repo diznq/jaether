@@ -90,7 +90,7 @@ namespace jaether {
 
 		addNative("java/lang/StringUTF16/isBigEndian", "()Z", [](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			stack->push<vBYTE>(ctx, 1);
+			stack->push<vBYTE>(ctx, 0);
 		});
 
 		addNative("java/lang/Class/desiredAssertionStatus", "()Z", [](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
