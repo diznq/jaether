@@ -67,6 +67,7 @@ class Main {
     }
 
     public static void main(String[] args) {
-        System.out.println("Ahoj".indexOf('h'));
+        char[] buff = new char[]{'A', 'h', 'o', 'j'};
+        System.out.println(new String(buff));
     }
 }

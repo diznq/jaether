@@ -30,7 +30,7 @@ namespace jaether {
 				JObject obj(ctx, objref);
 				JObject group(ctx, groupref);
 				vOBJECTREF nullref; nullref.r.a = (uintptr_t)V<vOBJECT>::nullPtr().v(ctx);
-				obj["name"].set<vOBJECTREF>(createString(ctx, stack, L"CurrentThread", 0, 0, false));
+				obj["name"].set<vOBJECTREF>(createString(ctx, stack, L"CurrentThread", 0, 0, false, 0, 6));
 				obj["group"].set<vOBJECTREF>(groupref);
 				obj["tid"].set<vLONG>(1LL);
 				obj["priority"].set<vLONG>(1LL);
@@ -324,7 +324,7 @@ namespace jaether {
 					vFIELD& field = cls->_fields(ctx, i);
 					JObject fld(ctx, fldDescRef);
 					fld["clazz"].set(field.cls(ctx)->getJavaClass(this, ctx, stack, false));
-					fld["name"].set(createString(ctx, stack, field.getName(ctx)));
+					fld["name"].set(createString(ctx, stack, field.getName(ctx), true, 0, 7));
 					printf("Created field: %s\n", JString(ctx, fld["name"]).str().c_str());
 					narr(ctx)->set<vOBJECTREF>(ctx, i, fldDescRef);
 				}
@@ -336,7 +336,7 @@ namespace jaether {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 			JArray<vCOMMON> arr(ctx, 40, 1);
 			for (int i = 0; i < 40; i++) {
-				arr[i].objref = createString(ctx, stack, "Hello");
+				arr[i].objref = createString(ctx, stack, "Hello", true, 0, 3);
 			}
 			stack->push<vOBJECTREF>(ctx, arr.ref());
 		});
@@ -344,7 +344,7 @@ namespace jaether {
 		addNative("jdk/internal/util/SystemProps$Raw/propDefault", "(I)Ljava/lang/String;", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			vINT idx = stack->pop<vINT>(ctx);
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			stack->push<vOBJECTREF>(ctx, createString(ctx, stack, "Default"));
+			stack->push<vOBJECTREF>(ctx, createString(ctx, stack, "Default", true, 0, 4));
 		});
 
 		addNative("jdk/internal/util/SystemProps$Raw/vmProperties", "()[Ljava/lang/String;", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
@@ -361,7 +361,7 @@ namespace jaether {
 			JArray<vCOMMON> arr(ctx, strarr.size(), 1);
 			for (size_t i = 0; i < strarr.size(); i++) {
 				//std::cout << strarr[i] << std::endl;
-				arr[i].objref = createString(ctx, stack, strarr[i]);
+				arr[i].objref = createString(ctx, stack, strarr[i], true, 0, 5);
 			}
 
 			stack->push<vOBJECTREF>(ctx, arr.ref());

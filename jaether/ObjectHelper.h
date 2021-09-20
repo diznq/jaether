@@ -36,6 +36,9 @@ namespace jaether {
 		}
 
 		JObject(vContext* ctx, V<vClass> cls, bool gc = true);
+	protected:
+		JObject(vContext* ctx) : _ctx(ctx) {}
+	public:
 
 		const int TAG() const {
 			return _obj(_ctx)->TAG;
@@ -92,8 +95,6 @@ namespace jaether {
 		operator vOBJECTREF() const {
 			return ref();
 		}
-
-
 	};
 
 
@@ -155,6 +156,7 @@ namespace jaether {
 	class JString : public JObject {
 	public:
 		using JObject::JObject;
+		JString(vContext* ctx, const std::wstring& wstr, bool gc = true, int source = 0);
 		std::string str() const;
 	};
 }

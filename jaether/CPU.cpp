@@ -80,8 +80,8 @@ namespace jaether {
 		return vOBJECTREF{};
 	}
 
-	vOBJECTREF vCPU::createString(vContext* ctx, vClass* _class, vStack* _stack, vMemory* _constPool, vUSHORT strIndex, vUSHORT* backref, bool gc, const int nesting) {
-		const bool cvtEndian = true;
+	vOBJECTREF vCPU::createString(vContext* ctx, vClass* _class, vStack* _stack, vMemory* _constPool, vUSHORT strIndex, vUSHORT* backref, bool gc, const int nesting, const int source) {
+		const bool cvtEndian = false;
 		V<vUTF8BODY> str = _class->toString(ctx, strIndex);
 		const vUINT size = (vUINT)str(ctx)->len;
 		const size_t utfCapacity = (size_t)size + 10;
@@ -109,11 +109,11 @@ namespace jaether {
 		}
 		std::wstring utf16Str(arr, arr + utf16len);
 		delete[] arr;
-		return createString(ctx, _stack, utf16Str, _constPool, backref, gc, nesting);
+		return createString(ctx, _stack, utf16Str, _constPool, backref, gc, nesting, source | 0x100);
 	}
 
-	vOBJECTREF vCPU::createString(vContext* ctx, vStack* _stack, const std::string& text, bool gc, const int nesting) {
-		const bool cvtEndian = true;
+	vOBJECTREF vCPU::createString(vContext* ctx, vStack* _stack, const std::string& text, bool gc, const int nesting, const int source) {
+		const bool cvtEndian = false;
 		const vUINT size = (vUINT)text.length();
 		const size_t utfCapacity = (size_t)size + 10;
 		const vBYTE* src = (const vBYTE*)text.data();
@@ -124,14 +124,12 @@ namespace jaether {
 			vBYTE b = src[i] & 255;
 			if (b >= 1 && b <= 0x7F) {	// 1 byte
 				arr[utf16len++] = cvtEndian ? (b << 8) : b;	// fix endian
-			}
-			else if ((b & 0xE0) == 0xC0) { // 2 bytes
+			} else if ((b & 0xE0) == 0xC0) { // 2 bytes
 				vUSHORT x = (vUSHORT)src[i++] & 255;
 				vUSHORT y = (vUSHORT)src[i] & 255;
 				vUSHORT R = (vUSHORT)(((x & 0x1f) << 6) | (y & 0x3f));
 				arr[utf16len++] = cvtEndian ? (vJCHAR)((R >> 8) | (R << 8)) : (vJCHAR)R;
-			}
-			else if ((b & 0xE0) == 0xE0) { // 3 bytes
+			} else if ((b & 0xE0) == 0xE0) { // 3 bytes
 				vUSHORT x = (vUSHORT)src[i++] & 255;
 				vUSHORT y = (vUSHORT)src[i++] & 255;
 				vUSHORT z = (vUSHORT)src[i] & 255;
@@ -141,80 +139,16 @@ namespace jaether {
 		}
 		std::wstring utf16Str(arr, arr + utf16len);
 		delete[] arr;
-		return createString(ctx, _stack, utf16Str, 0, 0, gc, nesting);
+		return createString(ctx, _stack, utf16Str, 0, 0, gc, nesting, source | 0x200);
 	}
 
-	vOBJECTREF vCPU::createString(vContext* ctx, vStack* _stack, const std::wstring& text, vMemory* _constPool, vUSHORT* backref, bool gc, const int nesting) {
-		V<vNATIVEARRAY> arr;
-		const bool properStrings = false;
-		const bool cvtEndian = true;
-		if (gc) {
-			arr = VMAKEGC(vNATIVEARRAY, ctx, ctx, 5, (vUINT)(text.length())); // 5 = JCHAR
-		} else {
-			arr = VMAKE(vNATIVEARRAY, ctx, ctx, 5, (vUINT)(text.length())); // 5 = JCHAR
+	vOBJECTREF vCPU::createString(vContext* ctx, vStack* _stack, const std::wstring& text, vMemory* _constPool, vUSHORT* backref, bool gc, const int nesting, const int source) {
+		lazyLoad(ctx, "java/lang/String", nesting);
+		JString str(ctx, text, gc, source);
+		if (_constPool && backref) {
+			_constPool->set<vOBJECTREF>(ctx, (size_t)*backref, str.ref());
 		}
-		arr(ctx)->x.set<vLONG>(1006);
-		// printf("Created array at %llu\n", (uintptr_t)arr.v());
-		for (size_t i = 0, j = text.length(); i < j; i++) {
-			arr(ctx)->set<vJCHAR>(ctx, i, text[i]);
-		}
-		auto strCls = lazyLoad(ctx, "java/lang/String", nesting);
-		if (strCls) {
-			V<vOBJECT> strObj;
-			if (gc) strObj = VMAKEGC(vOBJECT, ctx, ctx, strCls);
-			else strObj = VMAKE(vOBJECT, ctx, ctx, strCls);
-			strObj(ctx)->x.set<vLONG>(1003);
-			if (properStrings) {
-				_stack->push<vOBJECTREF>(ctx, Ref(strObj));
-				_stack->push<vOBJECTREF>(ctx, Ref(arr));
-			}
-			if (_constPool && backref) {
-				_constPool->set<vOBJECTREF>(ctx, (size_t)*backref, Ref(strObj));
-			}
-			DPRINTF("%*s>Create string: %llu\n", nesting, "", text.length());
-			JObject strWrap(ctx, strObj);
-			if (properStrings) {
-				auto [ok, result] = strCls(ctx)->invoke(
-					ctx, strCls, strCls, this, _stack, invokespecial, "<init>", "([C)V", nesting + 2
-				);
-			} else {
-				arr(ctx)->type = 8;
-				arr(ctx)->size <<= 1;
-				strWrap["value"].set<vOBJECTREF>(Ref(arr));
-				strWrap["coder"].set<vINT>(1);
-			}
-			// FIXME: ugly heuristics hack!!! :D
-			if (!properStrings) {
-				JArray<vBYTE> dbgArr(ctx, strWrap["value"]);
-				// swap endian in case it's big endian, FIX!
-				if (cvtEndian && dbgArr.length() > 0 && dbgArr[0] == 0) {
-					for (size_t K = 0; K < dbgArr.length(); K += 2) {
-						vBYTE tmp = dbgArr[K];
-						dbgArr[K] = dbgArr[K + 1];
-						dbgArr[K + 1] = tmp;
-					}
-				}
-			}
-			/*
-			JArray<vBYTE> dbgArr(ctx, strWrap["value"]);
-			if (strWrap["coder"].i) {
-				printf("LENGTH: %llu\n", dbgArr.length());
-				printf("%s\n", JString(ctx, Ref(strObj)).str().c_str());
-				for (size_t K = 0; K < dbgArr.length(); K++) {
-					printf("%02X ", dbgArr[K] & 255);
-				}
-				printf("\n");
-			}
-			*/
-			DPRINTF("%*s<String created: %s (len: %llu)\n", nesting, "",
-				JString(ctx, Ref(strObj)).str().c_str(),
-				JString(ctx, Ref(strObj)).str().length()
-			);
-			return Ref(strObj);
-		} else {
-			vOBJECTREF objr; objr.r.a = (vULONG)V<vOBJECT>::nullPtr().v(ctx);
-			return objr;
-		}
+		return str.ref();
 	}
 
 	vOBJECTREF& vCPU::getJavaClass(vContext* ctx, vStack* stack, const char* name, vOBJECTREF* classNameRef, bool gc) {
@@ -234,7 +168,7 @@ namespace jaether {
 			if (classNameRef) {
 				wrap["name"].set(*classNameRef);
 			} else {
-				wrap["name"].set(createString(ctx, stack, wName, 0, 0, gc));
+				wrap["name"].set(createString(ctx, stack, wName, 0, 0, gc, 0, 1));
 			}
 			wrap.x().set<vLONG>(1050);
 			return obj;
@@ -982,7 +916,8 @@ namespace jaether {
 						op[1].str.strIndex,
 						&op[0].usi,
 						false,
-						nesting + (int)frames.size() + 1
+						nesting + (int)frames.size() + 1,
+						2
 					));
 				} else if (op[1].type == vTypes::type<vCLASS>()) {
 					auto& classes = ctx->getClasses();
@@ -1268,11 +1203,6 @@ namespace jaether {
 					} else {
 						JObject obj(ctx, op[1].objref);
 						bool iofr = obj.getClass()(ctx)->instanceOf(ctx, cls);
-						printf(
-							"Check instanceof: %s < %s: %d\n",
-							obj.getClass()(ctx)->getName(ctx),
-							cls(ctx)->getName(ctx),
-							iofr);
 						_stack->push<vBYTE>(ctx, iofr);
 					}
 				} else {
@@ -1392,7 +1322,11 @@ namespace jaether {
 				fwd = 0; break;
 			default:
 				fprintf(stderr, "[vCPU::run] Executing undefined instruction with opcode %d (%s)\n", *ip, Opcodes[*ip]);
-				frames.pop();
+				fprintf(stderr, "Stack trace: \n");
+				while (!frames.empty()) {
+					fprintf(stderr, " %s\n", frames.top()(ctx)->getName(ctx).c_str());
+					frames.pop();
+				}
 				frameChanged = true;
 				throw std::runtime_error("invalid instruction");
 				if (unwrapCallstack) return 0;
