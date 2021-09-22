@@ -228,6 +228,7 @@ namespace jaether {
 	struct vATTRIBUTE {
 		vUSHORT name;
 		vUINT length;
+		V<vClass> cls;
 		V<vBYTE> info;
 	};
 

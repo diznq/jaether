@@ -5,10 +5,16 @@ namespace jaether {
 
 	vOBJECT::vOBJECT(vContext* ctx, const V<vClass>& klass) : cls(klass) {
 		vClass* kls = cls(ctx);
-		V<vCOMMON> Fields = VMAKEARRAY(vCOMMON, ctx, (size_t)(kls->_fieldCount));
+		size_t attrCount = 0;
+		for (vUSHORT i = 0; i < klass(ctx)->_fieldCount; i++) {
+			vFIELD& fld = klass(ctx)->_fields(ctx, (size_t)i);
+			if (fld.access & 8) continue;
+			attrCount++;
+		}
+		V<vCOMMON> Fields = VMAKEARRAY(vCOMMON, ctx, attrCount);
 		// printf("Klass of %p: %s\n", this, klass(ctx)->getName(ctx));
 		this->cls = klass;
-		for (vUSHORT i = 0; i < kls->_fieldCount; i++) {
+		for (vUSHORT i = 0; i < attrCount; i++) {
 			memset(&Fields(ctx, i), 0, sizeof(vCOMMON));
 		}
 		fieldsObj = Fields;

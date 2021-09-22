@@ -42,11 +42,15 @@ namespace jaether {
 	}
 
 	V<vClass> vCPU::lazyLoad(vContext* ctx, const std::string& path, const int nesting) {
+		std::string finalPath;
+		for (char c : path) {
+			finalPath += c == '.' ? '/' : c;
+		}
 		auto& _classes = ctx->getClasses();
-		auto it = _classes.find(path);
+		auto it = _classes.find(finalPath);
 		if (it != _classes.end()) return it->second;
-		load(ctx, path, nesting);
-		it = _classes.find(path);
+		load(ctx, finalPath, nesting);
+		it = _classes.find(finalPath);
 		if (it == _classes.end()) return V<vClass>::nullPtr();
 		return it->second;
 	}
@@ -1152,7 +1156,7 @@ namespace jaether {
 				std::vector<std::string> stackTrace;
 				op[0] = _stack->pop<vCOMMON>(ctx);
 				JObject ex(ctx, op[0]);
-				stackTrace.push_back("Stack trace:");
+				stackTrace.push_back("Stack trace: Uncaught exception: " + std::string(ex.getClass()(ctx)->getName(ctx)));
 				bool found = false;
 				while (!frames.empty() && !found) {
 					V<vFrame> fr = frames.top();

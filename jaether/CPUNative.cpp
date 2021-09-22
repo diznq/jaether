@@ -194,8 +194,9 @@ namespace jaether {
 			}
 			auto klass = lazyLoad(ctx, saneName, 20);
 
-			for (int i = 0; i < klass(ctx)->_fieldCount; i++) {
-				vFIELD& fld = klass(ctx)->_fields(ctx, i);
+			for (int k = 0, i=0; k < klass(ctx)->_fieldCount; k++) {
+				vFIELD& fld = klass(ctx)->_fields(ctx, k);
+				if (fld.access & 8) continue;
 				V<vClass> fldcls(fld.cls);
 				std::string currentName(
 					(const char*)fldcls(ctx)->toString(ctx, fld.name)(ctx)->s(ctx)
@@ -204,6 +205,7 @@ namespace jaether {
 					stack->push<vLONG>(ctx, (vLONG)i);
 					return;
 				}
+				i++;
 			}
 			//printf("%s doesnt have field %s\n", saneName.c_str(), fieldName.str().c_str());
 			throw std::runtime_error("couldn't find offset");
@@ -233,13 +235,14 @@ namespace jaether {
 
 		addNative("java/security/AccessController/getStackAccessControlContext", "()Ljava/security/AccessControlContext;", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			auto& ref = getObject<vOBJECTREF>(ctx, "java/security/AccessController/getStackAccessControlContext", [this](vContext* ctx) -> vOBJECTREF {
+			/*auto& ref = getObject<vOBJECTREF>(ctx, "java/security/AccessController/getStackAccessControlContext", [this](vContext* ctx) -> vOBJECTREF {
 				auto obj = createObject(ctx, "java/security/AccessControlContext", false, 20);
 				JObject wrap(ctx, obj);
 				wrap.x().set<vLONG>(1011);
 				return obj;
-			});
-			stack->push<vOBJECTREF>(ctx, ref);
+			});*/
+			vOBJECTREF nullref; nullref.r.a = 0;
+			stack->push<vOBJECTREF>(ctx, nullref);
 		});
 
 		addNative("java/security/AccessController/getInheritedAccessControlContext", "()Ljava/security/AccessControlContext;", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
@@ -406,15 +409,18 @@ namespace jaether {
 			vBYTE flag = stack->pop<vBYTE>(ctx);
 			if (opcode != invokestatic) {
 				JObject self(ctx, stack->pop<vCOMMON>(ctx));
-				auto cls = self.getClass()(ctx);
-				V<vNATIVEARRAY> narr = VMAKEGC(vNATIVEARRAY, ctx, ctx, 1, (vUINT)cls->_fieldCount);
-				for (size_t i = 0; i < cls->_fieldCount; i++) {
+				JString tgtClass(ctx, self["name"]);
+				auto cls = lazyLoad(ctx, tgtClass.str());
+				if (!cls) throw std::runtime_error("class not found");
+				//printf("Get declared fields for %s, %s\n", tgtClass.str().c_str(), cls(ctx)->getName(ctx));
+				V<vNATIVEARRAY> narr = VMAKEGC(vNATIVEARRAY, ctx, ctx, 1, (vUINT)cls(ctx)->_fieldCount);
+				for (size_t i = 0; i < cls(ctx)->_fieldCount; i++) {
 					vOBJECTREF fldDescRef = createObject(ctx, "java/lang/reflect/Field", true, 20);
-					vFIELD& field = cls->_fields(ctx, i);
+					vFIELD& field = cls(ctx)->_fields(ctx, i);
 					JObject fld(ctx, fldDescRef);
 					fld["clazz"].set(field.cls(ctx)->getJavaClass(ctx, false));
 					fld["name"].set(createString(ctx, field.getName(ctx), true, 0, 7));
-					printf("Created field: %s\n", JString(ctx, fld["name"]).str().c_str());
+					//printf("Created field: %s/%s\n", cls(ctx)->getName(ctx), JString(ctx, fld["name"]).str().c_str());
 					narr(ctx)->set<vOBJECTREF>(ctx, i, fldDescRef);
 				}
 				stack->push<vOBJECTREF>(ctx, Ref(narr));

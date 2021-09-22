@@ -105,11 +105,13 @@ namespace jaether {
 
 
 			size_t fieldOffset = (size_t)(super ? super->_fieldCount : 0);
+			size_t attributeOffset = (size_t)(super ? super->_attributeCount : 0);
 			size_t methodOffset = 0;
 			//printf("Field offset: %llu, method offset: %llu\n", fieldOffset, methodOffset);
 
 			_fieldOffset = (vUSHORT)fieldOffset;
 			_methodOffset = (vUSHORT)methodOffset;
+			_attributeOffset = (vUSHORT)_attributeOffset;
 
 			_interfaceCount = readUSI(f);
 			_interfaces = VMAKEARRAY(vUSHORT, ctx, (size_t)_interfaceCount);
@@ -143,7 +145,13 @@ namespace jaether {
 				readAttribute(ctx, f, _attributes(ctx, (size_t)i));
 			}
 
+			for (size_t i = _attributeCount; super && i < _attributeCount + attributeOffset; i++) {
+				vATTRIBUTE& attr = super->_attributes(ctx, i - _attributeCount);
+				_attributes(ctx, i) = attr;
+			}
+
 			_fieldCount += _fieldOffset;
+			_attributeCount += _attributeOffset;
 		}
 	}
 
@@ -263,6 +271,7 @@ namespace jaether {
 		attr.name = readUSI(f);
 		attr.length = readUI(f);
 		attr.info = VMAKEARRAY(vBYTE, ctx, (size_t)attr.length + 1);
+		attr.cls = (vClass*)((uintptr_t)this - ctx->offset());
 		f.read((char*)attr.info.real(ctx), (size_t)attr.length);
 	}
 
@@ -432,8 +441,9 @@ namespace jaether {
 
 	vCOMMON* vClass::getObjField(vContext* ctx, V<vOBJECT> obj, const char* name) {
 		//printf("This: %p\n", this);
-		for (vUSHORT i = 0; i < _fieldCount; i++) {
-			vFIELD& field = _fields(ctx, (size_t)i);
+		for (vUSHORT k = 0, i = 0; k < _fieldCount; k++) {
+			auto& field = _fields(ctx, (size_t)k);
+			if (field.access & 8) continue; // static field
 			//printf("Xdd %p\n", &field);
 			V<vClass>& vcls = field.cls; // ((vClass*)field.cls);
 			if (!vcls.isValid()) return 0;
@@ -443,6 +453,7 @@ namespace jaether {
 			if (!strcmp(fieldName, name)) {
 				return &obj(ctx)->fields()(ctx, i);
 			}
+			i++;
 		}
 		return 0;
 	}

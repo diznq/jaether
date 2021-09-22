@@ -59,6 +59,7 @@ namespace jaether {
 		vUSHORT _attributeCount = 0;
 		vUSHORT _fieldOffset = 0;
 		vUSHORT _methodOffset = 0;
+		vUSHORT _attributeOffset = 0;
 		vBYTE _initialized = 0;
 		vUSHORT _constCount = 0;
 

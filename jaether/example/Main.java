@@ -70,7 +70,6 @@ class Main {
 
     public static void main(String[] args) {
         test1();
-        //test2();
         test3();
         test4("Ahoj");
         System.out.println(test5());
@@ -80,5 +79,7 @@ class Main {
         } catch(Exception ex){
             System.out.println(ex.getMessage());
         }
+        
+        test2();
     }
 }
