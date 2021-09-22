@@ -68,18 +68,27 @@ class Main {
         return s;
     }
 
-    public static void main(String[] args) {
-        test1();
-        test3();
-        test4("Ahoj");
-        System.out.println(test5());
+    public static void test6(){
         try {
-            int test = 50;
             throw new Exception("msg");
         } catch(Exception ex){
             System.out.println(ex.getMessage());
         }
-        
+    }
+
+    public static void test7(int a, int b, int c){
+        System.out.println(a);
+        System.out.println(b);
+        System.out.println(c);
+    }
+
+    public static void test8(long a, long b, long c){
+        System.out.println(a);
+        System.out.println(b);
+        System.out.println(c);
+    }
+
+    public static void main(String[] args) { 
         test2();
     }
 }

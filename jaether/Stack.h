@@ -56,6 +56,7 @@ namespace jaether {
 		template<class T> T& pop(vContext* ctx) {
 			const size_t size = sizeof(vCOMMON);
 			_index -= size;
+
 			if (_index > _size) throw std::runtime_error("out of stack bounds");
 			return *(T*)&_memory(ctx, (size_t)_index);
 		}

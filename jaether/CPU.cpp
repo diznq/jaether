@@ -273,7 +273,7 @@ namespace jaether {
 				_stack->push<vREF>(ctx, op[0].a);
 				fwd = 0; break;
 			case bipush:
-				_stack->push<vLONG>(ctx, (vLONG)read<vCHAR>(ip + 1));
+				_stack->push<vINT>(ctx, (vINT)read<vCHAR>(ip + 1));
 				fwd = 1; break;
 			case sipush:
 				op[0].usi = readUSI(ip + 1);
@@ -686,7 +686,8 @@ namespace jaether {
 				fwd = 1; break;
 			case lstore:
 				op[0].b = read<vBYTE>(ip + 1);
-				_local->set<vLONG>(ctx, (size_t)op[0].b, _stack->pop<vLONG>(ctx));
+				op[1].l = _stack->pop<vLONG>(ctx);
+				_local->set<vLONG>(ctx, (size_t)op[0].b, op[1].l);
 				fwd = 1; break;
 			case fstore:
 				op[0].b = read<vBYTE>(ip + 1);

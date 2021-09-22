@@ -519,10 +519,16 @@ namespace jaether {
 			}
 			V<vFrame> nFrame = VMAKE(vFrame, ctx, ctx, method, self);
 			vUINT args = argsCount(ctx, method);
+			std::vector<vCOMMON> vargs;
 			for (vUINT i = 0; i < args; i++) {
-				vUINT j = args - i;
-				if (opcode == invokestatic) j--;
-				nFrame(ctx)->_local(ctx)->set<vCOMMON>(ctx, (size_t)j, _stack->pop<vCOMMON>(ctx));
+				vargs.push_back(_stack->pop<vCOMMON>(ctx));
+			}
+			// longs and double take two slots, therefore it needs special handling
+			for (vUINT i = 0, j = (opcode == invokestatic ? 0 : 1); i < (vUINT)vargs.size(); i++, j++) {
+				vCOMMON& val = vargs[vargs.size() - i - 1];
+				bool isCat2 = val.type == vTypes::type<vLONG>() || val.type == vTypes::type<vDOUBLE>();
+				nFrame(ctx)->_local(ctx)->set<vCOMMON>(ctx, (size_t)j, val);
+				if (isCat2) j++;
 			}
 			if (opcode != invokestatic)
 				nFrame(ctx)

@@ -137,9 +137,12 @@ namespace jaether {
 
 		addNative("java/lang/System/currentTimeMillis", "()J", [](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			//std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-			//vLONG millis = (vLONG)ms.count();
 			stack->push<vLONG>(ctx, ctx->ops() / 50000);
+		});
+
+		addNative("java/lang/System/nanoTime", "()J", [](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			stack->push<vLONG>(ctx, ctx->ops() * 65527);
 		});
 
 
@@ -186,15 +189,36 @@ namespace jaether {
 			JObject classObj(ctx, stack->pop<vOBJECTREF>(ctx));
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 			JString name(ctx, classObj["name"]);
-			std::string saneName;
-			std::string tmp = name.str();
-			for (auto c : tmp) {
-				if (c == '.') saneName += '/';
-				else saneName += c;
-			}
-			auto klass = lazyLoad(ctx, saneName, 20);
+			auto klass = lazyLoad(ctx, name.str(), 20);
 
 			for (int k = 0, i=0; k < klass(ctx)->_fieldCount; k++) {
+				vFIELD& fld = klass(ctx)->_fields(ctx, k);
+				if (fld.access & 8) continue;
+				V<vClass> fldcls(fld.cls);
+				std::string currentName(
+					(const char*)fldcls(ctx)->toString(ctx, fld.name)(ctx)->s(ctx)
+				);
+				if (currentName == fieldName.str()) {
+					stack->push<vLONG>(ctx, (vLONG)i);
+					return;
+				}
+				i++;
+			}
+			//printf("%s doesnt have field %s\n", saneName.c_str(), fieldName.str().c_str());
+			throw std::runtime_error("couldn't find offset");
+			stack->push<vLONG>(ctx, -1);
+		});
+
+		//jdk/internal/misc/Unsafe/objectFieldOffset0:(Ljava/lang/reflect/Field;)J
+		addNative("jdk/internal/misc/Unsafe/objectFieldOffset0", "(Ljava/lang/reflect/Field;)J", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			JObject field(ctx, stack->pop<vOBJECTREF>(ctx));
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			JString fieldName(ctx, field["name"]);
+			JObject classObj(ctx, field["clazz"]);
+			JString name(ctx, classObj["name"]);
+			auto klass = lazyLoad(ctx, name.str(), 20);
+
+			for (int k = 0, i = 0; k < klass(ctx)->_fieldCount; k++) {
 				vFIELD& fld = klass(ctx)->_fields(ctx, k);
 				if (fld.access & 8) continue;
 				V<vClass> fldcls(fld.cls);
@@ -322,13 +346,19 @@ namespace jaether {
 			vLONG   offset = stack->pop<vLONG>(ctx);
 			vCOMMON o = stack->pop<vCOMMON>(ctx);
 			vCOMMON* pfld = 0;
-			//printf("Compare and set long, expected: %llu, target: %llu, offset: %llu, addr: %llu\n", expected, x, offset, o.ul);
 			JObject tgt(ctx, o);
 			pfld = &tgt[(size_t)offset];
 			if (opcode != invokestatic) {
 				stack->pop<vCOMMON>(ctx);
 			}
 			bool updated = pfld && pfld->l == expected;
+			/*printf(
+				"Compare and set long:\n"
+				" Expected: %llu\n"
+				" Current: %llu\n"
+				" Target: %llu\n"
+				" State: %d\n", expected, pfld->l, x, updated);*/
+			
 			if (updated) {
 				pfld->l = x;
 			}
