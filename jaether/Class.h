@@ -14,6 +14,29 @@ namespace jaether {
 	class vClass;
 	class vFrame;
 
+	enum class MethodResolveStatus {
+		eMRS_NotFound = 0,
+		eMRS_Found = 1,
+		eMRS_Native = 2
+	};
+
+	struct ExceptionTable {
+		vUSHORT startPC;
+		vUSHORT endPC;
+		vUSHORT handlerPC;
+		vUSHORT catchType;
+	};
+
+	struct CodeAttribute {
+		vUINT attributeLength = 0;
+		vUSHORT maxStack = 0;
+		vUSHORT maxLocals = 0;
+		vUINT codeLength = 0;
+		V<vBYTE> code;
+		vUSHORT exceptionTableLength = 0;
+		V<ExceptionTable> exceptionTable;
+	};
+
 #define JAETHER_CLASS_TAG 0x33000033
 
 	typedef std::function<void(vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode)> vNATIVE;
@@ -37,6 +60,7 @@ namespace jaether {
 		vUSHORT _fieldOffset = 0;
 		vUSHORT _methodOffset = 0;
 		vBYTE _initialized = 0;
+		vUSHORT _constCount = 0;
 
 		vClass(vContext* ctx, vCPU* cpu, const char* name, const int nesting);
 		~vClass();
@@ -74,12 +98,12 @@ namespace jaether {
 		V<vUTF8BODY> toString(vContext* ctx, vUSHORT index, int selector = 0) const;
 		std::string toStdString(vContext* ctx, vUSHORT index, int selector = 0) const;
 		const char* toCString(vContext* ctx, vUSHORT index, int selector = 0) const;
-		V<vBYTE>	getCode(vContext* ctx, vMETHOD* method);
-		vOBJECTREF& getJavaClass(vCPU* cpu, vContext* ctx, vStack* stack, bool gc = false);
+		CodeAttribute	getCode(vContext* ctx, vMETHOD* method);
+		vOBJECTREF& getJavaClass(vContext* ctx, bool gc = false);
 		vUINT		argsCount(vContext* ctx, vMETHOD* method);
 		vUINT		argsCount(const char* desc);
 
-		std::tuple<bool, vCOMMON> invoke(
+		std::tuple<MethodResolveStatus, vCOMMON> invoke(
 			vContext* ctx,
 			V<vClass> self,
 			V<vClass> super,
@@ -90,7 +114,7 @@ namespace jaether {
 			const std::string& desc,
 			int nesting = 0);
 
-		std::tuple<bool, vFrame*> createFrame(
+		std::tuple<MethodResolveStatus, vFrame*> createFrame(
 			vContext* ctx,
 			V<vClass> self,
 			V<vClass> super,

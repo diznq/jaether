@@ -23,7 +23,6 @@ namespace jaether {
 	class vCPU {
 		bool _running = true;
 		std::map<std::string, vNATIVE> _natives;
-		std::map<std::string, std::any> _storage;
 	public:
 		vCPU();
 
@@ -32,18 +31,21 @@ namespace jaether {
 		void registerNatives();
 
 		V<vClass> lazyLoad(vContext* ctx, const std::string& path, const int nesting=0);
+		std::map<std::string, vNATIVE>::iterator findNative(const std::string& path);
+
+		std::map<std::string, vNATIVE>& getNatives() { return _natives; }
 
 		bool active() const;
 
 		size_t run(vContext* ctx, const V<vFrame>& frame, const int nesting=0);
 		std::chrono::steady_clock::time_point getTime() const;
 
-		vOBJECTREF createString(vContext* ctx, vClass* _class, vStack* _stack, vMemory* _constPool, vUSHORT strIndex, vUSHORT* backref, bool gc = true, const int nesting = 0, const int source = 0);
-		vOBJECTREF createString(vContext* ctx, vStack* _stack, const std::wstring& text, vMemory* _constPool = 0, vUSHORT* backref = 0, bool gc = true, const int nesting = 0, const int source = 0);
-		vOBJECTREF createString(vContext* ctx, vStack* _stack, const std::string& text, bool gc = true, const int nesting = 0, const int source = 0);
+		vOBJECTREF createString(vContext* ctx, vClass* _class, vMemory* _constPool, vUSHORT strIndex, vUSHORT* backref, bool gc = true, const int nesting = 0, const int source = 0);
+		vOBJECTREF createString(vContext* ctx, const std::wstring& text, vMemory* _constPool = 0, vUSHORT* backref = 0, bool gc = true, const int nesting = 0, const int source = 0);
+		vOBJECTREF createString(vContext* ctx, const std::string& text, bool gc = true, const int nesting = 0, const int source = 0);
 		vOBJECTREF createObject(vContext* ctx, const char* className, bool gc = true, const int nesting = 0);
 
-		vOBJECTREF& getJavaClass(vContext* ctx, vStack* stack, const char* className, vOBJECTREF* ref=0, bool gc = false);
+		vOBJECTREF& getJavaClass(vContext* ctx, const char* className, vOBJECTREF* ref=0, bool gc = false);
 			
 		template<class T> T read(vBYTE* ip) const {
 			return *(T*)ip;
@@ -61,12 +63,7 @@ namespace jaether {
 
 		template<class T> 
 		T& getObject(vContext* ctx, const std::string& key, std::function<T(vContext*)> orElse = nullptr) {
-			auto it = _storage.find(key);
-			if (it != _storage.end()) {
-				return std::any_cast<T&>(it->second);
-			}
-			if (!orElse) throw std::runtime_error("or else callback not found");
-			return std::any_cast<T&>(_storage[key] = orElse(ctx));
+			return ctx->getObject(ctx, key, orElse);
 		}
 	};
 

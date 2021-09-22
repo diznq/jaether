@@ -69,18 +69,16 @@ class Main {
     }
 
     public static void main(String[] args) {
-        int test = 50;
-        switch(test){
-            case 0:
-                System.out.println("Zero");
-                break;
-            case 1:
-                System.out.println("One");
-                break;
-            default:
-                System.out.println("Whatever");
-                break;
+        test1();
+        //test2();
+        test3();
+        test4("Ahoj");
+        System.out.println(test5());
+        try {
+            int test = 50;
+            throw new Exception("msg");
+        } catch(Exception ex){
+            System.out.println(ex.getMessage());
         }
-        System.out.println(Character.getNumericValue('5'));
     }
 }

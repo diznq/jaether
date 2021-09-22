@@ -10,7 +10,7 @@ namespace jaether {
 
 	class vFrame {
 	public:
-		V<vBYTE>	_program;
+		CodeAttribute	_program;
 		V<vStack>	_stack;
 		V<vMemory>	_local;
 		V<vClass>	_class;
@@ -22,7 +22,7 @@ namespace jaether {
 			vContext* ctx,
 			vMETHOD* method,
 			const V<vClass>& classFile,
-			size_t maxStackItems = 16,
+			size_t maxStackItems = 64,
 			size_t maxLocals = 64
 		) {
 			_stack = VMAKE(vStack, ctx, ctx, maxStackItems * sizeof(vCOMMON));
@@ -31,7 +31,7 @@ namespace jaether {
 			_class = classFile;
 			_method = (vMETHOD*)((uintptr_t)method - (uintptr_t)ctx->getAllocator()->getBase());
 			_program = classFile(ctx)->getCode(ctx, method);
-			if (!_program.isValid()) {
+			if (!_program.code.isValid()) {
 				fprintf(stderr, "Method %s/%s:%s has no code\n",
 					classFile(ctx)->getName(ctx),
 					classFile(ctx)->toString(ctx, method->name)(ctx)->s(ctx),
@@ -59,7 +59,7 @@ namespace jaether {
 		}
 
 		vBYTE* fetch(vContext* ctx) {
-			return _program.real(ctx) + pc();
+			return _program.code.real(ctx) + pc();
 		}
 
 		vULONG& pc() {

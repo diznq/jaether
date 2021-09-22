@@ -8,7 +8,6 @@
 namespace jaether {
 	void vCPU::registerNatives() {
 
-
 		addNative("java/io/PrintStream/println", "(I)V", [](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			vINT arg = stack->pop<vINT>(ctx);
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
@@ -30,7 +29,7 @@ namespace jaether {
 				JObject obj(ctx, objref);
 				JObject group(ctx, groupref);
 				vOBJECTREF nullref; nullref.r.a = (uintptr_t)V<vOBJECT>::nullPtr().v(ctx);
-				obj["name"].set<vOBJECTREF>(createString(ctx, stack, L"CurrentThread", 0, 0, false, 0, 6));
+				obj["name"].set<vOBJECTREF>(createString(ctx, L"CurrentThread", 0, 0, false, 0, 6));
 				obj["group"].set<vOBJECTREF>(groupref);
 				obj["tid"].set<vLONG>(1LL);
 				obj["priority"].set<vLONG>(1LL);
@@ -63,15 +62,13 @@ namespace jaether {
 
 		addNative("java/lang/System/registerNatives", "()V", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-
-			auto cls = lazyLoad(ctx, "java/lang/System");
-			if (cls) {
-				cls(ctx)->invoke(ctx, cls, 0, cpu, stack, opcode, "initPhase1", "()V");
-				printf("System initialized\n");
-			}
 		});
 
 		addNative("java/lang/Class/registerNatives", "()V", [](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+		});
+
+		addNative("jdk/internal/misc/ScopedMemoryAccess/registerNatives", "()V", [](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 		});
 
@@ -134,7 +131,7 @@ namespace jaether {
 			vOBJECTREF arg = stack->pop<vOBJECTREF>(ctx);
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 			JString str(ctx, arg);
-			auto& ref = getJavaClass(ctx, stack, str.str().c_str(), &arg);
+			auto& ref = getJavaClass(ctx, str.str().c_str(), &arg);
 			stack->push<vOBJECTREF>(ctx, ref);
 		});
 
@@ -149,7 +146,6 @@ namespace jaether {
 		addNative("java/lang/System/gc", "()V", [](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 			for (int GCC = 0; GCC < 2; GCC++) {
-
 				printf("Freed %llu bytes\n", ctx->getAllocator()->gcCycle());
 			}
 		});
@@ -159,7 +155,7 @@ namespace jaether {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 			JString name(ctx, classObj["name"]);
 			//printf("array base offset: %s, %s\n", classObj.getClass()(ctx)->getName(ctx), name.str().c_str());
-			stack->push<vINT>(ctx, 16);
+			stack->push<vINT>(ctx, 0);
 		});
 
 
@@ -209,7 +205,7 @@ namespace jaether {
 					return;
 				}
 			}
-			printf("%s doesnt have field %s\n", saneName.c_str(), fieldName.str().c_str());
+			//printf("%s doesnt have field %s\n", saneName.c_str(), fieldName.str().c_str());
 			throw std::runtime_error("couldn't find offset");
 			stack->push<vLONG>(ctx, -1);
 		});
@@ -228,7 +224,7 @@ namespace jaether {
 				else saneName += c;
 			}
 
-			auto& ref = getJavaClass(ctx, stack, saneName.c_str(), &classNameRef);
+			auto& ref = getJavaClass(ctx, saneName.c_str(), &classNameRef);
 
 			stack->push<vOBJECTREF>(ctx, ref);
 		});
@@ -300,17 +296,110 @@ namespace jaether {
 			vCOMMON expected = stack->pop<vCOMMON>(ctx);
 			vLONG   offset = stack->pop<vLONG>(ctx);
 			vCOMMON o = stack->pop<vCOMMON>(ctx);
+			vCOMMON* pfld = 0;
+
+			//printf("Compare and set reference: %lld, %lld, %lld\n", offset, expected.objref.r.a, x.objref.r.a);
 			JObject tgt(ctx, o);
-			vCOMMON& fld = tgt[(size_t)offset];
-			printf("Compare and set reference for %s, field: %lld\n", tgt.getClass()(ctx)->getName(ctx), offset);
+			JObject fobj(ctx, x);
+			//printf("Fobj: %s\n", fobj.getClass()(ctx)->getName(ctx));
+			pfld = &tgt[(size_t)offset];
 			if (opcode != invokestatic) {
 				stack->pop<vCOMMON>(ctx);
 			}
-			bool updated = fld.objref.r.a == expected.objref.r.a;
+			bool updated = pfld->objref.r.a == expected.objref.r.a;
 			if (updated) {
-				fld.objref.r.a = x.objref.r.a;
+				pfld->objref.r.a = x.objref.r.a;
 			}
 			stack->push<vBYTE>(ctx, updated);
+		});
+
+		addNative("jdk/internal/misc/Unsafe/compareAndSetLong", "(Ljava/lang/Object;JJJ)Z", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vLONG x = stack->pop<vLONG>(ctx);
+			vLONG expected = stack->pop<vLONG>(ctx);
+			vLONG   offset = stack->pop<vLONG>(ctx);
+			vCOMMON o = stack->pop<vCOMMON>(ctx);
+			vCOMMON* pfld = 0;
+			//printf("Compare and set long, expected: %llu, target: %llu, offset: %llu, addr: %llu\n", expected, x, offset, o.ul);
+			JObject tgt(ctx, o);
+			pfld = &tgt[(size_t)offset];
+			if (opcode != invokestatic) {
+				stack->pop<vCOMMON>(ctx);
+			}
+			bool updated = pfld && pfld->l == expected;
+			if (updated) {
+				pfld->l = x;
+			}
+			stack->push<vBYTE>(ctx, updated);
+		});
+
+		addNative("jdk/internal/misc/Unsafe/compareAndSetInt", "(Ljava/lang/Object;JII)Z", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vINT x = stack->pop<vINT>(ctx);
+			vINT expected = stack->pop<vINT>(ctx);
+			vLONG   offset = stack->pop<vLONG>(ctx);
+			vCOMMON o = stack->pop<vCOMMON>(ctx);
+			vCOMMON* pfld = 0;
+			JObject tgt(ctx, o);
+			pfld = &tgt[(size_t)offset];
+			if (opcode != invokestatic) {
+				stack->pop<vCOMMON>(ctx);
+			}
+			bool updated = pfld->i == expected;
+			if (updated) {
+				pfld->i = x;
+			}
+			stack->push<vBYTE>(ctx, updated);
+		});
+
+		addNative("jdk/internal/misc/Unsafe/getReferenceVolatile", "(Ljava/lang/Object;J)Ljava/lang/Object;", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vLONG   offset = stack->pop<vLONG>(ctx);
+			vCOMMON o = stack->pop<vCOMMON>(ctx);
+			vCOMMON* pfld = 0;
+			JObject tgt(ctx, o);
+			pfld = &tgt[(size_t)(offset)];
+			if (opcode != invokestatic) {
+				stack->pop<vCOMMON>(ctx);
+			}
+			stack->push<vOBJECTREF>(ctx, pfld->objref);
+		});
+
+		addNative("jdk/internal/misc/Unsafe/putReferenceVolatile", "(Ljava/lang/Object;JLjava/lang/Object;)V", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vCOMMON target = stack->pop<vCOMMON>(ctx);
+			vLONG   offset = stack->pop<vLONG>(ctx);
+			vCOMMON o = stack->pop<vCOMMON>(ctx);
+			vCOMMON* pfld = 0;
+			JObject tgt(ctx, o);
+			pfld = &tgt[(size_t)(offset)];
+			if (opcode != invokestatic) {
+				stack->pop<vCOMMON>(ctx);
+			}
+			pfld->objref = target.objref;
+			//stack->push<vOBJECTREF>(ctx, pfld->objref);
+		});
+
+		addNative("jdk/internal/misc/Unsafe/getIntVolatile", "(Ljava/lang/Object;J)I", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vLONG   offset = stack->pop<vLONG>(ctx);
+			vCOMMON o = stack->pop<vCOMMON>(ctx);
+			vCOMMON* pfld = 0;
+			JObject tgt(ctx, o);
+			pfld = &tgt[(size_t)(offset)];
+			if (opcode != invokestatic) {
+				stack->pop<vCOMMON>(ctx);
+			}
+			stack->push<vINT>(ctx, pfld->i);
+		});
+
+		addNative("jdk/internal/misc/Unsafe/putIntVolatile", "(Ljava/lang/Object;JI)V", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vINT target = stack->pop<vINT>(ctx);
+			vLONG   offset = stack->pop<vLONG>(ctx);
+			vCOMMON o = stack->pop<vCOMMON>(ctx);
+			vCOMMON* pfld = 0;
+			JObject tgt(ctx, o);
+			pfld = &tgt[(size_t)(offset)];
+			if (opcode != invokestatic) {
+				stack->pop<vCOMMON>(ctx);
+			}
+			pfld->i = target;
+			//stack->push<vOBJECTREF>(ctx, pfld->objref);
 		});
 
 		addNative("java/lang/Class/getDeclaredFields0", "(Z)[Ljava/lang/reflect/Field;", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
@@ -323,8 +412,8 @@ namespace jaether {
 					vOBJECTREF fldDescRef = createObject(ctx, "java/lang/reflect/Field", true, 20);
 					vFIELD& field = cls->_fields(ctx, i);
 					JObject fld(ctx, fldDescRef);
-					fld["clazz"].set(field.cls(ctx)->getJavaClass(this, ctx, stack, false));
-					fld["name"].set(createString(ctx, stack, field.getName(ctx), true, 0, 7));
+					fld["clazz"].set(field.cls(ctx)->getJavaClass(ctx, false));
+					fld["name"].set(createString(ctx, field.getName(ctx), true, 0, 7));
 					printf("Created field: %s\n", JString(ctx, fld["name"]).str().c_str());
 					narr(ctx)->set<vOBJECTREF>(ctx, i, fldDescRef);
 				}
@@ -334,9 +423,10 @@ namespace jaether {
 
 		addNative("jdk/internal/util/SystemProps$Raw/platformProperties", "()[Ljava/lang/String;", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			JArray<vCOMMON> arr(ctx, 40, 1);
-			for (int i = 0; i < 40; i++) {
-				arr[i].objref = createString(ctx, stack, "Hello", true, 0, 3);
+			JArray<vCOMMON> arr(ctx, ctx->_propsIndices.size(), 1);
+			for (int i = 0; i < (int)ctx->_propsIndices.size(); i++) {
+				std::string k = ctx->_propsIndices[i];
+				arr[i].objref = createString(ctx, ctx->_propsMap[k].c_str(), true, 0, 3);
 			}
 			stack->push<vOBJECTREF>(ctx, arr.ref());
 		});
@@ -344,24 +434,19 @@ namespace jaether {
 		addNative("jdk/internal/util/SystemProps$Raw/propDefault", "(I)Ljava/lang/String;", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			vINT idx = stack->pop<vINT>(ctx);
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			stack->push<vOBJECTREF>(ctx, createString(ctx, stack, "Default", true, 0, 4));
+			//printf("Prop default for %d, indices size: %llu\n", idx, ctx->_propsIndices.size());
+			std::string k = ctx->_propsIndices[idx];
+			//printf("Prop key: %s\n", k.c_str());
+			stack->push<vOBJECTREF>(ctx, createString(ctx, ctx->_propsMap[k].c_str(), true, 0, 4));
 		});
 
 		addNative("jdk/internal/util/SystemProps$Raw/vmProperties", "()[Ljava/lang/String;", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
-			std::ifstream props("SystemProperties.txt");
-			std::string line;
-			std::vector<std::string> strarr;
-			while (std::getline(props, line)) {
-				auto pos = line.find('=');
-				strarr.push_back(line.substr(0, pos));
-				strarr.push_back(line.substr(pos + 1));
-			}
 
-			JArray<vCOMMON> arr(ctx, strarr.size(), 1);
-			for (size_t i = 0; i < strarr.size(); i++) {
+			JArray<vCOMMON> arr(ctx, ctx->_propsPairs.size(), 1);
+			for (size_t i = 0; i < ctx->_propsPairs.size(); i++) {
 				//std::cout << strarr[i] << std::endl;
-				arr[i].objref = createString(ctx, stack, strarr[i], true, 0, 5);
+				arr[i].objref = createString(ctx, ctx->_propsPairs[i], true, 0, 5);
 			}
 
 			stack->push<vOBJECTREF>(ctx, arr.ref());
@@ -374,6 +459,178 @@ namespace jaether {
 		addNative("java/lang/Runtime/maxMemory", "()J", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 			stack->push<vULONG>(ctx, (vULONG)ctx->getAllocator()->getSize());
+		});
+
+		addNative("jdk/internal/misc/CDS/isDumpingClassList0", "()Z", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			stack->push<vBYTE>(ctx, 0);
+		});
+
+		addNative("jdk/internal/misc/CDS/isDumpingArchive0", "()Z", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			stack->push<vBYTE>(ctx, 0);
+		});
+
+		addNative("jdk/internal/misc/CDS/isSharingEnabled0", "()Z", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			stack->push<vBYTE>(ctx, 0);
+		});
+
+		addNative("jdk/internal/misc/CDS/initializeFromArchive", "(Ljava/lang/Class;)V", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			stack->pop<vCOMMON>(ctx);
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+		});
+
+		addNative("java/lang/Runtime/availableProcessors", "()I", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			stack->push<vINT>(ctx, 1);
+		});
+
+		addNative("jdk/internal/misc/Unsafe/storeFence", "()V", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+		});
+
+		addNative("java/io/FileInputStream/initIDs", "()V", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+		});
+
+		addNative("java/io/FileOutputStream/initIDs", "()V", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+		});
+
+		addNative("java/io/FileDescriptor/initIDs", "()V", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+		});
+
+		//java/lang/System/setIn0:(Ljava/io/InputStream;)V
+		addNative("java/lang/System/setIn0", "(Ljava/io/InputStream;)V", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			stack->pop<vCOMMON>(ctx);
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+		});
+		
+		addNative("java/lang/System/setOut0", "(Ljava/io/PrintStream;)V", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vCOMMON stream = stack->pop<vCOMMON>(ctx);
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			JClass klass(ctx, cpu->lazyLoad(ctx, "java/lang/System"));
+			klass["out"].value.set<vCOMMON>(stream);
+		});//java/lang/System/setOut0:(Ljava/io/PrintStream;)V
+
+		addNative("java/lang/System/setErr0", "(Ljava/io/PrintStream;)V", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			stack->pop<vCOMMON>(ctx);
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+		});
+
+		//jdk/internal/misc/CDS/getRandomSeedForDumping:()J
+		addNative("jdk/internal/misc/CDS/getRandomSeedForDumping", "()J", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
+			stack->push<vLONG>(ctx, 0x1122334444332211LL);
+		});
+
+		// java/lang/Object/hashCode:()I
+		addNative("java/lang/Object/hashCode", "()I", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			int hash = 0x55AA55AA;
+			if (opcode != invokestatic) {
+				vCOMMON comm = stack->pop<vCOMMON>(ctx);
+				hash ^= comm.i;
+			}
+			stack->push<vINT>(ctx, hash);
+		});
+		
+		addNative("java/lang/Object/notifyAll", "()V", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) {
+				stack->pop<vCOMMON>(ctx);
+			}
+			//stack->push<vINT>(ctx, hash);
+		}); //java/lang/Object/notifyAll:()V
+
+
+		addNative("java/lang/Object/getClass", "()Ljava/lang/Class;", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) {
+				vCOMMON comm = stack->pop<vCOMMON>(ctx);
+				JObject obj(ctx, comm);
+				auto saneName = std::string(obj.getClass()(ctx)->getName(ctx));
+				auto& ref = getJavaClass(ctx, saneName.c_str(), 0);
+				stack->push<vOBJECTREF>(ctx, ref);
+				return;
+			}
+			throw std::runtime_error("invalid object");
+		});
+
+		//java/lang/Class/isArray:()Z
+		addNative("java/lang/Class/isArray", "()Z", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) {
+				vCOMMON comm = stack->pop<vCOMMON>(ctx);
+				JObject klass(ctx, comm);
+				JString name(ctx, klass["name"]);
+				stack->push<vBYTE>(ctx, name.str()[0] == '[');
+				return;
+			}
+			throw std::runtime_error("invalid object");
+		});
+
+		addNative("java/lang/Class/isPrimitive", "()Z", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) {
+				vCOMMON comm = stack->pop<vCOMMON>(ctx);
+				JObject klass(ctx, comm);
+				JString name(ctx, klass["name"]);
+				std::string n = name.str();
+				stack->push<vBYTE>(ctx, n == "int" || n == "byte" || n == "boolean" || n == "long" || n == "short");
+				return;
+			}
+			throw std::runtime_error("invalid object");
+		});
+
+		//jdk/internal/reflect/Reflection/getCallerClass:()Ljava/lang/Class
+		addNative("jdk/internal/reflect/Reflection/getCallerClass", "()Ljava/lang/Class;", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) {
+				stack->pop<vCOMMON>(ctx);
+			}
+			stack->push<vOBJECTREF>(ctx, getJavaClass(ctx, "java/lang/Object", 0));
+		});
+
+		//java/io/FileDescriptor/getHandle:(I)J
+		addNative("java/io/FileDescriptor/getHandle", "(I)J", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			int h = stack->pop<vINT>(ctx);
+			if (opcode != invokestatic) {
+				stack->pop<vCOMMON>(ctx);
+			}
+			stack->push<vLONG>(ctx, (vLONG)h);
+		});
+
+		addNative("java/io/FileDescriptor/getAppend", "(I)Z", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			int h = stack->pop<vINT>(ctx);
+			if (opcode != invokestatic) {
+				stack->pop<vCOMMON>(ctx);
+			}
+			stack->push<vBYTE>(ctx, 0);
+		});
+
+		//jdk/internal/misc/Signal/findSignal0:(Ljava/lang/String;)I
+		addNative("jdk/internal/misc/Signal/findSignal0", "(Ljava/lang/String;)I", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vCOMMON str = stack->pop<vCOMMON>(ctx);
+			if (opcode != invokestatic) {
+				stack->pop<vCOMMON>(ctx);
+			}
+			stack->push<vINT>(ctx, 1);
+		});
+
+		//jdk/internal/misc/Signal/handle0:(IJ)J
+		addNative("jdk/internal/misc/Signal/handle0", "(IJ)J", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vINT i = stack->pop<vINT>(ctx);
+			vLONG l = stack->pop<vLONG>(ctx);
+			if (opcode != invokestatic) {
+				stack->pop<vCOMMON>(ctx);
+			}
+			stack->push<vLONG>(ctx, l);
+		});
+
+		//sun/io/Win32ErrorMode/setErrorMode:(J)J
+		addNative("sun/io/Win32ErrorMode/setErrorMode", "(J)J", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vLONG l = stack->pop<vLONG>(ctx);
+			if (opcode != invokestatic) {
+				stack->pop<vCOMMON>(ctx);
+			}
+			stack->push<vLONG>(ctx, l);
 		});
 	}
 

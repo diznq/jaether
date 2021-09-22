@@ -1,6 +1,7 @@
 #include "Class.h"
 #include "Frame.h"
 #include "CPU.h"
+#include "ObjectHelper.h"
 
 namespace jaether {
 
@@ -10,6 +11,7 @@ namespace jaether {
 			vUINT magic = readUI(f);
 			vUSHORT minor = readUSI(f), major = readUSI(f);
 			vUSHORT consts = readUSI(f);
+			_constCount = consts;
 			vCOMMON ops[8];
 			_constPool = VMAKE(vMemory, ctx, ctx, (size_t)consts);
 			// Parse const pool
@@ -88,7 +90,7 @@ namespace jaether {
 			_accessFlags = readUSI(f);
 			_name = readUSI(f);
 			_super = readUSI(f);
-
+			
 			ctx->getClasses()[getName(ctx)] = (vClass*)(((uintptr_t)this) - ctx->offset());
 
 			vClass* super = 0;
@@ -326,8 +328,27 @@ namespace jaether {
 		return 0;
 	}
 
-	vOBJECTREF& vClass::getJavaClass(vCPU* cpu, vContext* ctx, vStack* stack, bool gc) {
-		return cpu->getJavaClass(ctx, stack, getName(ctx), 0, gc);
+	vOBJECTREF& vClass::getJavaClass(vContext* ctx,  bool gc) {
+		std::string saneName = getName(ctx);
+		if (saneName.back() == ';') {
+			saneName.pop_back();
+			saneName = saneName.substr(1);
+		}
+		std::wstring wName;
+		for (char& c : saneName) {
+			wName += c == '/' ? L'.' : (wchar_t)c;
+			if (c == '.') c = '/';
+		}
+
+		return ctx->getObject<vOBJECTREF>(ctx, "ldc:java/lang/Class:" + saneName, [this, wName, gc](vContext* ctx) -> vOBJECTREF {
+			auto it = ctx->getClasses().find("java/lang/Class");
+			if (it == ctx->getClasses().end()) throw std::runtime_error("java/lang/Class not loaded");
+			V<vClass> klassClass(it->second);
+			JObject wrap(ctx, klassClass, gc);
+			wrap["name"].set(JString(ctx, wName, gc).ref());
+			wrap.x().set<vLONG>(1060);
+			return wrap.ref();
+		});
 	}
 
 
@@ -357,12 +378,22 @@ namespace jaether {
 		return V<vUTF8BODY>::nullPtr();
 	}
 
-	V<vBYTE> vClass::getCode(vContext* ctx, vMETHOD* method) {
-		if (!method) return V<vBYTE>::nullPtr();
+	CodeAttribute vClass::getCode(vContext* ctx, vMETHOD* method) {
+		CodeAttribute ret;
+		ret.codeLength = V<vBYTE>::nullPtr();
+		if (!method) return ret;
 		vATTRIBUTE* attrib = getAttribute(ctx, method, "Code");
-		if (!attrib) return V<vBYTE>::nullPtr();
-		if (attrib->length == 0) return V<vBYTE>::nullPtr();
-		return attrib->info + (size_t)8;
+		if (!attrib) return ret;
+		if (attrib->length == 0) ret;
+		vBYTE* data = attrib->info(ctx);
+		ret.attributeLength = readUI(data);
+		ret.maxStack = readUSI(data);
+		ret.maxLocals = readUSI(data + 2);
+		ret.codeLength = readUI(data + 4);
+		ret.code = attrib->info + (size_t)8;
+		ret.exceptionTableLength = readUSI(data + 8 + ret.codeLength);
+		ret.exceptionTable = (ExceptionTable*)(attrib->info.v() + (size_t)(10 + ret.codeLength));
+		return ret;
 	}
 
 	vUINT vClass::argsCount(vContext* ctx, vMETHOD* method) {
@@ -421,7 +452,7 @@ namespace jaether {
 	}
 
 
-	std::tuple<bool, vCOMMON> vClass::invoke(
+	std::tuple<MethodResolveStatus, vCOMMON> vClass::invoke(
 		vContext* ctx,
 		V<vClass> self,
 		V<vClass> super,
@@ -433,11 +464,13 @@ namespace jaether {
 		int nesting) {
 
 		auto [exists, nnFrame] = createFrame(ctx, self, super, cpu, _stack, opcode, methodName, desc, nesting);
-		if (!exists) {
+		if (exists == MethodResolveStatus::eMRS_NotFound) {
 			vCOMMON empty;
 			memset(&empty, 0, sizeof(vCOMMON));
 			throw std::runtime_error("couldnt create frame");
-			return std::make_tuple(false, empty);
+			return std::make_tuple(MethodResolveStatus::eMRS_Found, empty);
+		} else if (exists == MethodResolveStatus::eMRS_Native) {
+			return std::make_tuple(MethodResolveStatus::eMRS_Native, vCOMMON{});
 		}
 
 		V<vFrame> nFrame((vFrame*)nnFrame);
@@ -450,11 +483,11 @@ namespace jaether {
 		}
 		nFrame(ctx)->destroy(ctx);
 		nFrame.release(ctx);
-		return std::make_tuple(true, subret);
+		return std::make_tuple(MethodResolveStatus::eMRS_Found, subret);
 	}
 
 
-	std::tuple<bool, vFrame*> vClass::createFrame(
+	std::tuple<MethodResolveStatus, vFrame*> vClass::createFrame(
 		vContext* ctx,
 		V<vClass> self,
 		V<vClass> super,
@@ -466,20 +499,25 @@ namespace jaether {
 		int nesting) {
 		vMETHOD* method = getMethod(ctx, methodName.c_str(), desc.c_str());
 		if (method) {
+			std::string npath = std::string(getName(ctx)) + "/" + method->getName(ctx) + ":" + method->getDesc(ctx);
+			auto nit = cpu->findNative(npath);
+			if (nit != cpu->getNatives().end()) {
+				auto cb = nit->second;
+				cb(ctx, cpu, _stack, opcode);
+				return std::make_tuple(MethodResolveStatus::eMRS_Native, (vFrame*)0);
+			}
 			V<vFrame> nFrame = VMAKE(vFrame, ctx, ctx, method, self);
 			vUINT args = argsCount(ctx, method);
 			for (vUINT i = 0; i < args; i++) {
 				vUINT j = args - i;
 				if (opcode == invokestatic) j--;
 				nFrame(ctx)->_local(ctx)->set<vCOMMON>(ctx, (size_t)j, _stack->pop<vCOMMON>(ctx));
-				//vCOMMON arg = nFrame(ctx)->_local(ctx)->get<vCOMMON>(ctx, j);
-				//printf("Set arg %u as %llu, %d\n", j, arg.a.a, arg.type);
 			}
 			if (opcode != invokestatic)
 				nFrame(ctx)
 				->_local(ctx)
 				->set<vCOMMON>(ctx, 0, _stack->pop<vCOMMON>(ctx));
-			return std::make_tuple(true, nFrame.v(ctx));
+			return std::make_tuple(MethodResolveStatus::eMRS_Found, nFrame.v(ctx));
 		} else if (super.isValid()) {
 			if (_super) {
 				auto& classes = ctx->getClasses();
@@ -493,7 +531,7 @@ namespace jaether {
 			if (super.isValid())
 				return super(ctx)->createFrame(ctx, super, V<vClass>::nullPtr(), cpu, _stack, opcode, methodName, desc, nesting + 1);
 		}
-		return std::make_tuple(false, V<vFrame>::nullPtr().v(ctx));
+		return std::make_tuple(MethodResolveStatus::eMRS_NotFound, V<vFrame>::nullPtr().v(ctx));
 	}
 
 	bool vClass::instanceOf(vContext* ctx, V<vClass> cls) {

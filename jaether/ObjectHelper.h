@@ -7,13 +7,6 @@
 
 namespace jaether {
 
-	class FieldNotFoundException : public std::exception {
-	public:
-		FieldNotFoundException() : std::exception("Field not found") {
-			// ...
-		}
-	};
-
 	class JObject {
 	protected:
 		vContext* _ctx = 0;
@@ -40,6 +33,10 @@ namespace jaether {
 		JObject(vContext* ctx) : _ctx(ctx) {}
 	public:
 
+		bool isArray() const {
+			return TAG() == JAETHER_ARR_TAG;
+		}
+
 		const int TAG() const {
 			return _obj(_ctx)->TAG;
 		}
@@ -47,21 +44,36 @@ namespace jaether {
 		void checkTag() const {
 			if (!_obj.isValid()) {
 				throw std::runtime_error("invalid object reference");
-			} else if(TAG() != JAETHER_OBJ_TAG) {
-				printf("invalid tag detected: %d\n", TAG());
+			} else if(TAG() != JAETHER_OBJ_TAG && TAG() != JAETHER_ARR_TAG) {
+				printf("obj: %llu\n", (vULONG)_obj.v());
+				printf("invalid tag detected: %x\n", TAG());
 				throw std::runtime_error("invalid object tag: " + std::to_string(TAG()));
 			}
 		}
 
 		vCOMMON& operator[](const char* idx) const {
+			if (isArray()) throw std::runtime_error("attempt to access member of an array");
 			vCOMMON* ptr = _obj(_ctx)->cls(_ctx)->getObjField(_ctx, _obj, idx);
-			if (!ptr) throw FieldNotFoundException();
+			if (!ptr) throw std::runtime_error("field not found");
 			return *ptr;
 		}
 
 		vCOMMON& operator[](size_t idx) {
-			if (idx >= _obj(_ctx)->cls(_ctx)->_fieldCount) throw std::runtime_error("invalid field index");
+			if (isArray()) {
+				auto arr = asArray();
+				idx &= 0x7FFFFFFF;
+				//idx /= arr(_ctx)->unitSize(arr(_ctx)->type);
+				//printf("Array type: %d, idx: %llu, size: %lu\n", arr(_ctx)->type, idx, arr(_ctx)->size);
+				if (idx >= arr(_ctx)->size) throw std::runtime_error("array out of bound index");
+				return arr(_ctx)->get<vCOMMON>(_ctx, idx);
+			}
+			if (idx >= _obj(_ctx)->cls(_ctx)->_fieldCount)
+				throw std::runtime_error("invalid field index");
 			return _obj(_ctx)->fields()(_ctx, idx);
+		}
+
+		V<vNATIVEARRAY> asArray() {
+			return V<vNATIVEARRAY>((vNATIVEARRAY*)_obj.v());
 		}
 
 		void* ptr() const {
@@ -158,5 +170,45 @@ namespace jaether {
 		using JObject::JObject;
 		JString(vContext* ctx, const std::wstring& wstr, bool gc = true, int source = 0);
 		std::string str() const;
+	};
+
+	class JClass {
+	private:
+		vContext* _ctx = 0;
+		V<vClass> _klass;
+	public:
+		JClass(vContext* ctx, V<vClass> kls) : _ctx(ctx), _klass(kls) {
+
+		}
+		
+		vFIELD& operator[](const char* name) {
+			vFIELD* fld = _klass(_ctx)->getField(_ctx, name);
+			if (!fld) throw std::runtime_error("static field not found");
+			return *fld;
+		}
+		
+		const char* getName() {
+			return _klass(_ctx)->getName(_ctx);
+		}
+		
+		const char* getSuperName() {
+			return _klass(_ctx)->getSuperName(_ctx);
+		}
+
+		bool instanceOf(JClass& tgt) {
+			return _klass(_ctx)->instanceOf(_ctx, tgt._klass);
+		}
+
+		vClass* v() const {
+			return _klass.v();
+		}
+
+		V<vClass> raw() {
+			return _klass;
+		}
+
+		vOBJECTREF& getJavaClass(bool gc = false) {
+			return _klass(_ctx)->getJavaClass(_ctx, gc);
+		}
 	};
 }

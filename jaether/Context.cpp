@@ -1,12 +1,30 @@
 #include "Context.h"
 #include "sha256.h"
+#include <fstream>
 
 namespace jaether {
 
-	vContext::vContext(Allocator* alloc, bool secure) {
+	vContext::vContext(Allocator* alloc, bool fullInit, bool secure) {
 		_alloc = alloc;
+		_fullInit = fullInit;
 		_hashContext = new SHA256_CTX;
 		_secure = secure;
+		std::ifstream props("SystemProperties.txt");
+		std::string line;
+		while (std::getline(props, line)) {
+			auto pos = line.find('=');
+			std::string key = line.substr(0, pos);
+			std::string value = line.substr(pos + 1);
+			_propsPairs.push_back(key);
+			_propsPairs.push_back(value);
+			_propsMap[key] = value;
+		}
+		props.close();
+		std::ifstream indices("SystemIndices.txt");
+		while (std::getline(indices, line)) {
+			_propsIndices.push_back(line);
+		}
+		indices.close();
 		sha256_init((SHA256_CTX*)_hashContext);
 	}
 

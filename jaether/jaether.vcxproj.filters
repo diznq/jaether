@@ -88,5 +88,8 @@
     <Text Include="SystemProperties.txt">
       <Filter>Resource Files</Filter>
     </Text>
+    <Text Include="SystemIndices.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
   </ItemGroup>
 </Project>

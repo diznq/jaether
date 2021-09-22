@@ -3,9 +3,12 @@
 #include <stdint.h>
 #include <map>
 #include <string>
+#include <any>
+#include <functional>
+#include <stdexcept>
 #include "Allocator.h"
 
-#define JVM_DEBUG
+//#define JVM_DEBUG
 #ifdef JVM_DEBUG
 #define RPRINTF(fmt, ...) fprintf(stdout, "%*s" fmt, nesting + (int)frames.size(), "", __VA_ARGS__)
 #define DPRINTF(fmt, ...) fprintf(stdout, fmt, __VA_ARGS__)
@@ -22,12 +25,18 @@ namespace jaether {
 	struct vContext {
 	private:
 		bool _secure = false;
+		bool _fullInit = false;
 		void* _hashContext = 0;
 		size_t _ops = 0;
 		Allocator* _alloc = 0;
 		std::map<std::string, vClass*> _classes;
+		std::map<std::string, std::any> _storage;
+		std::vector<std::string> _propsPairs;
+		std::map<std::string, std::string> _propsMap;
+		std::vector<std::string> _propsIndices;
 	public:
-		vContext(Allocator* alloc, bool secure = false);
+		friend class vCPU;
+		vContext(Allocator* alloc, bool fullInit = true, bool secure = false);
 		~vContext();
 		void* alloc(size_t mem, bool gc = false);
 		size_t free(void* mem, bool arr = false);
@@ -82,6 +91,16 @@ namespace jaether {
 		}
 
 		void touchVirtual(void* memory);
+
+		template<class T>
+		T& getObject(vContext* ctx, const std::string& key, std::function<T(vContext*)> orElse = nullptr) {
+			auto it = ctx->_storage.find(key);
+			if (it != ctx->_storage.end()) {
+				return std::any_cast<T&>(it->second);
+			}
+			if (!orElse) throw std::runtime_error("or else callback not found");
+			return std::any_cast<T&>(ctx->_storage[key] = orElse(ctx));
+		}
 	};
 
 }
