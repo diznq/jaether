@@ -29,17 +29,32 @@ namespace jaether {
 		void* _hashContext = 0;
 		size_t _ops = 0;
 		Allocator* _alloc = 0;
-		std::map<std::string, vClass*> _classes;
-		std::map<std::string, std::any> _storage;
 		std::vector<std::string> _propsPairs;
 		std::map<std::string, std::string> _propsMap;
 		std::vector<std::string> _propsIndices;
+		
+		std::map<std::string, vClass*> _classes;
+		std::map<std::string, std::any> _storage;
+
+		void writeString(std::ostream& os, const std::string& str);
+		std::string readString(std::istream& is);
+		template<class T> void writeAny(std::ostream& os, T thing) {
+			os.write((const char*)&thing, sizeof(T));
+		}
+		template<class T> T readAny(std::istream& is) {
+			T thing;
+			is.read((char*)&thing, sizeof(T));
+			return thing;
+		}
 	public:
 		friend class vCPU;
 		vContext(Allocator* alloc, bool fullInit = true, bool secure = false);
 		~vContext();
 		void* alloc(size_t mem, bool gc = false);
 		size_t free(void* mem, bool arr = false);
+
+		void save(const char* path);
+		void load(const char* path);
 
 		template<typename T, typename... Args>
 		T* allocType(Args&&... args) {

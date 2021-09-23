@@ -133,20 +133,20 @@ namespace jaether {
 		memset(arr, 0, sizeof(vJCHAR) * utfCapacity);
 		for (vUINT i = 0; i < size; i++) {
 			vBYTE b = src[i] & 255;
+			vUSHORT R = (vUSHORT)0;
 			if (b >= 1 && b <= 0x7F) {	// 1 byte
-				arr[utf16len++] = b;	// fix endian
+				R = b;	// fix endian
 			} else if ((b & 0xE0) == 0xC0) { // 2 bytes
 				vUSHORT x = (vUSHORT)src[i++] & 255;
 				vUSHORT y = (vUSHORT)src[i] & 255;
-				vUSHORT R = (vUSHORT)(((x & 0x1f) << 6) | (y & 0x3f));
-				arr[utf16len++] = (vJCHAR)R;
+				R = (vUSHORT)(((x & 0x1f) << 6) | (y & 0x3f));
 			} else if ((b & 0xE0) == 0xE0) { // 3 bytes
 				vUSHORT x = (vUSHORT)src[i++] & 255;
 				vUSHORT y = (vUSHORT)src[i++] & 255;
 				vUSHORT z = (vUSHORT)src[i] & 255;
-				vUSHORT R = (vUSHORT)(((x & 0xf) << 12) | ((y & 0x3f) << 6) | (z & 0x3f));
-				arr[utf16len++] = (vJCHAR)R;
+				R = (vUSHORT)(((x & 0xf) << 12) | ((y & 0x3f) << 6) | (z & 0x3f));
 			}
+			arr[utf16len++] = (vJCHAR)R;
 		}
 		std::wstring utf16Str(arr, arr + utf16len);
 		delete[] arr;

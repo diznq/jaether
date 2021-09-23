@@ -1,5 +1,6 @@
 #include "Context.h"
 #include "sha256.h"
+#include "Types.h"
 #include <fstream>
 
 namespace jaether {
@@ -57,6 +58,69 @@ namespace jaether {
 			unsigned int offset = id << align;
 			sha256_update(sha, ((const BYTE*)start) + offset, segmentSize);
 		}
+	}
+
+	void vContext::writeString(std::ostream& os, const std::string& str) {
+		vUINT len = (vUINT)str.length();
+		os.write((const char*)&len, sizeof(len));
+		os.write(str.data(), (size_t)len);
+	}
+
+	std::string vContext::readString(std::istream& is) {
+		vUINT len = 0;
+		is.read((char*)&len, sizeof(len));
+		char* buff = new char[len];
+		is.read(buff, len);
+		std::string str(buff, buff + len);
+		delete[] buff;
+		return str;
+	}
+
+	void vContext::save(const char* path) {
+		std::ofstream f(path, std::ios::binary);
+		if (!f) {
+			throw std::runtime_error("couldn't open file for save");
+		}
+		writeAny(f, _ops);
+		//writeAny(os)
+		writeAny(f, _classes.size());
+		//printf("Classes size: %llu\n", _classes.size());
+		for (auto it : _classes) {
+			writeString(f, it.first);
+			writeAny(f, (vUINT)(uintptr_t)it.second);
+			//printf("Class %s is at %p\n", it.first.c_str(), it.second);
+		}
+		writeAny(f, _storage.size());
+		//printf("Storage size: %llu\n", _storage.size());
+		for (auto it : _storage) {
+			writeString(f, it.first);
+			writeAny(f, std::any_cast<vOBJECTREF>(it.second));
+			//printf("Object %s is at %p\n", it.first.c_str(), std::any_cast<vOBJECTREF>(it.second).r.a);
+		}
+		_alloc->save(f);
+	}
+
+	void vContext::load(const char* path) {
+		std::ifstream f(path, std::ios::binary);
+		if (!f) {
+			throw std::runtime_error("couldn't open file for save");
+		}
+		_ops = readAny<size_t>(f);
+		size_t sz = readAny<size_t>(f);
+		for (size_t i = 0; i < sz; i++) {
+			std::string key = readString(f);
+			vClass* val = (vClass*)(uintptr_t)readAny<vUINT>(f);
+			//printf("Class %s is at %p\n", key.c_str(), val);
+			_classes[key] = val;
+		}
+		sz = readAny<size_t>(f);
+		for (size_t i = 0; i < sz; i++) {
+			std::string key = readString(f);
+			vOBJECTREF val = readAny<vOBJECTREF>(f);
+			_storage[key] = val;
+			//printf("Object %s is at %p\n", key.c_str(), val.r.a);
+		}
+		_alloc->load(f);
 	}
 
 	void vContext::getSignature(unsigned char* out) {

@@ -11,5 +11,6 @@ This allows for trust based on multiple machines running same program and comput
 - [x] Somewhat nice way to create strings, objects, arrays in C++ (JClass, JArray, JObject, JString wrappers)
 - [x] Switch-case instructions
 - [x] Core native methods 
+- [x] Hot loading
 - [x] initPhase1 loads up correctly
 - [ ] Entire JVM instruction set (dup2_x1,2 missing)

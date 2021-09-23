@@ -2,17 +2,17 @@
 #include <vector>
 #include <set>
 #include <string.h>
+#include <fstream>
 
 namespace jaether {
 
 	class Allocator {
-		unsigned char* _pool;
-		size_t _size;
-		std::vector<bool> _free;
+		std::vector<unsigned char> _pool;
+		std::vector<unsigned char> _free;
 		std::vector<unsigned int> _sizes;
 		std::set<unsigned int> _touched;
 		std::set<unsigned int> _gc;
-		size_t _align;
+		size_t _align = 4;
 		size_t _allocs = 0;
 		size_t _cycles = 0;
 		size_t _managedSize = 0;
@@ -22,7 +22,7 @@ namespace jaether {
 		Allocator(size_t poolSize, size_t align = 4);
 
 		void* getBase() {
-			return (void*)_pool;
+			return (void*)_pool.data();
 		}
 
 		void* allocRaw(size_t mem, bool gc = false);
@@ -30,7 +30,7 @@ namespace jaether {
 		size_t freeRaw(void* mem);
 
 		size_t getSize() const {
-			return _size;
+			return _pool.size();
 		}
 
 		size_t getManagedSize() const {
@@ -63,7 +63,8 @@ namespace jaether {
 			return _align;
 		}
 
-		void dump(const char* file);
+		void save(std::ofstream& os);
+		void load(std::ifstream& is);
 	};
 
 }
