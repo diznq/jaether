@@ -21,7 +21,7 @@ namespace jaether {
 	public:
 		Allocator(size_t poolSize, size_t align = 4);
 
-		void* getBase() {
+		void* getBase() const {
 			return (void*)_pool.data();
 		}
 
@@ -62,6 +62,14 @@ namespace jaether {
 		size_t getAlignment() const {
 			return _align;
 		}
+
+		uintptr_t resolve(uintptr_t vAddress) const {
+			return vAddress + (uintptr_t)getBase();
+		}
+
+		void* setMemory(void* VirtDest, int value, size_t len);
+		void* copyMemory(void* VirtDest, const void* VirtSrc, size_t len, bool srcReal = false);
+		void* moveMemory(void* VirtDest, const void* VirtSrc, size_t len, bool srcReal = false);
 
 		void save(std::ofstream& os);
 		void load(std::ifstream& is);

@@ -144,6 +144,24 @@ namespace jaether {
 		//_touched.insert(id + 1);
 	}
 
+	void* Allocator::setMemory(void* VirtDest, int value, size_t len) {
+		vBYTE* dst = (vBYTE*)resolve((uintptr_t)VirtDest);
+		return memset(dst, value, len);
+	}
+
+	void* Allocator::copyMemory(void* VirtDest, const void* VirtSrc, size_t len, bool srcReal) {
+		vBYTE* dst = (vBYTE*)resolve((uintptr_t)VirtDest);
+		vBYTE* src = (vBYTE*)(srcReal ? (uintptr_t)VirtSrc : resolve((uintptr_t)VirtSrc));
+		return memcpy(dst, src, len);
+	}
+
+	void* Allocator::moveMemory(void* VirtDest, const void* VirtSrc, size_t len, bool srcReal) {
+		vBYTE* dst = (vBYTE*)resolve((uintptr_t)VirtDest);
+		vBYTE* src = (vBYTE*)(srcReal ? (uintptr_t)VirtSrc : resolve((uintptr_t)VirtSrc));
+		return memmove(dst, src, len);
+	}
+
+
 	void Allocator::save(std::ofstream& os) {
 		vUINT gcSize = (vUINT)_gc.size();
 		vUINT sizesSize = (vUINT)_sizes.size();

@@ -28,8 +28,8 @@ namespace jaether {
 			const size_t size = sizeof(vCOMMON);
 			assert(index < _size);
 			vBYTE* ptr = (vBYTE*)&_memory(ctx, index);
-			memset(ptr, 0, size);
-			memcpy(ptr, &value, sizeof(T));
+			ctx->setMemory((_memory + (size_t)index).v(), 0, size);
+			ctx->copyMemory((_memory + (size_t)index).v(), &value, sizeof(T), true);
 			vCOMMON* vc = (vCOMMON*)ptr;	
 			if constexpr (!std::is_same_v<T, vCOMMON>) {
 				vc->type = vTypes::type<T>();

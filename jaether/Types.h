@@ -287,7 +287,8 @@ namespace jaether {
 			V<vNATIVEARRAY> obj = VMAKE(vNATIVEARRAY, ctx, ctx, type, size);
 			obj(ctx)->cls = cls;
 			obj(ctx)->x = x;
-			memcpy(obj(ctx)->data()(ctx), data()(ctx), (size_t)size * (size_t)unitSize(type));
+			//memcpy(obj(ctx)->data()(ctx), data()(ctx), (size_t)size * (size_t)unitSize(type));
+			ctx->moveMemory(obj(ctx)->data().v(), data().v(), (size_t)size * (size_t)unitSize(type));
 			return obj;
 		}
 

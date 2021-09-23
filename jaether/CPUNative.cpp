@@ -56,7 +56,13 @@ namespace jaether {
 			vBYTE* pSrc = srcArr(ctx)->data()(ctx);
 			vBYTE* pDst = dstArr(ctx)->data()(ctx);
 
-			memmove(pDst + (size_t)dstPos * unit, pSrc + (size_t)srcPos * unit, (size_t)len * unit);
+			ctx->moveMemory(
+				(dstArr(ctx)->data() + (size_t)dstPos * unit).v(),
+				(srcArr(ctx)->data() + (size_t)srcPos * unit).v(),
+				(size_t)len * unit
+			);
+
+			//memmove(pDst + (size_t)dstPos * unit, pSrc + (size_t)srcPos * unit, (size_t)len * unit);
 
 			if (opcode != invokestatic) stack->pop<vCOMMON>(ctx);
 		});

@@ -56,6 +56,18 @@ namespace jaether {
 		void save(const char* path);
 		void load(const char* path);
 
+		void* setMemory(void* VirtDest, int value, size_t len) {
+			return _alloc->setMemory(VirtDest, value, len);
+		}
+
+		void* copyMemory(void* VirtDest, const void* VirtSrc, size_t len, bool srcReal = false) const {
+			return _alloc->copyMemory(VirtDest, VirtSrc, len, srcReal);
+		}
+
+		void* moveMemory(void* VirtDest, const void* VirtSrc, size_t len, bool srcReal = false) const {
+			return _alloc->moveMemory(VirtDest, VirtSrc, len, srcReal);
+		}
+
 		template<typename T, typename... Args>
 		T* allocType(Args&&... args) {
 			char* mem = ((char*)alloc(sizeof(T)));
@@ -93,6 +105,8 @@ namespace jaether {
 
 		uintptr_t offset() const;
 
+		void* getBase() const { return _alloc->getBase(); }
+
 		Allocator* getAllocator() const {
 			return _alloc;
 		}
@@ -106,6 +120,10 @@ namespace jaether {
 		}
 
 		void touchVirtual(void* memory);
+
+		inline uintptr_t resolve(uintptr_t addr) const {
+			return _alloc->resolve(addr);
+		}
 
 		template<class T>
 		T& getObject(vContext* ctx, const std::string& key, std::function<T(vContext*)> orElse = nullptr) {

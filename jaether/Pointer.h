@@ -3,6 +3,8 @@
 #include "Context.h"
 #include "Allocator.h"
 
+#define CENTRALIZE_RESOLVE
+
 #define VMAKE(type, ctx, ...) V<type>(ctx->allocType<type>(__VA_ARGS__))
 #define VMAKEGC(type, ctx, ...) V<type>(ctx->allocTypeGc<type>(__VA_ARGS__))
 #define VMAKEARRAY(type, ctx, i) V<type>(ctx->allocArray<type>(i))
@@ -48,28 +50,44 @@ namespace jaether {
 			return U();
 		}
 
-		A* real(Allocator* ctx) const {
+		inline A* real(Allocator* ctx) const {
 			uintptr_t res = (uintptr_t)_addr;
 			ctx->touchVirtual((void*)res);
+#ifdef CENTRALIZE_RESOLVE
+			return (A*)ctx->resolve(res);
+#else
 			return (A*)((res)+(uintptr_t)ctx->getBase());
+#endif
 		}
 
-		A* real(Allocator* ctx, size_t offset) const {
+		inline A* real(Allocator* ctx, size_t offset) const {
 			uintptr_t res = (uintptr_t)_addr + offset * sizeof(A);
 			ctx->touchVirtual((void*)res);
+#ifdef CENTRALIZE_RESOLVE
+			return (A*)ctx->resolve(res);
+#else
 			return (A*)((res)+(uintptr_t)ctx->getBase());
+#endif
 		}
 
-		A* real(vContext* ctx) const {
+		inline A* real(vContext* ctx) const {
 			uintptr_t res = (uintptr_t)_addr;
 			ctx->touchVirtual((void*)res);
-			return (A*)((res) + ctx->offset());
+#ifdef CENTRALIZE_RESOLVE
+			return (A*)ctx->resolve(res);
+#else
+			return (A*)((res)+(uintptr_t)ctx->getBase());
+#endif
 		}
 
-		A* real(vContext* ctx, size_t offset) const {
+		inline A* real(vContext* ctx, size_t offset) const {
 			uintptr_t res = (uintptr_t)_addr + offset * sizeof(A);
 			ctx->touchVirtual((void*)res);
-			return (A*)((res)+ctx->offset());
+#ifdef CENTRALIZE_RESOLVE
+			return (A*)ctx->resolve(res);
+#else
+			return (A*)((res)+(uintptr_t)ctx->getBase());
+#endif
 		}
 
 		A* ptr(vContext* ctx) const {
@@ -87,13 +105,13 @@ namespace jaether {
 		A* operator()(vContext* ctx) const {
 			return real(ctx);
 		}
-		
+
 		A& operator()(vContext* ctx, size_t index) const {
 			return *real(ctx, index);
 		}
 
 		V<A> operator+(const size_t index) const {
-			return V<A>(v() + index * sizeof(A));
+			return V<A>(v() + index);
 		}
 
 		V<A>& operator+=(const size_t index) {
