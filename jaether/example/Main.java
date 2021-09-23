@@ -1,5 +1,6 @@
 package example;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
@@ -88,7 +89,9 @@ class Main {
         System.out.println(c);
     }
 
-    public static void main(String[] args) { 
-        test2();
+    public static void main(String[] args) {
+        Random rnd = new Random(); 
+        BigInteger num = BigInteger.probablePrime(128, rnd);
+        System.out.println(num.toString(10));
     }
 }

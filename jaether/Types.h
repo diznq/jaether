@@ -283,6 +283,14 @@ namespace jaether {
 			}
 		}
 
+		V<vNATIVEARRAY> clone(vContext* ctx) {
+			V<vNATIVEARRAY> obj = VMAKE(vNATIVEARRAY, ctx, ctx, type, size);
+			obj(ctx)->cls = cls;
+			obj(ctx)->x = x;
+			memcpy(obj(ctx)->data()(ctx), data()(ctx), (size_t)size * (size_t)unitSize(type));
+			return obj;
+		}
+
 		template<typename T> void set(vContext* ctx, size_t index, const T& value) {
 			size_t scaledIndex = index * unitSize(type);
 			if (index >= size) {

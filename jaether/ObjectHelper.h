@@ -135,6 +135,9 @@ namespace jaether {
 				_obj = VMAKE(vNATIVEARRAY, ctx, ctx, type, (vUINT)size);
 			}
 		}
+		JArray clone() {
+			return JArray(_ctx, _obj(_ctx)->clone(_ctx));
+		}
 		T& operator[](const size_t idx) const {
 			return _obj(_ctx)->get<T>(_ctx, idx);
 		}

@@ -4,6 +4,7 @@
 #include <chrono>
 #include <filesystem>
 #include <stack>
+#include <cmath>
 
 namespace jaether {
 	void vCPU::registerNatives() {
@@ -667,6 +668,24 @@ namespace jaether {
 				stack->pop<vCOMMON>(ctx);
 			}
 			stack->push<vLONG>(ctx, l);
+		});
+
+		addNative("[I/clone", "()Ljava/lang/Object;", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			if (opcode != invokestatic) {
+				vCOMMON self = stack->pop<vCOMMON>(ctx);
+				JArray<vINT> arr(ctx, self);
+				auto clone = arr.clone();
+				stack->push<vOBJECTREF>(ctx, clone.ref());
+			}
+		});
+
+		addNative("java/lang/StrictMath/log", "(D)D", [this](vContext* ctx, vCPU* cpu, vStack* stack, vBYTE opcode) {
+			vDOUBLE n = stack->pop<vDOUBLE>(ctx);
+			if (opcode != invokestatic) {
+				stack->pop<vCOMMON>(ctx);
+			}
+			n = std::log(n);
+			stack->push<vDOUBLE>(ctx, n);
 		});
 	}
 

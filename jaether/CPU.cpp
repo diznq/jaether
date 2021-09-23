@@ -104,18 +104,18 @@ namespace jaether {
 			vBYTE b = src[i] & 255;
 			//printf("B: %x\n", b);
 			if (b >= 1 && b <= 0x7F) {	// 1 byte
-				arr[utf16len++] = cvtEndian ? (b << 8) : b;	// fix endian
+				arr[utf16len++] = b;	// fix endian
 			} else if ((b & 0xE0) == 0xC0) { // 2 bytes
 				vUSHORT x = (vUSHORT)src[i++] & 255;
 				vUSHORT y = (vUSHORT)src[i] & 255;
 				vUSHORT R = (vUSHORT)(((x & 0x1f) << 6) | (y & 0x3f));
-				arr[utf16len++] = cvtEndian ? (vJCHAR)((R >> 8) | (R << 8)) : (vJCHAR)R;
+				arr[utf16len++] = (vJCHAR)R;
 			} else if ((b & 0xE0) == 0xE0) { // 3 bytes
 				vUSHORT x = (vUSHORT)src[i++] & 255;
 				vUSHORT y = (vUSHORT)src[i++] & 255;
 				vUSHORT z = (vUSHORT)src[i] & 255;
 				vUSHORT R = (vUSHORT)(((x & 0xf) << 12) | ((y & 0x3f) << 6) | (z & 0x3f));
-				arr[utf16len++] = cvtEndian ? (vJCHAR)((R >> 8) | (R << 8)) : (vJCHAR)R;
+				arr[utf16len++] = (vJCHAR)R;
 			}
 		}
 		std::wstring utf16Str(arr, arr + utf16len);
@@ -134,18 +134,18 @@ namespace jaether {
 		for (vUINT i = 0; i < size; i++) {
 			vBYTE b = src[i] & 255;
 			if (b >= 1 && b <= 0x7F) {	// 1 byte
-				arr[utf16len++] = cvtEndian ? (b << 8) : b;	// fix endian
+				arr[utf16len++] = b;	// fix endian
 			} else if ((b & 0xE0) == 0xC0) { // 2 bytes
 				vUSHORT x = (vUSHORT)src[i++] & 255;
 				vUSHORT y = (vUSHORT)src[i] & 255;
 				vUSHORT R = (vUSHORT)(((x & 0x1f) << 6) | (y & 0x3f));
-				arr[utf16len++] = cvtEndian ? (vJCHAR)((R >> 8) | (R << 8)) : (vJCHAR)R;
+				arr[utf16len++] = (vJCHAR)R;
 			} else if ((b & 0xE0) == 0xE0) { // 3 bytes
 				vUSHORT x = (vUSHORT)src[i++] & 255;
 				vUSHORT y = (vUSHORT)src[i++] & 255;
 				vUSHORT z = (vUSHORT)src[i] & 255;
 				vUSHORT R = (vUSHORT)(((x & 0xf) << 12) | ((y & 0x3f) << 6) | (z & 0x3f));
-				arr[utf16len++] = cvtEndian ? (vJCHAR)((R >> 8) | (R << 8)) : (vJCHAR)R;
+				arr[utf16len++] = (vJCHAR)R;
 			}
 		}
 		std::wstring utf16Str(arr, arr + utf16len);
@@ -937,7 +937,6 @@ namespace jaether {
 			}
 			case faload:
 			{
-				op[0].f = _stack->pop<vFLOAT>(ctx);
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
@@ -947,7 +946,6 @@ namespace jaether {
 			}
 			case daload:
 			{
-				op[0].d = _stack->pop<vDOUBLE>(ctx);
 				op[1].u = _stack->pop<vUINT>(ctx);
 				op[2] = _stack->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
@@ -1252,15 +1250,27 @@ namespace jaether {
 								frameChanged = true;
 							}
 							found = methodFound != MethodResolveStatus::eMRS_NotFound;
-						}
-						else {
+						} else {
 							auto [methodFound, ret] = clsPtr->invoke(ctx, cls, superClass, this, _stack, opcode, methodName, desc);
 							found = methodFound != MethodResolveStatus::eMRS_NotFound;
 						}
 					}
+				} else {
+					auto nit = _natives.find(path + "/" + methodName + ":" + desc);
+					if (nit != _natives.end()) {
+						RPRINTF(">[NATIVE] %s: %s/%s\n", Opcodes[opcode], path.c_str(), (methodName + desc).c_str());
+						nit->second(ctx, this, _stack, opcode);
+						found = true;
+					}
 				}
 				if (!found) {
-					fprintf(stderr, "[vCPU::run/%s] Couldn't find virtual %s (%s)\n", Opcodes[opcode], (path + "/" + methodName).c_str(), desc.c_str());
+					fprintf(stderr, "[vCPU::run/%s] Couldn't find virtual %s:%s\n", Opcodes[opcode], (path + "/" + methodName).c_str(), desc.c_str());
+					fprintf(stderr, "Stack trace: \n");
+					while (!frames.empty()) {
+						fprintf(stderr, " %s\n", frames.top()(ctx)->getName(ctx).c_str());
+						frames.pop();
+					}
+					throw std::runtime_error("couldn't find virtual");
 					_running = false;
 				}
 				fwd = opcode == invokeinterface ? 4 : 2; break;
