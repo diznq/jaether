@@ -25,7 +25,7 @@ namespace jaether {
 			checkTag();
 		}
 		JObject(vContext* ctx, V<vOBJECT> obj) : _ctx(ctx), _obj(obj) {
-
+			checkTag();
 		}
 
 		JObject(vContext* ctx, V<vClass> cls, bool gc = true);
@@ -118,12 +118,15 @@ namespace jaether {
 	public:
 		JArray(vContext* ctx, V<vOBJECTREF> objref) : _ctx(ctx) {
 			_obj = V<vNATIVEARRAY>((vNATIVEARRAY*)objref(ctx)->r.a);
+			checkTag();
 		}
 		JArray(vContext* ctx, vOBJECTREF objref) : _ctx(ctx) {
 			_obj = V<vNATIVEARRAY>((vNATIVEARRAY*)objref.r.a);
+			checkTag();
 		}
 		JArray(vContext* ctx, vCOMMON objref) : _ctx(ctx) {
 			_obj = V<vNATIVEARRAY>((vNATIVEARRAY*)objref.objref.r.a);
+			checkTag();
 		}
 		JArray(vContext* ctx, V<vNATIVEARRAY> obj) : _ctx(ctx), _obj(obj) {
 
@@ -133,6 +136,20 @@ namespace jaether {
 				_obj = VMAKEGC(vNATIVEARRAY, ctx, ctx, type, (vUINT)size);
 			} else {
 				_obj = VMAKE(vNATIVEARRAY, ctx, ctx, type, (vUINT)size);
+			}
+		}
+
+		const int TAG() const {
+			return _obj(_ctx)->TAG;
+		}
+
+		void checkTag() const {
+			if (!_obj.isValid()) {
+				throw std::runtime_error("invalid object reference");
+			} else if (TAG() != JAETHER_ARR_TAG) {
+				printf("arr: %llu\n", (vULONG)_obj.v());
+				printf("invalid tag detected: %x\n", TAG());
+				throw std::runtime_error("invalid array tag: " + std::to_string(TAG()));
 			}
 		}
 		JArray clone() {

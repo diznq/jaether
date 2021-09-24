@@ -10,8 +10,9 @@ int main(int argc, const char** argv) {
 	const char* ClsPath = "example/Main";
 	const char* MethodPath = "main";
 	bool SecureContext = false;
-	bool HotLoading = false;
+	bool HotLoading = true;
 	bool FullInit = true;
+	if (SecureContext) HotLoading = true;
 	if (HotLoading && std::filesystem::exists("hotload/checkpoint.bin"))
 		FullInit = false;
 
@@ -19,7 +20,7 @@ int main(int argc, const char** argv) {
 	if (argc >= 3) MethodPath = argv[2];
 	if (argc >= 4) SecureContext = argv[3][0] == '1';
 
-	Allocator* allocator = new Allocator(16 * 1024 * 1024);
+	Allocator* allocator = new Allocator(8 * 1024 * 1024);
 	vContext* ctx = new vContext(allocator, FullInit, SecureContext);
 	vCPU* cpu = new vCPU();
 

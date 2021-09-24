@@ -66,7 +66,7 @@ namespace jaether {
 			for (int GCC = 0; GCC < 2; GCC++) {
 				size_t collect = gcCycle();
 				totalGc += collect;
-#ifdef JVM_DEBUG
+#ifndef JVM_DEBUG
 				printf("Collected %llu garbage in round %d, total cleanup: %llu, objects: %llu\n", collect, GCC, totalGc, _gc.size());
 #endif
 			}

@@ -105,7 +105,7 @@ namespace jaether {
 
 
 			size_t fieldOffset = (size_t)(super ? super->_fieldCount : 0);
-			size_t attributeOffset = (size_t)(super ? super->_attributeCount : 0);
+			size_t attributeOffset = 0;// (size_t)(super ? super->_attributeCount : 0);
 			size_t methodOffset = 0;
 			//printf("Field offset: %llu, method offset: %llu\n", fieldOffset, methodOffset);
 
