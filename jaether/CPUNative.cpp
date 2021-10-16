@@ -53,9 +53,7 @@ namespace jaether {
 			V<vNATIVEARRAY> dstArr((vNATIVEARRAY*)dst.r.a);
 
 			auto unit = srcArr(ctx)->unitSize(srcArr(ctx)->type);
-			vBYTE* pSrc = srcArr(ctx)->data()(ctx);
-			vBYTE* pDst = dstArr(ctx)->data()(ctx);
-
+			
 			ctx->moveMemory(
 				(dstArr(ctx)->data() + (size_t)dstPos * unit).v(),
 				(srcArr(ctx)->data() + (size_t)srcPos * unit).v(),
@@ -199,7 +197,7 @@ namespace jaether {
 			auto klass = lazyLoad(ctx, name.str(), 20);
 
 			for (int k = 0, i=0; k < klass(ctx)->_fieldCount; k++) {
-				vFIELD& fld = klass(ctx)->_fields(ctx, k);
+				const vFIELD& fld = klass(ctx)->_fields(ctx, k);
 				if (fld.access & 8) continue;
 				V<vClass> fldcls(fld.cls);
 				std::string currentName(
@@ -226,7 +224,7 @@ namespace jaether {
 			auto klass = lazyLoad(ctx, name.str(), 20);
 
 			for (int k = 0, i = 0; k < klass(ctx)->_fieldCount; k++) {
-				vFIELD& fld = klass(ctx)->_fields(ctx, k);
+				const vFIELD& fld = klass(ctx)->_fields(ctx, k);
 				if (fld.access & 8) continue;
 				V<vClass> fldcls(fld.cls);
 				std::string currentName(
@@ -453,7 +451,7 @@ namespace jaether {
 				V<vNATIVEARRAY> narr = VMAKEGC(vNATIVEARRAY, ctx, ctx, 1, (vUINT)cls(ctx)->_fieldCount);
 				for (size_t i = 0; i < cls(ctx)->_fieldCount; i++) {
 					vOBJECTREF fldDescRef = createObject(ctx, "java/lang/reflect/Field", true, 20);
-					vFIELD& field = cls(ctx)->_fields(ctx, i);
+					const vFIELD& field = cls(ctx)->_fields(ctx, i);
 					JObject fld(ctx, fldDescRef);
 					fld["clazz"].set(field.cls(ctx)->getJavaClass(ctx, false));
 					fld["name"].set(createString(ctx, field.getName(ctx), true, 0, 7));
@@ -680,8 +678,7 @@ namespace jaether {
 			if (opcode != invokestatic) {
 				vCOMMON self = stack->pop<vCOMMON>(ctx);
 				JArray<vINT> arr(ctx, self);
-				auto clone = arr.clone();
-				stack->push<vOBJECTREF>(ctx, clone.ref());
+				stack->push<vOBJECTREF>(ctx, arr.clone().ref());
 			}
 		});
 

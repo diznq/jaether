@@ -49,7 +49,7 @@ namespace jaether {
 		V<vFIELD> _fields = V<vFIELD>::nullPtr();
 		V<vATTRIBUTE> _attributes = V<vATTRIBUTE>::nullPtr();
 		V<vUSHORT> _interfaces = V<vUSHORT>::nullPtr();
-		//V<vUSHORT> _fieldLookup = V<vUSHORT>::NullPtr();
+
 		vUSHORT _name = 0;
 		vUSHORT _super = 0;
 		vUSHORT _accessFlags = 0;
@@ -67,42 +67,43 @@ namespace jaether {
 		~vClass();
 		void destroy(vContext* ctx);
 
-		const char* getName(vContext* ctx);
-		const char* getSuperName(vContext* ctx);
+		const char* getName(vContext* ctx) const;
+		const char* getSuperName(vContext* ctx) const;
 
-		template<class T> T read(vBYTE* ip) const {
+		template<class T> T read(const vBYTE* ip) const {
 			return *(T*)ip;
 		}
 
-		vUSHORT		readUSI(vBYTE* ip) const;
-		vUINT		readUI(vBYTE* ip) const;
-		vINT		readInt(vBYTE* ip) const;
-		vDOUBLE		readDouble(vBYTE* ip) const;
-		vFLOAT		readFloat(vBYTE* ip) const;
-		vLONG		readLong(vBYTE* ip) const;
+		vUSHORT		readUSI(const vBYTE* ip) const;
+		vUINT		readUI(const vBYTE* ip) const;
+		vINT		readInt(const vBYTE* ip) const;
+		vDOUBLE		readDouble(const vBYTE* ip) const;
+		vFLOAT		readFloat(const vBYTE* ip) const;
+		vLONG		readLong(const vBYTE* ip) const;
 		vUSHORT		readUSI(std::ifstream& stream) const;
 		vUINT		readUI(std::ifstream& stream) const;
 		vINT		readInt(std::ifstream& stream) const;
 		vDOUBLE		readDouble(std::ifstream& stream) const;
 		vFLOAT		readFloat(std::ifstream& stream) const;
 		vLONG		readLong(std::ifstream& stream) const;
-		void		readAttribute(vContext* ctx, std::ifstream& f, vATTRIBUTE& attr);
-		void		readField(vContext* ctx, std::ifstream& f, vFIELD& field);
-		vATTRIBUTE* getAttribute(vContext* ctx, const vFIELD* field, const char* name);
-		vFIELD*		getField(vContext* ctx, const char* name);
-		vMETHOD*	getMethod(vContext* ctx, const char* name, const char* desc = 0);
-		vCOMMON*	getObjField(vContext* ctx, V<vOBJECT> obj, const char* name);
-		vCOMMON*	getObjField(vContext* ctx, V<vOBJECTREF> objref, const char* name);
+		void		readAttribute(vContext* ctx, std::ifstream& f, vATTRIBUTE& attr) const;
+		void		readField(vContext* ctx, std::ifstream& f, vFIELD& field) const;
+		
+		vATTRIBUTE* getAttribute(vContext* ctx, const vFIELD* field, const char* name) const;
+		vFIELD*		getField(vContext* ctx, const char* name) const;
+		const vMETHOD*	getMethod(vContext* ctx, const char* name, const char* desc = 0) const;
+		vCOMMON*	getObjField(vContext* ctx, V<vOBJECT> obj, const char* name) const;
+		vCOMMON*	getObjField(vContext* ctx, V<vOBJECTREF> objref, const char* name) const;
 
-		bool		instanceOf(vContext* ctx, V<vClass> cls);
+		bool		instanceOf(vContext* ctx, V<vClass> cls) const;
 
 		V<vUTF8BODY> toString(vContext* ctx, vUSHORT index, int selector = 0) const;
 		std::string toStdString(vContext* ctx, vUSHORT index, int selector = 0) const;
 		const char* toCString(vContext* ctx, vUSHORT index, int selector = 0) const;
-		CodeAttribute	getCode(vContext* ctx, vMETHOD* method);
-		vOBJECTREF& getJavaClass(vContext* ctx, bool gc = false);
-		vUINT		argsCount(vContext* ctx, vMETHOD* method);
-		vUINT		argsCount(const char* desc);
+		CodeAttribute	getCode(vContext* ctx, const vMETHOD* method) const;
+		vOBJECTREF& getJavaClass(vContext* ctx, bool gc = false) const;
+		vUINT		argsCount(vContext* ctx, const vMETHOD* method) const;
+		vUINT		argsCount(const char* desc) const;
 
 		std::tuple<MethodResolveStatus, vCOMMON> invoke(
 			vContext* ctx,
@@ -113,7 +114,7 @@ namespace jaether {
 			vBYTE opcode,
 			const std::string& methodName,
 			const std::string& desc,
-			int nesting = 0);
+			int nesting = 0) const;
 
 		std::tuple<MethodResolveStatus, vFrame*> createFrame(
 			vContext* ctx,
@@ -124,7 +125,7 @@ namespace jaether {
 			vBYTE opcode,
 			const std::string& methodName,
 			const std::string& desc,
-			int nesting = 0);
+			int nesting = 0) const;
 	};
 
 }

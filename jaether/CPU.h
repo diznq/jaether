@@ -40,20 +40,20 @@ namespace jaether {
 		size_t run(vContext* ctx, const V<vFrame>& frame, const int nesting=0);
 		std::chrono::steady_clock::time_point getTime() const;
 
-		vOBJECTREF createString(vContext* ctx, vClass* _class, vMemory* _constPool, vUSHORT strIndex, vUSHORT* backref, bool gc = true, const int nesting = 0, const int source = 0);
-		vOBJECTREF createString(vContext* ctx, const std::wstring& text, vMemory* _constPool = 0, vUSHORT* backref = 0, bool gc = true, const int nesting = 0, const int source = 0);
+		vOBJECTREF createString(vContext* ctx, const vClass* _class, const vMemory* _constPool, vUSHORT strIndex, vUSHORT* backref, bool gc = true, const int nesting = 0, const int source = 0);
+		vOBJECTREF createString(vContext* ctx, const std::wstring& text, const vMemory* _constPool = 0, vUSHORT* backref = 0, bool gc = true, const int nesting = 0, const int source = 0);
 		vOBJECTREF createString(vContext* ctx, const std::string& text, bool gc = true, const int nesting = 0, const int source = 0);
 		vOBJECTREF createObject(vContext* ctx, const char* className, bool gc = true, const int nesting = 0);
 
 		vOBJECTREF& getJavaClass(vContext* ctx, const char* className, vOBJECTREF* ref=0, bool gc = false);
 			
-		template<class T> T read(vBYTE* ip) const {
+		template<class T> T read(const vBYTE* ip) const {
 			return *(T*)ip;
 		}
 
-		vUSHORT readUSI(vBYTE* ip) const;
+		vUSHORT readUSI(const vBYTE* ip) const;
 
-		vUINT readUI(vBYTE* ip) const;
+		vUINT readUI(const vBYTE* ip) const;
 
 		template<class T> vINT compare(T a, T b) {
 			if (a == b) return 0;

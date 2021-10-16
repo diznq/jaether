@@ -21,12 +21,12 @@ namespace jaether {
 		V<vClass> cls = VMAKE(vClass, ctx, ctx, this, (path + ".class").c_str(), nesting);
 		_classes[cls(ctx)->getName(ctx)] = cls.v(ctx);
 
-		vClass* clsPtr = cls(ctx);
+		vClass* clsPtr = cls(ctx, W::T);
 		DPRINTF("%*s>Initializing class %s\n", nesting, "", clsPtr->getName(ctx));
 
 		if (!clsPtr->_initialized) {
 			clsPtr->_initialized = true;
-			vMETHOD* clinit = clsPtr->getMethod(ctx, "<clinit>", "()V");
+			const vMETHOD* clinit = clsPtr->getMethod(ctx, "<clinit>", "()V");
 			if (clinit) {
 				clsPtr->invoke(ctx, cls, cls, this, 0, invokestatic, "<clinit>", "()V", nesting);
 			} else {
@@ -91,7 +91,7 @@ namespace jaether {
 		return vOBJECTREF{};
 	}
 
-	vOBJECTREF vCPU::createString(vContext* ctx, vClass* _class, vMemory* _constPool, vUSHORT strIndex, vUSHORT* backref, bool gc, const int nesting, const int source) {
+	vOBJECTREF vCPU::createString(vContext* ctx, const vClass* _class, const vMemory* _constPool, vUSHORT strIndex, vUSHORT* backref, bool gc, const int nesting, const int source) {
 		const bool cvtEndian = false;
 		V<vUTF8BODY> str = _class->toString(ctx, strIndex);
 		const vUINT size = (vUINT)str(ctx)->len;
@@ -153,7 +153,7 @@ namespace jaether {
 		return createString(ctx, utf16Str, 0, 0, gc, nesting, source | 0x200);
 	}
 
-	vOBJECTREF vCPU::createString(vContext* ctx, const std::wstring& text, vMemory* _constPool, vUSHORT* backref, bool gc, const int nesting, const int source) {
+	vOBJECTREF vCPU::createString(vContext* ctx, const std::wstring& text, const vMemory* _constPool, vUSHORT* backref, bool gc, const int nesting, const int source) {
 		lazyLoad(ctx, "java/lang/String", nesting);
 		JString str(ctx, text, gc, source);
 		if (_constPool && backref) {
@@ -190,11 +190,11 @@ namespace jaether {
 		std::stack<V<vFrame>> frames;
 		frames.push(frame);
 		bool frameChanged = true;
-		vStack* _stack = 0;
-		vMemory* _local = 0;
-		vClass* _class = 0;
-		vMemory* _constPool = 0;
-		vFrame* _frame = 0;
+		vStack* Stack_ = 0;
+		const vClass* Class_ = 0;
+		const vMemory* Local_ = 0;
+		const vMemory* ConstPool_ = 0;
+		vFrame* Frame_ = 0;
 		auto& _classes = ctx->getClasses();
 		//V<vCOMMON> opBackend = VMAKEARRAY(vCOMMON, ctx, 8);
 		vCOMMON op[8];// = opBackend(ctx);
@@ -203,386 +203,386 @@ namespace jaether {
 		_running = true;
 		bool unwrapCallstack = true;
 		while (_running) {
-			memset(op, 0, sizeof(vCOMMON) * 4);
+			//memset(op, 0, sizeof(vCOMMON) * 4);
 			if (unwrapCallstack && frames.empty()) {
 				return 0;
 			}
 			if (frameChanged) {
 				const V<vFrame>& Frame = frames.top();
-				_stack = Frame(ctx)->_stack.real(ctx);
-				_local = Frame(ctx)->_local.real(ctx);
-				_class = Frame(ctx)->_class.real(ctx);
-				_constPool = Frame(ctx)->_class(ctx)->_constPool.real(ctx);
-				_frame = Frame(ctx);
-				if (!_frame->_program.code.isValid()) {
+				Stack_ = Frame(ctx)->_stack(ctx, W::T);
+				Local_ = Frame(ctx)->_local(ctx, W::T);
+				Class_ = Frame(ctx)->_class(ctx, W::T);
+				ConstPool_ = Frame(ctx)->_class(ctx)->_constPool(ctx, W::T);
+				Frame_ = Frame(ctx, W::T);
+				if (!Frame_->_program.code.isValid()) {
 					return 0;
 				}
 				frameChanged = false;
 			}
-			size_t startIndex = _stack->index();
-			vBYTE* ip = _frame->fetch(ctx);
-			vBYTE& opcode = *ip; ops++;
+			size_t startIndex = Stack_->index();
+			const vBYTE* ip = Frame_->fetch(ctx);
+			const vBYTE& opcode = *ip; ops++;
 			//RPRINTF("|Execute %s (%d)\n", Opcodes[opcode], opcode);
 			switch (opcode) {
 			case nop:
 				fwd = 0; break;
 			case iconst_0:
-				_stack->push<vINT>(ctx, 0);
+				Stack_->push<vINT>(ctx, 0);
 				fwd = 0; break;
 			case iconst_1:
-				_stack->push<vINT>(ctx, 1);
+				Stack_->push<vINT>(ctx, 1);
 				fwd = 0; break;
 			case iconst_2:
-				_stack->push<vINT>(ctx, 2);
+				Stack_->push<vINT>(ctx, 2);
 				fwd = 0; break;
 			case iconst_3:
-				_stack->push<vINT>(ctx, 3);
+				Stack_->push<vINT>(ctx, 3);
 				fwd = 0; break;
 			case iconst_4:
-				_stack->push<vINT>(ctx, 4);
+				Stack_->push<vINT>(ctx, 4);
 				fwd = 0; break;
 			case iconst_5:
-				_stack->push<vINT>(ctx, 5);
+				Stack_->push<vINT>(ctx, 5);
 				fwd = 0; break;
 			case iconst_m1:
-				_stack->push<vINT>(ctx, -1);
+				Stack_->push<vINT>(ctx, -1);
 				fwd = 0; break;
 			case lconst_0:
-				_stack->push<vLONG>(ctx, 0);
+				Stack_->push<vLONG>(ctx, 0);
 				fwd = 0; break;
 			case lconst_1:
-				_stack->push<vLONG>(ctx, 1);
+				Stack_->push<vLONG>(ctx, 1);
 				fwd = 0; break;
 			case dconst_0:
-				_stack->push<vDOUBLE>(ctx, 0.0);
+				Stack_->push<vDOUBLE>(ctx, 0.0);
 				fwd = 0; break;
 			case dconst_1:
-				_stack->push<vDOUBLE>(ctx, 1.0);
+				Stack_->push<vDOUBLE>(ctx, 1.0);
 				fwd = 0; break;
 			case fconst_0:
-				_stack->push<vFLOAT>(ctx, 0.0f);
+				Stack_->push<vFLOAT>(ctx, 0.0f);
 				fwd = 0; break;
 			case fconst_1:
-				_stack->push<vFLOAT>(ctx, 1.0f);
+				Stack_->push<vFLOAT>(ctx, 1.0f);
 				fwd = 0; break;
 			case fconst_2:
-				_stack->push<vFLOAT>(ctx, 2.0f);
+				Stack_->push<vFLOAT>(ctx, 2.0f);
 				fwd = 0; break;
 			case aconst_null:
 				op[0].a.a = 0;
-				_stack->push<vREF>(ctx, op[0].a);
+				Stack_->push<vREF>(ctx, op[0].a);
 				fwd = 0; break;
 			case bipush:
-				_stack->push<vINT>(ctx, (vINT)read<vCHAR>(ip + 1));
+				Stack_->push<vINT>(ctx, (vINT)read<vCHAR>(ip + 1));
 				fwd = 1; break;
 			case sipush:
 				op[0].usi = readUSI(ip + 1);
-				_stack->push<vUSHORT>(ctx, op[0].usi);
+				Stack_->push<vUSHORT>(ctx, op[0].usi);
 				fwd = 2; break;
 			case dup:
-				op[0] = _stack->pop<vCOMMON>(ctx);
+				op[0] = Stack_->pop<vCOMMON>(ctx);
 				if (op[0].type == vTypes::type<vLONG>() || op[0].type == vTypes::type<vDOUBLE>())
 					throw std::runtime_error("using dup with cat2 value");
-				_stack->push<vCOMMON>(ctx, op[0]);
-				_stack->push<vCOMMON>(ctx, op[0]);
+				Stack_->push<vCOMMON>(ctx, op[0]);
+				Stack_->push<vCOMMON>(ctx, op[0]);
 				fwd = 0; break;
 			case dup_x1:
-				op[1] = _stack->pop<vCOMMON>(ctx);
-				op[0] = _stack->pop<vCOMMON>(ctx);
-				_stack->push<vCOMMON>(ctx, op[1]);
-				_stack->push<vCOMMON>(ctx, op[0]);
-				_stack->push<vCOMMON>(ctx, op[1]);
+				op[1] = Stack_->pop<vCOMMON>(ctx);
+				op[0] = Stack_->pop<vCOMMON>(ctx);
+				Stack_->push<vCOMMON>(ctx, op[1]);
+				Stack_->push<vCOMMON>(ctx, op[0]);
+				Stack_->push<vCOMMON>(ctx, op[1]);
 				fwd = 0; break;
 			case dup_x2:
 			{
-				op[0] = _stack->pop<vCOMMON>(ctx);
-				op[1] = _stack->pop<vCOMMON>(ctx);
+				op[0] = Stack_->pop<vCOMMON>(ctx);
+				op[1] = Stack_->pop<vCOMMON>(ctx);
 				bool val1Cat2 = op[0].type == vTypes::type<vDOUBLE>() || op[0].type == vTypes::type<vLONG>();
 				bool val2Cat2 = op[1].type == vTypes::type<vDOUBLE>() || op[1].type == vTypes::type<vLONG>();
 				bool val3Cat2 = false;
 				if (!val1Cat2 && val2Cat2) {
-					_stack->push<vCOMMON>(ctx, op[0]);
-					_stack->push<vCOMMON>(ctx, op[1]);
-					_stack->push<vCOMMON>(ctx, op[0]);
+					Stack_->push<vCOMMON>(ctx, op[0]);
+					Stack_->push<vCOMMON>(ctx, op[1]);
+					Stack_->push<vCOMMON>(ctx, op[0]);
 				} else {
-					op[2] = _stack->pop<vCOMMON>(ctx);
-					_stack->push<vCOMMON>(ctx, op[0]);
-					_stack->push<vCOMMON>(ctx, op[2]);
-					_stack->push<vCOMMON>(ctx, op[1]);
-					_stack->push<vCOMMON>(ctx, op[0]);
+					op[2] = Stack_->pop<vCOMMON>(ctx);
+					Stack_->push<vCOMMON>(ctx, op[0]);
+					Stack_->push<vCOMMON>(ctx, op[2]);
+					Stack_->push<vCOMMON>(ctx, op[1]);
+					Stack_->push<vCOMMON>(ctx, op[0]);
 				}
 				fwd = 0; break;
 			}
 
 			case dup2:
-				op[0] = _stack->pop<vCOMMON>(ctx);
+				op[0] = Stack_->pop<vCOMMON>(ctx);
 				if (op[0].type == vTypes::type<vDOUBLE>() || op[0].type == vTypes::type<vLONG>()) {
-					_stack->push<vCOMMON>(ctx, op[0]);
-					_stack->push<vCOMMON>(ctx, op[0]);
+					Stack_->push<vCOMMON>(ctx, op[0]);
+					Stack_->push<vCOMMON>(ctx, op[0]);
 				} else {
-					op[1] = _stack->pop<vCOMMON>(ctx);
+					op[1] = Stack_->pop<vCOMMON>(ctx);
 					if (op[1].type == vTypes::type<vDOUBLE>() || op[1].type == vTypes::type<vLONG>()) {
-						_stack->push<vCOMMON>(ctx, op[1]);
-						_stack->push<vCOMMON>(ctx, op[0]);
-						_stack->push<vCOMMON>(ctx, op[0]);
+						Stack_->push<vCOMMON>(ctx, op[1]);
+						Stack_->push<vCOMMON>(ctx, op[0]);
+						Stack_->push<vCOMMON>(ctx, op[0]);
 					} else {
-						_stack->push<vCOMMON>(ctx, op[1]);
-						_stack->push<vCOMMON>(ctx, op[0]);
-						_stack->push<vCOMMON>(ctx, op[1]);
-						_stack->push<vCOMMON>(ctx, op[0]);
+						Stack_->push<vCOMMON>(ctx, op[1]);
+						Stack_->push<vCOMMON>(ctx, op[0]);
+						Stack_->push<vCOMMON>(ctx, op[1]);
+						Stack_->push<vCOMMON>(ctx, op[0]);
 					}
 				}
 				fwd = 0; break;
 
 			case pop2:
-				op[0] = _stack->pop<vCOMMON>(ctx);
+				op[0] = Stack_->pop<vCOMMON>(ctx);
 				if (op[0].type == vTypes::type<vDOUBLE>() || op[0].type == vTypes::type<vLONG>()) {
 					//_stack->push<vCOMMON>(ctx, op[0]);
 					//_stack->push<vCOMMON>(ctx, op[0]);
 				} else {
-					op[1] = _stack->pop<vCOMMON>(ctx);
+					op[1] = Stack_->pop<vCOMMON>(ctx);
 					if (op[1].type == vTypes::type<vDOUBLE>() || op[1].type == vTypes::type<vLONG>()) {
-						_stack->push<vCOMMON>(ctx, op[1]);
+						Stack_->push<vCOMMON>(ctx, op[1]);
 					} else {
 						//_stack->push<vCOMMON>(ctx, op[1]);
 					}
 				}
 				fwd = 0; break;
 			case i2b:
-				_stack->push<vBYTE>(ctx, (vBYTE)(_stack->pop<vUINT>(ctx) & 255));
+				Stack_->push<vBYTE>(ctx, (vBYTE)(Stack_->pop<vUINT>(ctx) & 255));
 				fwd = 0; break;
 			case i2c:
-				op[0].jc = (vJCHAR)(_stack->pop<vUSHORT>(ctx) & 65535);
-				_stack->push<vJCHAR>(ctx, op[0].jc);
+				op[0].jc = (vJCHAR)(Stack_->pop<vUSHORT>(ctx) & 65535);
+				Stack_->push<vJCHAR>(ctx, op[0].jc);
 				fwd = 0; break;
 			case i2s:
-				_stack->push<vUSHORT>(ctx, (vUSHORT)(_stack->pop<vUINT>(ctx) & 65535));
+				Stack_->push<vUSHORT>(ctx, (vUSHORT)(Stack_->pop<vUINT>(ctx) & 65535));
 				fwd = 0; break;
 			case i2l:
-				_stack->push<vLONG>(ctx, (vLONG)(_stack->pop<vINT>(ctx)));
+				Stack_->push<vLONG>(ctx, (vLONG)(Stack_->pop<vINT>(ctx)));
 				fwd = 0; break;
 			case i2f:
-				_stack->push<vFLOAT>(ctx, (vFLOAT)(_stack->pop<vINT>(ctx)));
+				Stack_->push<vFLOAT>(ctx, (vFLOAT)(Stack_->pop<vINT>(ctx)));
 				fwd = 0; break;
 			case i2d:
-				_stack->push<vDOUBLE>(ctx, (vDOUBLE)(_stack->pop<vINT>(ctx)));
+				Stack_->push<vDOUBLE>(ctx, (vDOUBLE)(Stack_->pop<vINT>(ctx)));
 				fwd = 0; break;
 
 			case l2i:
-				_stack->push<vINT>(ctx, (vINT)_stack->pop<vLONG>(ctx));
+				Stack_->push<vINT>(ctx, (vINT)Stack_->pop<vLONG>(ctx));
 				fwd = 0; break;
 			case l2f:
-				_stack->push<vFLOAT>(ctx, (vFLOAT)_stack->pop<vLONG>(ctx));
+				Stack_->push<vFLOAT>(ctx, (vFLOAT)Stack_->pop<vLONG>(ctx));
 				fwd = 0; break;
 			case l2d:
-				_stack->push<vDOUBLE>(ctx, (vDOUBLE)_stack->pop<vLONG>(ctx));
+				Stack_->push<vDOUBLE>(ctx, (vDOUBLE)Stack_->pop<vLONG>(ctx));
 				fwd = 0; break;
 
 			case f2d:
-				_stack->push<vDOUBLE>(ctx, (vDOUBLE)_stack->pop<vFLOAT>(ctx));
+				Stack_->push<vDOUBLE>(ctx, (vDOUBLE)Stack_->pop<vFLOAT>(ctx));
 				fwd = 0; break;
 			case f2i:
-				_stack->push<vINT>(ctx, (vINT)_stack->pop<vFLOAT>(ctx));
+				Stack_->push<vINT>(ctx, (vINT)Stack_->pop<vFLOAT>(ctx));
 				fwd = 0; break;
 			case f2l:
-				_stack->push<vLONG>(ctx, (vLONG)_stack->pop<vFLOAT>(ctx));
+				Stack_->push<vLONG>(ctx, (vLONG)Stack_->pop<vFLOAT>(ctx));
 				fwd = 0; break;
 
 			case d2f:
-				_stack->push<vFLOAT>(ctx, (vFLOAT)_stack->pop<vDOUBLE>(ctx));
+				Stack_->push<vFLOAT>(ctx, (vFLOAT)Stack_->pop<vDOUBLE>(ctx));
 				fwd = 0; break;
 			case d2i:
-				_stack->push<vINT>(ctx, (vINT)_stack->pop<vDOUBLE>(ctx));
+				Stack_->push<vINT>(ctx, (vINT)Stack_->pop<vDOUBLE>(ctx));
 				fwd = 0; break;
 			case d2l:
-				_stack->push<vLONG>(ctx, (vLONG)_stack->pop<vDOUBLE>(ctx));
+				Stack_->push<vLONG>(ctx, (vLONG)Stack_->pop<vDOUBLE>(ctx));
 				fwd = 0; break;
 
 			case ineg:
-				op[0].i = _stack->pop<vINT>(ctx);
-				_stack->push<vINT>(ctx, -op[0].i);
+				op[0].i = Stack_->pop<vINT>(ctx);
+				Stack_->push<vINT>(ctx, -op[0].i);
 				fwd = 0; break;
 			case lneg:
-				op[0].l = _stack->pop<vLONG>(ctx);
-				_stack->push<vLONG>(ctx, -op[0].l);
+				op[0].l = Stack_->pop<vLONG>(ctx);
+				Stack_->push<vLONG>(ctx, -op[0].l);
 				fwd = 0; break;
 			case fneg:
-				op[0].f = _stack->pop<vFLOAT>(ctx);
-				_stack->push<vFLOAT>(ctx, -op[0].f);
+				op[0].f = Stack_->pop<vFLOAT>(ctx);
+				Stack_->push<vFLOAT>(ctx, -op[0].f);
 				fwd = 0; break;
 			case dneg:
-				op[0].d = _stack->pop<vDOUBLE>(ctx);
-				_stack->push<vDOUBLE>(ctx, -op[0].d);
+				op[0].d = Stack_->pop<vDOUBLE>(ctx);
+				Stack_->push<vDOUBLE>(ctx, -op[0].d);
 				fwd = 0; break;
 
 			case iadd:
-				op[1].i = _stack->pop<vINT>(ctx);
-				op[0].i = _stack->pop<vINT>(ctx);
-				_stack->push<vINT>(ctx, op[0].i + op[1].i);
+				op[1].i = Stack_->pop<vINT>(ctx);
+				op[0].i = Stack_->pop<vINT>(ctx);
+				Stack_->push<vINT>(ctx, op[0].i + op[1].i);
 				fwd = 0; break;
 			case ladd:
-				op[1].l = _stack->pop<vLONG>(ctx);
-				op[0].l = _stack->pop<vLONG>(ctx);
-				_stack->push<vLONG>(ctx, op[0].l + op[1].l);
+				op[1].l = Stack_->pop<vLONG>(ctx);
+				op[0].l = Stack_->pop<vLONG>(ctx);
+				Stack_->push<vLONG>(ctx, op[0].l + op[1].l);
 				fwd = 0; break;
 			case fadd:
-				op[1].f = _stack->pop<vFLOAT>(ctx);
-				op[0].f = _stack->pop<vFLOAT>(ctx);
-				_stack->push<vFLOAT>(ctx, op[0].f + op[1].f);
+				op[1].f = Stack_->pop<vFLOAT>(ctx);
+				op[0].f = Stack_->pop<vFLOAT>(ctx);
+				Stack_->push<vFLOAT>(ctx, op[0].f + op[1].f);
 				fwd = 0; break;
 			case dadd:
-				op[1].d = _stack->pop<vDOUBLE>(ctx);
-				op[0].d = _stack->pop<vDOUBLE>(ctx);
-				_stack->push<vDOUBLE>(ctx, op[0].d + op[1].d);
+				op[1].d = Stack_->pop<vDOUBLE>(ctx);
+				op[0].d = Stack_->pop<vDOUBLE>(ctx);
+				Stack_->push<vDOUBLE>(ctx, op[0].d + op[1].d);
 				fwd = 0; break;
 
 			case isub:
-				op[1].i = _stack->pop<vINT>(ctx);
-				op[0].i = _stack->pop<vINT>(ctx);
-				_stack->push<vINT>(ctx, op[0].i - op[1].i);
+				op[1].i = Stack_->pop<vINT>(ctx);
+				op[0].i = Stack_->pop<vINT>(ctx);
+				Stack_->push<vINT>(ctx, op[0].i - op[1].i);
 				fwd = 0; break;
 			case lsub:
-				op[1].l = _stack->pop<vLONG>(ctx);
-				op[0].l = _stack->pop<vLONG>(ctx);
-				_stack->push<vLONG>(ctx, op[0].l - op[1].l);
+				op[1].l = Stack_->pop<vLONG>(ctx);
+				op[0].l = Stack_->pop<vLONG>(ctx);
+				Stack_->push<vLONG>(ctx, op[0].l - op[1].l);
 				fwd = 0; break;
 			case fsub:
-				op[1].f = _stack->pop<vFLOAT>(ctx);
-				op[0].f = _stack->pop<vFLOAT>(ctx);
-				_stack->push<vFLOAT>(ctx, op[0].f - op[1].f);
+				op[1].f = Stack_->pop<vFLOAT>(ctx);
+				op[0].f = Stack_->pop<vFLOAT>(ctx);
+				Stack_->push<vFLOAT>(ctx, op[0].f - op[1].f);
 				fwd = 0; break;
 			case dsub:
-				op[1].d = _stack->pop<vDOUBLE>(ctx);
-				op[0].d = _stack->pop<vDOUBLE>(ctx);
-				_stack->push<vDOUBLE>(ctx, op[0].d - op[1].d);
+				op[1].d = Stack_->pop<vDOUBLE>(ctx);
+				op[0].d = Stack_->pop<vDOUBLE>(ctx);
+				Stack_->push<vDOUBLE>(ctx, op[0].d - op[1].d);
 				fwd = 0; break;
 
 			case idiv:
-				op[1].i = _stack->pop<vINT>(ctx);
-				op[0].i = _stack->pop<vINT>(ctx);
-				_stack->push<vINT>(ctx, op[0].i / op[1].i);
+				op[1].i = Stack_->pop<vINT>(ctx);
+				op[0].i = Stack_->pop<vINT>(ctx);
+				Stack_->push<vINT>(ctx, op[0].i / op[1].i);
 				fwd = 0; break;
 			case ldiv_:
-				op[1].l = _stack->pop<vLONG>(ctx);
-				op[0].l = _stack->pop<vLONG>(ctx);
-				_stack->push<vLONG>(ctx, op[0].l / op[1].l);
+				op[1].l = Stack_->pop<vLONG>(ctx);
+				op[0].l = Stack_->pop<vLONG>(ctx);
+				Stack_->push<vLONG>(ctx, op[0].l / op[1].l);
 				fwd = 0; break;
 			case fdiv:
-				op[1].f = _stack->pop<vFLOAT>(ctx);
-				op[0].f = _stack->pop<vFLOAT>(ctx);
-				_stack->push<vFLOAT>(ctx, op[0].f / op[1].f);
+				op[1].f = Stack_->pop<vFLOAT>(ctx);
+				op[0].f = Stack_->pop<vFLOAT>(ctx);
+				Stack_->push<vFLOAT>(ctx, op[0].f / op[1].f);
 				fwd = 0; break;
 			case ddiv:
-				op[1].d = _stack->pop<vDOUBLE>(ctx);
-				op[0].d = _stack->pop<vDOUBLE>(ctx);
-				_stack->push<vDOUBLE>(ctx, op[0].d / op[1].d);
+				op[1].d = Stack_->pop<vDOUBLE>(ctx);
+				op[0].d = Stack_->pop<vDOUBLE>(ctx);
+				Stack_->push<vDOUBLE>(ctx, op[0].d / op[1].d);
 				fwd = 0; break;
 
 			case imul:
-				op[1].i = _stack->pop<vINT>(ctx);
-				op[0].i = _stack->pop<vINT>(ctx);
-				_stack->push<vINT>(ctx, op[0].i * op[1].i);
+				op[1].i = Stack_->pop<vINT>(ctx);
+				op[0].i = Stack_->pop<vINT>(ctx);
+				Stack_->push<vINT>(ctx, op[0].i * op[1].i);
 				fwd = 0; break;
 			case lmul:
-				op[1].l = _stack->pop<vLONG>(ctx);
-				op[0].l = _stack->pop<vLONG>(ctx);
-				_stack->push<vLONG>(ctx, op[0].l * op[1].l);
+				op[1].l = Stack_->pop<vLONG>(ctx);
+				op[0].l = Stack_->pop<vLONG>(ctx);
+				Stack_->push<vLONG>(ctx, op[0].l * op[1].l);
 				fwd = 0; break;
 			case fmul:
-				op[1].f = _stack->pop<vFLOAT>(ctx);
-				op[0].f = _stack->pop<vFLOAT>(ctx);
-				_stack->push<vFLOAT>(ctx, op[0].f * op[1].f);
+				op[1].f = Stack_->pop<vFLOAT>(ctx);
+				op[0].f = Stack_->pop<vFLOAT>(ctx);
+				Stack_->push<vFLOAT>(ctx, op[0].f * op[1].f);
 				fwd = 0; break;
 			case dmul:
-				op[1].d = _stack->pop<vDOUBLE>(ctx);
-				op[0].d = _stack->pop<vDOUBLE>(ctx);
-				_stack->push<vDOUBLE>(ctx, op[0].d * op[1].d);
+				op[1].d = Stack_->pop<vDOUBLE>(ctx);
+				op[0].d = Stack_->pop<vDOUBLE>(ctx);
+				Stack_->push<vDOUBLE>(ctx, op[0].d * op[1].d);
 				fwd = 0; break;
 
 			case irem:
-				op[1].i = _stack->pop<vINT>(ctx);
-				op[0].i = _stack->pop<vINT>(ctx);
-				_stack->push<vINT>(ctx, op[0].i % op[1].i);
+				op[1].i = Stack_->pop<vINT>(ctx);
+				op[0].i = Stack_->pop<vINT>(ctx);
+				Stack_->push<vINT>(ctx, op[0].i % op[1].i);
 				fwd = 0; break;
 			case lrem:
-				op[1].l = _stack->pop<vLONG>(ctx);
-				op[0].l = _stack->pop<vLONG>(ctx);
-				_stack->push<vLONG>(ctx, op[0].l % op[1].l);
+				op[1].l = Stack_->pop<vLONG>(ctx);
+				op[0].l = Stack_->pop<vLONG>(ctx);
+				Stack_->push<vLONG>(ctx, op[0].l % op[1].l);
 				fwd = 0; break;
 			case frem:
-				op[1].f = _stack->pop<vFLOAT>(ctx);
-				op[0].f = _stack->pop<vFLOAT>(ctx);
-				_stack->push<vFLOAT>(ctx, std::fmodf(op[0].f, op[1].f));
+				op[1].f = Stack_->pop<vFLOAT>(ctx);
+				op[0].f = Stack_->pop<vFLOAT>(ctx);
+				Stack_->push<vFLOAT>(ctx, std::fmodf(op[0].f, op[1].f));
 				fwd = 0; break;
 			case drem:
-				op[1].d = _stack->pop<vDOUBLE>(ctx);
-				op[0].d = _stack->pop<vDOUBLE>(ctx);
-				_stack->push<vDOUBLE>(ctx, std::fmod(op[0].d, op[1].d));
+				op[1].d = Stack_->pop<vDOUBLE>(ctx);
+				op[0].d = Stack_->pop<vDOUBLE>(ctx);
+				Stack_->push<vDOUBLE>(ctx, std::fmod(op[0].d, op[1].d));
 				fwd = 0; break;
 
 			case ior:
-				op[1].i = _stack->pop<vINT>(ctx);
-				op[0].i = _stack->pop<vINT>(ctx);
-				_stack->push<vINT>(ctx, op[0].i | op[1].i);
+				op[1].i = Stack_->pop<vINT>(ctx);
+				op[0].i = Stack_->pop<vINT>(ctx);
+				Stack_->push<vINT>(ctx, op[0].i | op[1].i);
 				fwd = 0; break;
 			case lor:
-				op[1].l = _stack->pop<vLONG>(ctx);
-				op[0].l = _stack->pop<vLONG>(ctx);
-				_stack->push<vLONG>(ctx, op[0].l | op[1].l);
+				op[1].l = Stack_->pop<vLONG>(ctx);
+				op[0].l = Stack_->pop<vLONG>(ctx);
+				Stack_->push<vLONG>(ctx, op[0].l | op[1].l);
 				fwd = 0; break;
 
 			case iand:
-				op[1].i = _stack->pop<vINT>(ctx);
-				op[0].i = _stack->pop<vINT>(ctx);
-				_stack->push<vINT>(ctx, op[0].i & op[1].i);
+				op[1].i = Stack_->pop<vINT>(ctx);
+				op[0].i = Stack_->pop<vINT>(ctx);
+				Stack_->push<vINT>(ctx, op[0].i & op[1].i);
 				fwd = 0; break;
 			case land:
-				op[1].l = _stack->pop<vLONG>(ctx);
-				op[0].l = _stack->pop<vLONG>(ctx);
-				_stack->push<vLONG>(ctx, op[0].l & op[1].l);
+				op[1].l = Stack_->pop<vLONG>(ctx);
+				op[0].l = Stack_->pop<vLONG>(ctx);
+				Stack_->push<vLONG>(ctx, op[0].l & op[1].l);
 				fwd = 0; break;
 
 			case ishr:
-				op[1].i = _stack->pop<vINT>(ctx);
-				op[0].i = _stack->pop<vINT>(ctx);
-				_stack->push<vINT>(ctx, op[0].i >> op[1].i);
+				op[1].i = Stack_->pop<vINT>(ctx);
+				op[0].i = Stack_->pop<vINT>(ctx);
+				Stack_->push<vINT>(ctx, op[0].i >> op[1].i);
 				fwd = 0; break;
 			case iushr:
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[0].u = _stack->pop<vUINT>(ctx);
-				_stack->push<vUINT>(ctx, op[0].u >> op[1].u);
+				op[1].u = Stack_->pop<vUINT>(ctx);
+				op[0].u = Stack_->pop<vUINT>(ctx);
+				Stack_->push<vUINT>(ctx, op[0].u >> op[1].u);
 				fwd = 0; break;
 			case lshr:
-				op[1].l = _stack->pop<vLONG>(ctx);
-				op[0].l = _stack->pop<vLONG>(ctx);
-				_stack->push<vLONG>(ctx, op[0].l >> op[1].l);
+				op[1].l = Stack_->pop<vLONG>(ctx);
+				op[0].l = Stack_->pop<vLONG>(ctx);
+				Stack_->push<vLONG>(ctx, op[0].l >> op[1].l);
 				fwd = 0; break;
 			case lushr:
-				op[1].ul = _stack->pop<vULONG>(ctx);
-				op[0].ul = _stack->pop<vULONG>(ctx);
-				_stack->push<vLONG>(ctx, op[0].ul >> op[1].ul);
+				op[1].ul = Stack_->pop<vULONG>(ctx);
+				op[0].ul = Stack_->pop<vULONG>(ctx);
+				Stack_->push<vLONG>(ctx, op[0].ul >> op[1].ul);
 				fwd = 0; break;
 
 			case ishl:
-				op[1].i = _stack->pop<vINT>(ctx);
-				op[0].i = _stack->pop<vINT>(ctx);
-				_stack->push<vINT>(ctx, op[0].i << op[1].i);
+				op[1].i = Stack_->pop<vINT>(ctx);
+				op[0].i = Stack_->pop<vINT>(ctx);
+				Stack_->push<vINT>(ctx, op[0].i << op[1].i);
 				fwd = 0; break;
 			case lshl:
-				op[1].l = _stack->pop<vLONG>(ctx);
-				op[0].l = _stack->pop<vLONG>(ctx);
-				_stack->push<vLONG>(ctx, op[0].l << op[1].l);
+				op[1].l = Stack_->pop<vLONG>(ctx);
+				op[0].l = Stack_->pop<vLONG>(ctx);
+				Stack_->push<vLONG>(ctx, op[0].l << op[1].l);
 				fwd = 0; break;
 
 			case ixor:
-				op[1].i = _stack->pop<vINT>(ctx);
-				op[0].i = _stack->pop<vINT>(ctx);
-				_stack->push<vINT>(ctx, op[0].i ^ op[1].i);
+				op[1].i = Stack_->pop<vINT>(ctx);
+				op[0].i = Stack_->pop<vINT>(ctx);
+				Stack_->push<vINT>(ctx, op[0].i ^ op[1].i);
 				fwd = 0; break;
 			case lxor:
-				op[1].l = _stack->pop<vLONG>(ctx);
-				op[0].l = _stack->pop<vLONG>(ctx);
-				_stack->push<vLONG>(ctx, op[0].l ^ op[1].l);
+				op[1].l = Stack_->pop<vLONG>(ctx);
+				op[0].l = Stack_->pop<vLONG>(ctx);
+				Stack_->push<vLONG>(ctx, op[0].l ^ op[1].l);
 				fwd = 0; break;
 
 				// Memory operations
@@ -590,220 +590,220 @@ namespace jaether {
 
 			case aload:
 				op[0].b = read<vBYTE>(ip + 1);
-				op[1] = _local->get<vCOMMON>(ctx, op[0].b);
-				_stack->push<vREF>(ctx, op[1].a);
+				op[1] = Local_->get<vCOMMON>(ctx, op[0].b);
+				Stack_->push<vREF>(ctx, op[1].a);
 				fwd = 1; break;
 			case iload:
 				op[0].b = read<vBYTE>(ip + 1);
-				_stack->push<vINT>(ctx, _local->get<vINT>(ctx, op[0].b));
+				Stack_->push<vINT>(ctx, Local_->get<vINT>(ctx, op[0].b));
 				fwd = 1; break;
 			case lload:
 				op[0].b = read<vBYTE>(ip + 1);
-				_stack->push<vLONG>(ctx, _local->get<vLONG>(ctx, op[0].b));
+				Stack_->push<vLONG>(ctx, Local_->get<vLONG>(ctx, op[0].b));
 				fwd = 1; break;
 			case fload:
 				op[0].b = read<vBYTE>(ip + 1);
-				_stack->push<vFLOAT>(ctx, _local->get<vFLOAT>(ctx, op[0].b));
+				Stack_->push<vFLOAT>(ctx, Local_->get<vFLOAT>(ctx, op[0].b));
 				fwd = 1; break;
 			case dload:
 				op[0].b = read<vBYTE>(ip + 1);
-				_stack->push<vDOUBLE>(ctx, _local->get<vDOUBLE>(ctx, op[0].b));
+				Stack_->push<vDOUBLE>(ctx, Local_->get<vDOUBLE>(ctx, op[0].b));
 				fwd = 1; break;
 
 			case aload_0:
-				_stack->push<vREF>(ctx, _local->get<vREF>(ctx, (size_t)0));
+				Stack_->push<vREF>(ctx, Local_->get<vREF>(ctx, (size_t)0));
 				fwd = 0; break;
 			case aload_1:
-				_stack->push<vREF>(ctx, _local->get<vREF>(ctx, (size_t)1));
+				Stack_->push<vREF>(ctx, Local_->get<vREF>(ctx, (size_t)1));
 				fwd = 0; break;
 			case aload_2:
-				_stack->push<vREF>(ctx, _local->get<vREF>(ctx, (size_t)2));
+				Stack_->push<vREF>(ctx, Local_->get<vREF>(ctx, (size_t)2));
 				fwd = 0; break;
 			case aload_3:
-				_stack->push<vREF>(ctx, _local->get<vREF>(ctx, (size_t)3));
+				Stack_->push<vREF>(ctx, Local_->get<vREF>(ctx, (size_t)3));
 				fwd = 0; break;
 
 			case iload_0:
-				_stack->push<vINT>(ctx, _local->get<vINT>(ctx, (size_t)0));
+				Stack_->push<vINT>(ctx, Local_->get<vINT>(ctx, (size_t)0));
 				fwd = 0; break;
 			case iload_1:
-				_stack->push<vINT>(ctx, _local->get<vINT>(ctx, (size_t)1));
+				Stack_->push<vINT>(ctx, Local_->get<vINT>(ctx, (size_t)1));
 				fwd = 0; break;
 			case iload_2:
-				_stack->push<vINT>(ctx, _local->get<vINT>(ctx, (size_t)2));
+				Stack_->push<vINT>(ctx, Local_->get<vINT>(ctx, (size_t)2));
 				fwd = 0; break;
 			case iload_3:
-				_stack->push<vINT>(ctx, _local->get<vINT>(ctx, (size_t)3));
+				Stack_->push<vINT>(ctx, Local_->get<vINT>(ctx, (size_t)3));
 				fwd = 0; break;
 
 			case lload_0:
-				_stack->push<vLONG>(ctx, _local->get<vLONG>(ctx, (size_t)0));
+				Stack_->push<vLONG>(ctx, Local_->get<vLONG>(ctx, (size_t)0));
 				fwd = 0; break;
 			case lload_1:
-				_stack->push<vLONG>(ctx, _local->get<vLONG>(ctx, (size_t)1));
+				Stack_->push<vLONG>(ctx, Local_->get<vLONG>(ctx, (size_t)1));
 				fwd = 0; break;
 			case lload_2:
-				_stack->push<vLONG>(ctx, _local->get<vLONG>(ctx, (size_t)2));
+				Stack_->push<vLONG>(ctx, Local_->get<vLONG>(ctx, (size_t)2));
 				fwd = 0; break;
 			case lload_3:
-				_stack->push<vLONG>(ctx, _local->get<vLONG>(ctx, (size_t)3));
+				Stack_->push<vLONG>(ctx, Local_->get<vLONG>(ctx, (size_t)3));
 				fwd = 0; break;
 
 			case fload_0:
-				_stack->push<vFLOAT>(ctx, _local->get<vFLOAT>(ctx, (size_t)0));
+				Stack_->push<vFLOAT>(ctx, Local_->get<vFLOAT>(ctx, (size_t)0));
 				fwd = 0; break;
 			case fload_1:
-				_stack->push<vFLOAT>(ctx, _local->get<vFLOAT>(ctx, (size_t)1));
+				Stack_->push<vFLOAT>(ctx, Local_->get<vFLOAT>(ctx, (size_t)1));
 				fwd = 0; break;
 			case fload_2:
-				_stack->push<vFLOAT>(ctx, _local->get<vFLOAT>(ctx, (size_t)2));
+				Stack_->push<vFLOAT>(ctx, Local_->get<vFLOAT>(ctx, (size_t)2));
 				fwd = 0; break;
 			case fload_3:
-				_stack->push<vFLOAT>(ctx, _local->get<vFLOAT>(ctx, (size_t)3));
+				Stack_->push<vFLOAT>(ctx, Local_->get<vFLOAT>(ctx, (size_t)3));
 				fwd = 0; break;
 
 			case dload_0:
-				_stack->push<vDOUBLE>(ctx, _local->get<vDOUBLE>(ctx, (size_t)0));
+				Stack_->push<vDOUBLE>(ctx, Local_->get<vDOUBLE>(ctx, (size_t)0));
 				fwd = 0; break;
 			case dload_1:
-				_stack->push<vDOUBLE>(ctx, _local->get<vDOUBLE>(ctx, (size_t)1));
+				Stack_->push<vDOUBLE>(ctx, Local_->get<vDOUBLE>(ctx, (size_t)1));
 				fwd = 0; break;
 			case dload_2:
-				_stack->push<vDOUBLE>(ctx, _local->get<vDOUBLE>(ctx, (size_t)2));
+				Stack_->push<vDOUBLE>(ctx, Local_->get<vDOUBLE>(ctx, (size_t)2));
 				fwd = 0; break;
 			case dload_3:
-				_stack->push<vDOUBLE>(ctx, _local->get<vDOUBLE>(ctx, (size_t)3));
+				Stack_->push<vDOUBLE>(ctx, Local_->get<vDOUBLE>(ctx, (size_t)3));
 				fwd = 0; break;
 
 				// Store
 			case astore:
 				op[0].b = read<vBYTE>(ip + 1);
-				_local->set<vREF>(ctx, (size_t)op[0].b, _stack->pop<vREF>(ctx));
+				Local_->set<vREF>(ctx, (size_t)op[0].b, Stack_->pop<vREF>(ctx));
 				fwd = 1; break;
 			case istore:
 				op[0].b = read<vBYTE>(ip + 1);
-				_local->set<vINT>(ctx, (size_t)op[0].b, _stack->pop<vINT>(ctx));
+				Local_->set<vINT>(ctx, (size_t)op[0].b, Stack_->pop<vINT>(ctx));
 				fwd = 1; break;
 			case lstore:
 				op[0].b = read<vBYTE>(ip + 1);
-				op[1].l = _stack->pop<vLONG>(ctx);
-				_local->set<vLONG>(ctx, (size_t)op[0].b, op[1].l);
+				op[1].l = Stack_->pop<vLONG>(ctx);
+				Local_->set<vLONG>(ctx, (size_t)op[0].b, op[1].l);
 				fwd = 1; break;
 			case fstore:
 				op[0].b = read<vBYTE>(ip + 1);
-				_local->set<vFLOAT>(ctx, (size_t)op[0].b, _stack->pop<vFLOAT>(ctx));
+				Local_->set<vFLOAT>(ctx, (size_t)op[0].b, Stack_->pop<vFLOAT>(ctx));
 				fwd = 1; break;
 			case dstore:
 				op[0].b = read<vBYTE>(ip + 1);
-				_local->set<vDOUBLE>(ctx, (size_t)op[0].b, _stack->pop<vDOUBLE>(ctx));
+				Local_->set<vDOUBLE>(ctx, (size_t)op[0].b, Stack_->pop<vDOUBLE>(ctx));
 				fwd = 1; break;
 
 			case astore_0:
-				_local->set<vREF>(ctx, (size_t)0, _stack->pop<vREF>(ctx));
+				Local_->set<vREF>(ctx, (size_t)0, Stack_->pop<vREF>(ctx));
 				fwd = 0; break;
 			case astore_1:
-				_local->set<vREF>(ctx, (size_t)1, _stack->pop<vREF>(ctx));
+				Local_->set<vREF>(ctx, (size_t)1, Stack_->pop<vREF>(ctx));
 				fwd = 0; break;
 			case astore_2:
-				_local->set<vREF>(ctx, (size_t)2, _stack->pop<vREF>(ctx));
+				Local_->set<vREF>(ctx, (size_t)2, Stack_->pop<vREF>(ctx));
 				fwd = 0; break;
 			case astore_3:
-				_local->set<vREF>(ctx, (size_t)3, _stack->pop<vREF>(ctx));
+				Local_->set<vREF>(ctx, (size_t)3, Stack_->pop<vREF>(ctx));
 				fwd = 0; break;
 
 			case istore_0:
-				_local->set<vINT>(ctx, (size_t)0, _stack->pop<vINT>(ctx));
+				Local_->set<vINT>(ctx, (size_t)0, Stack_->pop<vINT>(ctx));
 				fwd = 0; break;
 			case istore_1:
-				_local->set<vINT>(ctx, (size_t)1, _stack->pop<vINT>(ctx));
+				Local_->set<vINT>(ctx, (size_t)1, Stack_->pop<vINT>(ctx));
 				fwd = 0; break;
 			case istore_2:
-				_local->set<vINT>(ctx, (size_t)2, _stack->pop<vINT>(ctx));
+				Local_->set<vINT>(ctx, (size_t)2, Stack_->pop<vINT>(ctx));
 				fwd = 0; break;
 			case istore_3:
-				_local->set<vINT>(ctx, (size_t)3, _stack->pop<vINT>(ctx));
+				Local_->set<vINT>(ctx, (size_t)3, Stack_->pop<vINT>(ctx));
 				fwd = 0; break;
 
 			case lstore_0:
-				_local->set<vLONG>(ctx, (size_t)0, _stack->pop<vLONG>(ctx));
+				Local_->set<vLONG>(ctx, (size_t)0, Stack_->pop<vLONG>(ctx));
 				fwd = 0; break;
 			case lstore_1:
-				_local->set<vLONG>(ctx, (size_t)1, _stack->pop<vLONG>(ctx));
+				Local_->set<vLONG>(ctx, (size_t)1, Stack_->pop<vLONG>(ctx));
 				fwd = 0; break;
 			case lstore_2:
-				_local->set<vLONG>(ctx, (size_t)2, _stack->pop<vLONG>(ctx));
+				Local_->set<vLONG>(ctx, (size_t)2, Stack_->pop<vLONG>(ctx));
 				fwd = 0; break;
 			case lstore_3:
-				_local->set<vLONG>(ctx, (size_t)3, _stack->pop<vLONG>(ctx));
+				Local_->set<vLONG>(ctx, (size_t)3, Stack_->pop<vLONG>(ctx));
 				fwd = 0; break;
 
 			case fstore_0:
-				_local->set<vFLOAT>(ctx, (size_t)0, _stack->pop<vFLOAT>(ctx));
+				Local_->set<vFLOAT>(ctx, (size_t)0, Stack_->pop<vFLOAT>(ctx));
 				fwd = 0; break;
 			case fstore_1:
-				_local->set<vFLOAT>(ctx, (size_t)1, _stack->pop<vFLOAT>(ctx));
+				Local_->set<vFLOAT>(ctx, (size_t)1, Stack_->pop<vFLOAT>(ctx));
 				fwd = 0; break;
 			case fstore_2:
-				_local->set<vFLOAT>(ctx, (size_t)2, _stack->pop<vFLOAT>(ctx));
+				Local_->set<vFLOAT>(ctx, (size_t)2, Stack_->pop<vFLOAT>(ctx));
 				fwd = 0; break;
 			case fstore_3:
-				_local->set<vFLOAT>(ctx, (size_t)3, _stack->pop<vFLOAT>(ctx));
+				Local_->set<vFLOAT>(ctx, (size_t)3, Stack_->pop<vFLOAT>(ctx));
 				fwd = 0; break;
 
 			case dstore_0:
-				_local->set<vDOUBLE>(ctx, (size_t)0, _stack->pop<vDOUBLE>(ctx));
+				Local_->set<vDOUBLE>(ctx, (size_t)0, Stack_->pop<vDOUBLE>(ctx));
 				fwd = 0; break;
 			case dstore_1:
-				_local->set<vDOUBLE>(ctx, (size_t)1, _stack->pop<vDOUBLE>(ctx));
+				Local_->set<vDOUBLE>(ctx, (size_t)1, Stack_->pop<vDOUBLE>(ctx));
 				fwd = 0; break;
 			case dstore_2:
-				_local->set<vDOUBLE>(ctx, (size_t)2, _stack->pop<vDOUBLE>(ctx));
+				Local_->set<vDOUBLE>(ctx, (size_t)2, Stack_->pop<vDOUBLE>(ctx));
 				fwd = 0; break;
 			case dstore_3:
-				_local->set<vDOUBLE>(ctx, (size_t)3, _stack->pop<vDOUBLE>(ctx));
+				Local_->set<vDOUBLE>(ctx, (size_t)3, Stack_->pop<vDOUBLE>(ctx));
 				fwd = 0; break;
 			case newarray:
 			{
 				op[0].b = read<vBYTE>(ip + 1);
-				op[1].u = _stack->pop<vUINT>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
 				V<vNATIVEARRAY> arr = VMAKEGC(vNATIVEARRAY, ctx, ctx, op[0].b, op[1].u);
 				//printf("Create array of %d: %d at #%llu\n", op[0].b, op[1].u, (uintptr_t)arr.v());
 
 				op[2].objref.r.a = (uintptr_t)arr.v(ctx);
-				arr(ctx)->x.set<vLONG>(1005);
-				_stack->push<vOBJECTREF>(ctx, op[2].objref);
+				arr(ctx, W::T)->x.set<vLONG>(1005);
+				Stack_->push<vOBJECTREF>(ctx, op[2].objref);
 				fwd = 1; break; 
 			}
 			case anewarray:
 			{
 				op[0].b = 1;
-				op[1].u = _stack->pop<vUINT>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
 				op[3].u = readUSI(ip + 1);
 				V<vNATIVEARRAY> arr = VMAKEGC(vNATIVEARRAY, ctx, ctx, op[0].b, op[1].u);
-				vCLASS cls = _constPool->get<vCLASS>(ctx, (size_t)op[3].u);
-				auto className = std::string((const char*)_class->toString(ctx, cls.clsIndex)(ctx)->s(ctx));
-				arr(ctx)->cls = lazyLoad(ctx, className, nesting + (int)frames.size());
+				vCLASS cls = ConstPool_->get<vCLASS>(ctx, (size_t)op[3].u);
+				auto className = std::string((const char*)Class_->toString(ctx, cls.clsIndex)(ctx)->s(ctx));
+				arr(ctx, W::T)->cls = lazyLoad(ctx, className, nesting + (int)frames.size());
 				op[2].objref.r.a = (uintptr_t)arr.v(ctx);
-				arr(ctx)->x.set<vLONG>(1012);
-				_stack->push<vOBJECTREF>(ctx, op[2].objref);
+				arr(ctx, W::T)->x.set<vLONG>(1012);
+				Stack_->push<vOBJECTREF>(ctx, op[2].objref);
 				fwd = 2; break; 
 			}
 			case arraylength:
 			{
-				op[0] = _stack->pop<vCOMMON>(ctx);
+				op[0] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[0].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) {
 					//ctx->getAllocator()->dump("memory.log");
 					throw std::runtime_error("invalid array");
 				}
-				_stack->push<vUINT>(ctx, arr(ctx)->size);
+				Stack_->push<vUINT>(ctx, arr(ctx)->size);
 				fwd = 0; break; 
 			}
 			case aastore:
 			{
-				op[0] = _stack->pop<vCOMMON>(ctx);
-				op[2] = _stack->pop<vCOMMON>(ctx);
-				op[1] = _stack->pop<vCOMMON>(ctx);
+				op[0] = Stack_->pop<vCOMMON>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
+				op[1] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[1].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				arr(ctx)->set(ctx, (size_t)op[2].u, op[0].a);
@@ -811,9 +811,9 @@ namespace jaether {
 			}
 			case bastore:
 			{
-				op[0].b = _stack->pop<vBYTE>(ctx);
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[0].b = Stack_->pop<vBYTE>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				arr(ctx)->set(ctx, (size_t)op[1].u, op[0].b);
@@ -821,9 +821,9 @@ namespace jaether {
 			}
 			case sastore:
 			{
-				op[0].si = _stack->pop<vSHORT>(ctx);
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[0].si = Stack_->pop<vSHORT>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				arr(ctx)->set(ctx, (size_t)op[1].u, op[0].si);
@@ -831,9 +831,9 @@ namespace jaether {
 			}
 			case iastore:
 			{
-				op[0].i = _stack->pop<vINT>(ctx);
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[0].i = Stack_->pop<vINT>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				arr(ctx)->set(ctx, (size_t)op[1].u, op[0].i);
@@ -841,9 +841,9 @@ namespace jaether {
 			}
 			case lastore:
 			{
-				op[0].l = _stack->pop<vLONG>(ctx);
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[0].l = Stack_->pop<vLONG>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				arr(ctx)->set(ctx, (size_t)op[1].u, op[0].l);
@@ -851,9 +851,9 @@ namespace jaether {
 			}
 			case castore:
 			{
-				op[0].jc = _stack->pop<vJCHAR>(ctx);
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[0].jc = Stack_->pop<vJCHAR>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				arr(ctx)->set(ctx, (size_t)op[1].u, op[0].jc);
@@ -861,9 +861,9 @@ namespace jaether {
 			}
 			case fastore:
 			{
-				op[0].f = _stack->pop<vFLOAT>(ctx);
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[0].f = Stack_->pop<vFLOAT>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				arr(ctx)->set(ctx, (size_t)op[1].u, op[0].f);
@@ -871,9 +871,9 @@ namespace jaether {
 			}
 			case dastore:
 			{
-				op[0].d = _stack->pop<vDOUBLE>(ctx);
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[0].d = Stack_->pop<vDOUBLE>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				arr(ctx)->set(ctx, (size_t)op[1].u, op[0].d);
@@ -882,75 +882,75 @@ namespace jaether {
 			// Array load
 			case aaload:
 			{
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
 				op[3] = arr(ctx)->get<vCOMMON>(ctx, (size_t)op[1].u);
-				_stack->push<vREF>(ctx, op[3].a);
+				Stack_->push<vREF>(ctx, op[3].a);
 				fwd = 0; break; 
 			}
 			case baload:
 			{
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
-				_stack->push(ctx, arr(ctx)->get<vBYTE>(ctx, (size_t)op[1].u));
+				Stack_->push(ctx, arr(ctx)->get<vBYTE>(ctx, (size_t)op[1].u));
 				fwd = 0; break; 
 			}
 			case saload:
 			{
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
-				_stack->push(ctx, arr(ctx)->get<vSHORT>(ctx, (size_t)op[1].u)); 
+				Stack_->push(ctx, arr(ctx)->get<vSHORT>(ctx, (size_t)op[1].u)); 
 				fwd = 0; break; 
 			}
 			case iaload:
 			{
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
-				_stack->push(ctx, arr(ctx)->get<vINT>(ctx, (size_t)op[1].u));
+				Stack_->push(ctx, arr(ctx)->get<vINT>(ctx, (size_t)op[1].u));
 				fwd = 0; break; 
 			}
 			case laload:
 			{
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
-				_stack->push(ctx, arr(ctx)->get<vLONG>(ctx, (size_t)op[1].u));
+				Stack_->push(ctx, arr(ctx)->get<vLONG>(ctx, (size_t)op[1].u));
 				fwd = 0; break; 
 			}
 			case caload:
 			{
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
-				_stack->push(ctx, arr(ctx)->get<vJCHAR>(ctx, (size_t)op[1].u));
+				Stack_->push(ctx, arr(ctx)->get<vJCHAR>(ctx, (size_t)op[1].u));
 				fwd = 0; break; 
 			}
 			case faload:
 			{
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
-				_stack->push(ctx, arr(ctx)->get<vFLOAT>(ctx, (size_t)op[1].u));
+				Stack_->push(ctx, arr(ctx)->get<vFLOAT>(ctx, (size_t)op[1].u));
 				fwd = 0; break; 
 			}
 			case daload:
 			{
-				op[1].u = _stack->pop<vUINT>(ctx);
-				op[2] = _stack->pop<vCOMMON>(ctx);
+				op[1].u = Stack_->pop<vUINT>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)op[2].objref.r.a);
 				if (arr(ctx)->TAG != JAETHER_ARR_TAG) throw std::runtime_error("invalid array");
-				_stack->push(ctx, arr(ctx)->get<vDOUBLE>(ctx, (size_t)op[1].u));
+				Stack_->push(ctx, arr(ctx)->get<vDOUBLE>(ctx, (size_t)op[1].u));
 				fwd = 0; break; 
 			}
 
@@ -959,12 +959,12 @@ namespace jaether {
 			case ldc2_w:
 			{
 				op[0].usi = opcode != ldc ? readUSI(ip + 1) : (vUSHORT)read<vBYTE>(ip + 1);
-				op[1] = _constPool->get<vCOMMON>(ctx, (size_t)op[0].usi);
+				op[1] = ConstPool_->get<vCOMMON>(ctx, (size_t)op[0].usi);
 				if (op[1].type == vTypes::type<vSTRING>()) {
-					_stack->push<vOBJECTREF>(ctx, createString(
+					Stack_->push<vOBJECTREF>(ctx, createString(
 						ctx,
-						_class,
-						_constPool,
+						Class_,
+						ConstPool_,
 						op[1].str.strIndex,
 						&op[0].usi,
 						false,
@@ -974,20 +974,20 @@ namespace jaether {
 				} else if (op[1].type == vTypes::type<vCLASS>()) {
 					auto& classes = ctx->getClasses();
 					auto& clsInfo = op[1].cls.clsIndex;
-					std::string className = (const char*)_class->toString(ctx, clsInfo)(ctx)->s(ctx);
+					std::string className = (const char*)Class_->toString(ctx, clsInfo)(ctx)->s(ctx);
 					int nest = nesting + (int)frames.size();
 					auto& objref = getJavaClass(ctx, className.c_str(), 0, false);
-					_stack->push<vOBJECTREF>(ctx, objref);
-					RPRINTF("-Loaded class %s onto stack\n", (const char*)_class->toString(ctx, clsInfo)(ctx)->s(ctx));
+					Stack_->push<vOBJECTREF>(ctx, objref);
+					RPRINTF("-Loaded class %s onto stack\n", (const char*)Class_->toString(ctx, clsInfo)(ctx)->s(ctx));
 				} else {
-					_stack->push<vCOMMON>(ctx, op[1]);
+					Stack_->push<vCOMMON>(ctx, op[1]);
 				}
 				fwd = opcode != ldc ? 2 : 1; break;
 			}
 			case iinc:
 				op[0].b = read<vBYTE>(ip + 1);
 				op[1].c = read<vCHAR>(ip + 2);
-				_local->set<vINT>(ctx, op[0].b, _local->get<vINT>(ctx, op[0].b) + op[1].c);
+				Local_->set<vINT>(ctx, op[0].b, Local_->get<vINT>(ctx, op[0].b) + op[1].c);
 				fwd = 2;
 				break;
 			case goto_:
@@ -1000,129 +1000,129 @@ namespace jaether {
 				break;
 			case ifeq:
 				op[0].usi = readUSI(ip + 1);
-				op[1].i = _stack->pop<vINT>(ctx);
+				op[1].i = Stack_->pop<vINT>(ctx);
 				if (op[1].i == 0)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2; break;
 			case ifne:
 				op[0].usi = readUSI(ip + 1);
-				op[1].i = _stack->pop<vINT>(ctx);
+				op[1].i = Stack_->pop<vINT>(ctx);
 				if (op[1].i != 0)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2;
 				break;
 			case ifnull:
 				op[0].usi = readUSI(ip + 1);
-				op[1] = _stack->pop<vCOMMON>(ctx);
+				op[1] = Stack_->pop<vCOMMON>(ctx);
 				if (!op[1].a.a)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2;
 				break;
 			case ifnonnull:
 				op[0].usi = readUSI(ip + 1);
-				op[1] = _stack->pop<vCOMMON>(ctx);
+				op[1] = Stack_->pop<vCOMMON>(ctx);
 				if (op[1].a.a)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2;
 				break;
 			case iflt:
 				op[0].usi = readUSI(ip + 1);
-				op[1].i = _stack->pop<vINT>(ctx);
+				op[1].i = Stack_->pop<vINT>(ctx);
 				if (op[1].i < 0)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2; break;
 			case ifgt:
 				op[0].usi = readUSI(ip + 1);
-				op[1].i = _stack->pop<vINT>(ctx);
+				op[1].i = Stack_->pop<vINT>(ctx);
 				if (op[1].i > 0)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2; break;
 			case ifle:
 				op[0].usi = readUSI(ip + 1);
-				op[1].i = _stack->pop<vINT>(ctx);
+				op[1].i = Stack_->pop<vINT>(ctx);
 				if (op[1].i <= 0)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2; break;
 			case ifge:
 				op[0].usi = readUSI(ip + 1);
-				op[1].i = _stack->pop<vINT>(ctx);
+				op[1].i = Stack_->pop<vINT>(ctx);
 				if (op[1].i >= 0)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2; break;
 
 			case if_icmpeq:
 				op[0].usi = readUSI(ip + 1);
-				op[2].i = _stack->pop<vINT>(ctx);
-				op[1].i = _stack->pop<vINT>(ctx);
+				op[2].i = Stack_->pop<vINT>(ctx);
+				op[1].i = Stack_->pop<vINT>(ctx);
 				if (op[1].i == op[2].i)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2; break;
 			case if_icmpne:
 				op[0].usi = readUSI(ip + 1);
-				op[2].i = _stack->pop<vINT>(ctx);
-				op[1].i = _stack->pop<vINT>(ctx);
+				op[2].i = Stack_->pop<vINT>(ctx);
+				op[1].i = Stack_->pop<vINT>(ctx);
 				if (op[1].i != op[2].i)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2; break;
 			case if_icmplt:
 				op[0].usi = readUSI(ip + 1);
-				op[2].i = _stack->pop<vINT>(ctx);
-				op[1].i = _stack->pop<vINT>(ctx);
+				op[2].i = Stack_->pop<vINT>(ctx);
+				op[1].i = Stack_->pop<vINT>(ctx);
 				if (op[1].i < op[2].i)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2; break;
 			case if_icmpgt:
 				op[0].usi = readUSI(ip + 1);
-				op[2].i = _stack->pop<vINT>(ctx);
-				op[1].i = _stack->pop<vINT>(ctx);
+				op[2].i = Stack_->pop<vINT>(ctx);
+				op[1].i = Stack_->pop<vINT>(ctx);
 				if (op[1].i > op[2].i)
 					fwd = ((size_t)(op[0].si)) -1;
 				else fwd = 2; break;
 			case if_icmple:
 				op[0].usi = readUSI(ip + 1);
-				op[2].i = _stack->pop<vINT>(ctx);
-				op[1].i = _stack->pop<vINT>(ctx);
+				op[2].i = Stack_->pop<vINT>(ctx);
+				op[1].i = Stack_->pop<vINT>(ctx);
 				if (op[1].i <= op[2].i)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2; break;
 			case if_icmpge:
 				op[0].usi = readUSI(ip + 1);
-				op[2].i = _stack->pop<vINT>(ctx);
-				op[1].i = _stack->pop<vINT>(ctx);
+				op[2].i = Stack_->pop<vINT>(ctx);
+				op[1].i = Stack_->pop<vINT>(ctx);
 				if (op[1].i >= op[2].i)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2; break;
 			case if_acmpeq:
 				op[0].usi = readUSI(ip + 1);
-				op[2] = _stack->pop<vCOMMON>(ctx);
-				op[1] = _stack->pop<vCOMMON>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
+				op[1] = Stack_->pop<vCOMMON>(ctx);
 				if (op[1].a.a == op[2].a.a)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2; break;
 			case if_acmpne:
 				op[0].usi = readUSI(ip + 1);
-				op[2] = _stack->pop<vCOMMON>(ctx);
-				op[1] = _stack->pop<vCOMMON>(ctx);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
+				op[1] = Stack_->pop<vCOMMON>(ctx);
 				if (op[1].a.a != op[2].a.a)
 					fwd = ((size_t)(op[0].si)) - 1;
 				else fwd = 2; break;
 
 			case lcmp:
-				op[1].l = _stack->pop<vLONG>(ctx);
-				op[0].l = _stack->pop<vLONG>(ctx);
-				_stack->push<vINT>(ctx, compare(op[0].l, op[1].l));
+				op[1].l = Stack_->pop<vLONG>(ctx);
+				op[0].l = Stack_->pop<vLONG>(ctx);
+				Stack_->push<vINT>(ctx, compare(op[0].l, op[1].l));
 				fwd = 0; break;
 			case fcmpg:
 			case fcmpl:
-				op[1].f = _stack->pop<vFLOAT>(ctx);
-				op[0].f = _stack->pop<vFLOAT>(ctx);
-				_stack->push<vINT>(ctx, compare(op[0].f, op[1].f));
+				op[1].f = Stack_->pop<vFLOAT>(ctx);
+				op[0].f = Stack_->pop<vFLOAT>(ctx);
+				Stack_->push<vINT>(ctx, compare(op[0].f, op[1].f));
 				fwd = 0; break;
 			case dcmpg:
 			case dcmpl:
-				op[1].d = _stack->pop<vDOUBLE>(ctx);
-				op[0].d = _stack->pop<vDOUBLE>(ctx);
-				_stack->push<vINT>(ctx, compare(op[0].d, op[1].d));
+				op[1].d = Stack_->pop<vDOUBLE>(ctx);
+				op[0].d = Stack_->pop<vDOUBLE>(ctx);
+				Stack_->push<vINT>(ctx, compare(op[0].d, op[1].d));
 				fwd = 0; break;
 
 			case return_:
@@ -1135,12 +1135,12 @@ namespace jaether {
 
 				if (unwrapCallstack) {
 					auto& oldFrame = frames.top(); frames.pop();
-					if (_frame->_returns) {
-						op[0] = _stack->pop<vCOMMON>(ctx); 
+					if (Frame_->_returns) {
+						op[0] = Stack_->pop<vCOMMON>(ctx); 
 						auto& newFrame = frames.top();
-						newFrame(ctx)->_stack(ctx)->push<vCOMMON>(ctx, op[0]);
+						newFrame(ctx)->_stack(ctx, W::T)->push<vCOMMON>(ctx, op[0]);
 					}
-					oldFrame(ctx)->destroy(ctx);
+					oldFrame(ctx, W::T)->destroy(ctx);
 					oldFrame.release(ctx);
 					RPRINTF("<%s: %llu\n", Opcodes[opcode], op[0].ul);
 					frameChanged = true;
@@ -1153,19 +1153,19 @@ namespace jaether {
 			case athrow:
 			{
 				std::vector<std::string> stackTrace;
-				op[0] = _stack->pop<vCOMMON>(ctx);
+				op[0] = Stack_->pop<vCOMMON>(ctx);
 				JObject ex(ctx, op[0]);
 				stackTrace.push_back("Stack trace: Uncaught exception: " + std::string(ex.getClass()(ctx)->getName(ctx)));
 				bool found = false;
 				while (!frames.empty() && !found) {
 					V<vFrame> fr = frames.top();
-					vFrame* _fr = fr(ctx);
+					vFrame* _fr = fr(ctx, W::T);
 					V<vClass> klass = _fr->_class;
 					vULONG pc = _fr->pc();
 					vUSHORT extl = _fr->_program.exceptionTableLength;
 					V<ExceptionTable> ext = _fr->_program.exceptionTable;
 					for (vUSHORT i = 0; i < extl && !found; i++) {
-						ExceptionTable& entry = ext(ctx, (size_t)i);
+						const ExceptionTable& entry = ext(ctx, (size_t)i);
 						vUSHORT startPC = readUSI((vBYTE*)&entry.startPC);
 						vUSHORT endPC = readUSI((vBYTE*)&entry.endPC);
 						vUSHORT handlerPC = readUSI((vBYTE*)&entry.handlerPC);
@@ -1178,8 +1178,8 @@ namespace jaether {
 								DPRINTF("Exception hit: %s, handler: %d\n", tgtKls(ctx)->getName(ctx), handlerPC);
 								found = true;
 								fwd = -1;
-								_fr->_stack(ctx)->push<vCOMMON>(ctx, op[0]);
-								_fr->pc() = handlerPC;
+								_fr->_stack(ctx, W::T)->push<vCOMMON>(ctx, op[0]);
+								_fr->setpc(handlerPC);
 							}
 						}
 					}
@@ -1201,8 +1201,8 @@ namespace jaether {
 
 			case invokedynamic:
 				op[0].usi = readUSI(ip + 1);
-				op[1].mh = _constPool->get<vMETHODHANDLE>(ctx, (size_t)op[0].usi);
-				op[2] = _constPool->get<vCOMMON>(ctx, (size_t)op[1].mh.index);
+				op[1].mh = ConstPool_->get<vMETHODHANDLE>(ctx, (size_t)op[0].usi);
+				op[2] = ConstPool_->get<vCOMMON>(ctx, (size_t)op[1].mh.index);
 				fwd = 4;  break;
 			case invokevirtual:
 			case invokestatic:
@@ -1210,19 +1210,19 @@ namespace jaether {
 			case invokespecial:
 			{
 				op[0].usi = readUSI(ip + 1);
-				op[1].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
-				std::string path = std::string((const char*)_class->toString(ctx, op[1].mr.clsIndex)(ctx)->s.real(ctx));
-				std::string methodName = (const char*)_class->toString(ctx, op[1].mr.nameIndex)(ctx)->s.real(ctx);
-				std::string desc = (const char*)_class->toString(ctx, op[1].mr.nameIndex, 1)(ctx)->s.real(ctx);
+				op[1].mr = ConstPool_->get<vMETHODREF>(ctx, (size_t)op[0].usi);
+				std::string path = std::string((const char*)Class_->toString(ctx, op[1].mr.clsIndex)(ctx)->s.real(ctx));
+				std::string methodName = (const char*)Class_->toString(ctx, op[1].mr.nameIndex)(ctx)->s.real(ctx);
+				std::string desc = (const char*)Class_->toString(ctx, op[1].mr.nameIndex, 1)(ctx)->s.real(ctx);
 				auto cls = lazyLoad(ctx, path, nesting + (int)frames.size());
 				bool found = false;
 				if (cls) {
 					auto superClass = cls;
-					vClass* clsPtr = cls(ctx);
+					const vClass* clsPtr = cls(ctx);
 					vUINT argc = clsPtr->argsCount(desc.c_str());
 					RPRINTF("-Pre resolve path: %s::%s, %s (args: %d)\n", path.c_str(), methodName.c_str(), desc.c_str(), argc);
 					if (opcode == invokevirtual || opcode == invokeinterface) {
-						vCOMMON& objr = _stack->get<vCOMMON>(ctx, argc);
+						vCOMMON& objr = Stack_->get<vCOMMON>(ctx, argc);
 						RPRINTF("-Object reference: %016llX\n", objr.objref.r.a);
 						JObject obj(ctx, objr);
 						if (obj) {
@@ -1237,21 +1237,21 @@ namespace jaether {
 					auto nit = _natives.find(path + "/" + methodName + ":" + desc);
 					if (nit != _natives.end()) {
 						RPRINTF(">[NATIVE] %s: %s/%s\n", Opcodes[opcode], path.c_str(), (methodName + desc).c_str());
-						nit->second(ctx, this, _stack, opcode);
+						nit->second(ctx, this, Stack_, opcode);
 						found = true;
 					} else {
 						//RPRINTF("-Post resolve path: %s::%s, %s\n", path.c_str(), methodName.c_str(), desc.c_str());
 
 						RPRINTF(">%s: %s/%s\n", Opcodes[opcode], path.c_str(), (methodName + desc).c_str());
 						if (unwrapCallstack) {
-							auto [methodFound, ret] = clsPtr->createFrame(ctx, cls, superClass, this, _stack, opcode, methodName, desc);
+							auto [methodFound, ret] = clsPtr->createFrame(ctx, cls, superClass, this, Stack_, opcode, methodName, desc);
 							if (methodFound == MethodResolveStatus::eMRS_Found) {
 								frames.push(ret);
 								frameChanged = true;
 							}
 							found = methodFound != MethodResolveStatus::eMRS_NotFound;
 						} else {
-							auto [methodFound, ret] = clsPtr->invoke(ctx, cls, superClass, this, _stack, opcode, methodName, desc);
+							auto [methodFound, ret] = clsPtr->invoke(ctx, cls, superClass, this, Stack_, opcode, methodName, desc);
 							found = methodFound != MethodResolveStatus::eMRS_NotFound;
 						}
 					}
@@ -1259,7 +1259,7 @@ namespace jaether {
 					auto nit = _natives.find(path + "/" + methodName + ":" + desc);
 					if (nit != _natives.end()) {
 						RPRINTF(">[NATIVE] %s: %s/%s\n", Opcodes[opcode], path.c_str(), (methodName + desc).c_str());
-						nit->second(ctx, this, _stack, opcode);
+						nit->second(ctx, this, Stack_, opcode);
 						found = true;
 					}
 				}
@@ -1278,14 +1278,14 @@ namespace jaether {
 			case new_:
 			{
 				op[0].usi = readUSI(ip + 1);
-				op[1].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
-				std::string path = std::string((const char*)_class->toString(ctx, op[1].mr.clsIndex)(ctx)->s.real(ctx));
+				op[1].mr = ConstPool_->get<vMETHODREF>(ctx, (size_t)op[0].usi);
+				std::string path = std::string((const char*)Class_->toString(ctx, op[1].mr.clsIndex)(ctx)->s.real(ctx));
 				auto cls = lazyLoad(ctx, path, nesting + (int)frames.size());
 				bool found = false;
 				if (cls) {
 					V<vOBJECT> obj = VMAKEGC(vOBJECT, ctx, ctx, cls);
-					obj(ctx)->x.set<vLONG>(1004);
-					_stack->push<vOBJECTREF>(ctx, Ref(obj));
+					obj(ctx, W::T)->x.set<vLONG>(1004);
+					Stack_->push<vOBJECTREF>(ctx, Ref(obj));
 					found = true;
 				}
 				if (!found) {
@@ -1297,20 +1297,20 @@ namespace jaether {
 			case instanceof:
 			{
 				op[0].usi = readUSI(ip + 1);
-				op[1] = _stack->pop<vCOMMON>(ctx);
-				op[2].cls = _constPool->get<vCLASS>(ctx, (size_t)op[0].usi);
+				op[1] = Stack_->pop<vCOMMON>(ctx);
+				op[2].cls = ConstPool_->get<vCLASS>(ctx, (size_t)op[0].usi);
 				auto& classes = ctx->getClasses();
-				auto cls = lazyLoad(ctx, (const char*)_class->toString(ctx, op[2].cls.clsIndex)(ctx)->s(ctx), nesting + (int)frames.size());
+				auto cls = lazyLoad(ctx, (const char*)Class_->toString(ctx, op[2].cls.clsIndex)(ctx)->s(ctx), nesting + (int)frames.size());
 				if (cls) {
 					if (op[1].objref.r.a == 0) {
-						_stack->push<vBYTE>(ctx, 0);
+						Stack_->push<vBYTE>(ctx, 0);
 					} else {
 						JObject obj(ctx, op[1].objref);
 						bool iofr = obj.getClass()(ctx)->instanceOf(ctx, cls);
-						_stack->push<vBYTE>(ctx, iofr);
+						Stack_->push<vBYTE>(ctx, iofr);
 					}
 				} else {
-					_stack->push<vBYTE>(ctx, 0);
+					Stack_->push<vBYTE>(ctx, 0);
 				}
 				fwd = 2; break;
 			}
@@ -1320,18 +1320,18 @@ namespace jaether {
 			case getstatic:
 			{
 				op[0].usi = readUSI(ip + 1);
-				op[3].mr = _constPool->get<vMETHODREF>(ctx, op[0].usi);
-				std::string path = std::string((const char*)_class->toString(ctx, op[3].mr.clsIndex)(ctx)->s.real(ctx));
-				std::string field = std::string((const char*)_class->toString(ctx, op[3].mr.nameIndex)(ctx)->s.real(ctx));
+				op[3].mr = ConstPool_->get<vMETHODREF>(ctx, op[0].usi);
+				std::string path = std::string((const char*)Class_->toString(ctx, op[3].mr.clsIndex)(ctx)->s.real(ctx));
+				std::string field = std::string((const char*)Class_->toString(ctx, op[3].mr.nameIndex)(ctx)->s.real(ctx));
 				
 				auto cls = lazyLoad(ctx, path, nesting + (int)frames.size());
 				bool found = false;
 				
 				if (cls) {
-					vClass* clsPtr = cls(ctx);
+					const vClass* clsPtr = cls(ctx);
 					vFIELD* fld = clsPtr->getField(ctx, field.c_str());
 					if (fld) {
-						_stack->push<vCOMMON>(ctx, fld->value);
+						Stack_->push<vCOMMON>(ctx, fld->value);
 						found = true;
 					}
 				}
@@ -1340,46 +1340,46 @@ namespace jaether {
 					throw std::runtime_error("didn't find static field");
 					vCOMMON dummy;
 					memset(&dummy, 0, sizeof(vCOMMON));
-					_stack->push<vCOMMON>(ctx, dummy);
+					Stack_->push<vCOMMON>(ctx, dummy);
 				}
 				fwd = 2; break;
 			}
 			case putstatic:
 			{
 				op[0].usi = readUSI(ip + 1);
-				op[3].mr = _constPool->get<vMETHODREF>(ctx, op[0].usi);
-				std::string path = std::string((const char*)_class->toString(ctx, op[3].mr.clsIndex)(ctx)->s.real(ctx));
-				std::string field = std::string((const char*)_class->toString(ctx, op[3].mr.nameIndex)(ctx)->s.real(ctx));
+				op[3].mr = ConstPool_->get<vMETHODREF>(ctx, op[0].usi);
+				std::string path = std::string((const char*)Class_->toString(ctx, op[3].mr.clsIndex)(ctx)->s.real(ctx));
+				std::string field = std::string((const char*)Class_->toString(ctx, op[3].mr.nameIndex)(ctx)->s.real(ctx));
 				auto cls = lazyLoad(ctx, path, nesting + (int)frames.size());
 				bool found = false;
 				if (cls) {
-					vClass* clsPtr = cls(ctx);
+					const vClass* clsPtr = cls(ctx);
 					vFIELD* fld = clsPtr->getField(ctx, field.c_str());
 					if (fld) {
-						fld->value = _stack->pop<vCOMMON>(ctx);
+						fld->value = Stack_->pop<vCOMMON>(ctx);
 						found = true;
 					}
 				}
 				if (!found) {
 					throw std::runtime_error("didn't find static field");
-					_stack->pop<vCOMMON>(ctx);
+					Stack_->pop<vCOMMON>(ctx);
 				}
 				fwd = 2; break;
 			}
 			case getfield:
 			{
 				op[0].usi = readUSI(ip + 1);
-				op[1] = _stack->pop<vCOMMON>(ctx);
-				op[3].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
+				op[1] = Stack_->pop<vCOMMON>(ctx);
+				op[3].mr = ConstPool_->get<vMETHODREF>(ctx, (size_t)op[0].usi);
 				V<vOBJECT> obj((vOBJECT*)op[1].objref.r.a);
 				V<vClass> cls = obj(ctx)->cls;
 				if (obj(ctx)->TAG != JAETHER_OBJ_TAG) throw std::runtime_error("invalid object");
 				if (cls(ctx)->TAG != JAETHER_CLASS_TAG) throw std::runtime_error("invalid class");
-				const char* fieldName = (const char*)_class->toString(ctx, op[3].mr.nameIndex)(ctx)->s(ctx);
+				const char* fieldName = (const char*)Class_->toString(ctx, op[3].mr.nameIndex)(ctx)->s(ctx);
 				vCOMMON* value = cls(ctx)->getObjField(ctx, obj, fieldName);
 				bool found = value != 0;
 				if (found) {
-					_stack->push<vCOMMON>(ctx, *value);
+					Stack_->push<vCOMMON>(ctx, *value);
 				} else {
 					fprintf(stderr, "[vCPU::run/%s] Couldn't find field %s::%s (index: %d)\n",
 						Opcodes[opcode],
@@ -1388,21 +1388,21 @@ namespace jaether {
 						op[3].mr.nameIndex);
 					//_running = false;
 					throw std::runtime_error("field not found");
-					_stack->push<vCOMMON>(ctx, vCOMMON{});
+					Stack_->push<vCOMMON>(ctx, vCOMMON{});
 				}
 				fwd = 2; break;
 			}
 			case putfield:
 			{
 				op[0].usi = readUSI(ip + 1);
-				op[2] = _stack->pop<vCOMMON>(ctx);
-				op[1] = _stack->pop<vCOMMON>(ctx);
-				op[3].mr = _constPool->get<vMETHODREF>(ctx, (size_t)op[0].usi);
+				op[2] = Stack_->pop<vCOMMON>(ctx);
+				op[1] = Stack_->pop<vCOMMON>(ctx);
+				op[3].mr = ConstPool_->get<vMETHODREF>(ctx, (size_t)op[0].usi);
 				V<vOBJECT> obj((vOBJECT*)op[1].objref.r.a);
 				V<vClass> cls = obj(ctx)->cls;
 				if (obj(ctx)->TAG != JAETHER_OBJ_TAG) throw std::runtime_error("invalid object");
 				if (cls(ctx)->TAG != JAETHER_CLASS_TAG) throw std::runtime_error("invalid class");
-				const char* fieldName = (const char*)_class->toString(ctx, op[3].mr.nameIndex)(ctx)->s(ctx);
+				const char* fieldName = (const char*)Class_->toString(ctx, op[3].mr.nameIndex)(ctx)->s(ctx);
 				vCOMMON* value = cls(ctx)->getObjField(ctx, obj, fieldName);
 				bool found = value != 0;
 				if (found) {
@@ -1418,16 +1418,16 @@ namespace jaether {
 				fwd = 2; break;
 			}
 			case pop:
-				_stack->pop<vCOMMON>(ctx);
+				Stack_->pop<vCOMMON>(ctx);
 				fwd = 0; break;
 			case monitorenter:
 			case monitorexit:
-				_stack->pop<vCOMMON>(ctx);
+				Stack_->pop<vCOMMON>(ctx);
 				fwd = 0; break;
 			case lookupswitch:
 			{
-				op[0].i = _stack->pop<vINT>(ctx);
-				op[1].ul = _frame->pc();
+				op[0].i = Stack_->pop<vINT>(ctx);
+				op[1].ul = Frame_->pc();
 				op[2].ul = (3 - (op[1].ul & 3)) & 3;
 				op[3].u = readUI(ip + 1 + op[2].ul);
 				op[4].u = readUI(ip + 1 + op[2].ul + 4);
@@ -1460,8 +1460,8 @@ namespace jaether {
 			}
 			case tableswitch:
 			{
-				op[0].i = _stack->pop<vINT>(ctx);
-				op[1].ul = _frame->pc();
+				op[0].i = Stack_->pop<vINT>(ctx);
+				op[1].ul = Frame_->pc();
 				op[2].ul = (3 - (op[1].ul & 3))&3;
 				op[3].u = readUI(ip + 1 + op[2].ul);
 				op[4].u = readUI(ip + 1 + op[2].ul + 4);
@@ -1496,24 +1496,24 @@ namespace jaether {
 				if (unwrapCallstack) return 0;
 				fwd = 0; break;
 			}
-			size_t endIndex = _stack->index();
+			size_t endIndex = Stack_->index();
 			//printf("Op: %s, start: %lld, end: %lld\n", Opcodes[opcode], startIndex, endIndex);
 			//_stack->purify(ctx, startIndex, endIndex);
-			_frame->incrpc(fwd + 1);
+			Frame_->incrpc(fwd + 1);
 			ctx->onInstruction();
 		}
 		_running = true;
 		return ops;
 	}
 
-	vUSHORT vCPU::readUSI(vBYTE* ip) const {
+	vUSHORT vCPU::readUSI(const vBYTE* ip) const {
 		vUSHORT usi = read<vBYTE>(ip);
 		usi <<= 8;
 		usi |= read<vBYTE>(ip + 1);
 		return usi;
 	}
 
-	vUINT vCPU::readUI(vBYTE* ip) const {
+	vUINT vCPU::readUI(const vBYTE* ip) const {
 		vUINT ui = read<vBYTE>(ip);
 		ui <<= 8; ui |= read<vBYTE>(ip + 1);
 		ui <<= 8; ui |= read<vBYTE>(ip + 2);

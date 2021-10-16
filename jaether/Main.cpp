@@ -7,10 +7,13 @@ int main(int argc, const char** argv) {
 	system("@chcp 65001>nul");
 #endif
 
+	printf("Start: ");
+	getchar();
+
 	const char* ClsPath = "example/Main";
 	const char* MethodPath = "main";
-	bool SecureContext = false;
-	bool HotLoading = true;
+	bool SecureContext = true;
+	bool HotLoading = false;
 	bool FullInit = true;
 	if (SecureContext) HotLoading = true;
 	if (HotLoading && std::filesystem::exists("hotload/checkpoint.bin"))

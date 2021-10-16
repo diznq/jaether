@@ -45,7 +45,7 @@ namespace jaether {
 			return _cycles / _allocs;
 		}
 
-		void touchVirtual(void* memory);
+		void touchVirtual(void* memory, size_t size);
 
 		size_t flushTouched() {
 			size_t sz = _touched.size();

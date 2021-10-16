@@ -51,32 +51,49 @@ namespace jaether {
 			}
 		}
 
-		vCOMMON& operator[](const char* idx) const {
+		const vCOMMON& operator[](const char* idx) const {
 			if (isArray()) throw std::runtime_error("attempt to access member of an array");
 			vCOMMON* ptr = _obj(_ctx)->cls(_ctx)->getObjField(_ctx, _obj, idx);
 			if (!ptr) throw std::runtime_error("field not found");
 			return *ptr;
 		}
 
-		vCOMMON& operator[](size_t idx) {
+		vCOMMON& operator[](const char* idx) {
+			if (isArray()) throw std::runtime_error("attempt to access member of an array");
+			vCOMMON* ptr = _obj(_ctx)->cls(_ctx)->getObjField(_ctx, _obj, idx);
+			if (!ptr) throw std::runtime_error("field not found");
+			return *ptr;
+		}
+
+		const vCOMMON& operator[](size_t idx) const {
 			if (isArray()) {
 				auto arr = asArray();
 				idx &= 0x7FFFFFFF;
-				//idx /= arr(_ctx)->unitSize(arr(_ctx)->type);
-				//printf("Array type: %d, idx: %llu, size: %lu\n", arr(_ctx)->type, idx, arr(_ctx)->size);
 				if (idx >= arr(_ctx)->size) throw std::runtime_error("array out of bound index");
 				return arr(_ctx)->get<vCOMMON>(_ctx, idx);
 			}
 			if (idx >= _obj(_ctx)->cls(_ctx)->_fieldCount)
 				throw std::runtime_error("invalid field index");
-			return _obj(_ctx)->fields()(_ctx, idx);
+			return _obj(_ctx)->fields()(_ctx, idx, W::T);
 		}
 
-		V<vNATIVEARRAY> asArray() {
+		vCOMMON& operator[](size_t idx) {
+			if (isArray()) {
+				auto arr = asArray();
+				idx &= 0x7FFFFFFF;
+				if (idx >= arr(_ctx)->size) throw std::runtime_error("array out of bound index");
+				return arr(_ctx)->get<vCOMMON>(_ctx, idx, W::T);
+			}
+			if (idx >= _obj(_ctx)->cls(_ctx)->_fieldCount)
+				throw std::runtime_error("invalid field index");
+			return _obj(_ctx)->fields()(_ctx, idx, W::T);
+		}
+
+		V<vNATIVEARRAY> asArray() const {
 			return V<vNATIVEARRAY>((vNATIVEARRAY*)_obj.v());
 		}
 
-		void* ptr() const {
+		const void* ptr() const {
 			return _obj(_ctx);
 		}
 
@@ -96,7 +113,7 @@ namespace jaether {
 		}
 
 		vCOMMON& x() {
-			return _obj(_ctx)->x;
+			return _obj(_ctx, W::T)->x;
 		}
 
 		vOBJECTREF ref() const {
@@ -153,11 +170,20 @@ namespace jaether {
 			}
 		}
 		JArray clone() {
-			return JArray(_ctx, _obj(_ctx)->clone(_ctx));
+			return JArray(
+				_ctx, 
+				_obj(_ctx)->clone(_ctx)
+			);
 		}
-		T& operator[](const size_t idx) const {
+
+		const T& operator[](const size_t idx) const {
 			return _obj(_ctx)->get<T>(_ctx, idx);
 		}
+
+		T& operator[](const size_t idx) {
+			return _obj(_ctx)->get<T>(_ctx, idx, W::T);
+		}
+
 		size_t length() const {
 			return _obj(_ctx)->size;
 		}

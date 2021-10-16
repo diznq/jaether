@@ -17,7 +17,8 @@ namespace jaether {
 			_memory = VMAKEARRAY(vBYTE, ctx, size);
 			_index = 0;
 			_size = size;
-			memset(_memory.real(ctx), 0, size);
+			ctx->setMemory(_memory.v(), 0, size);
+			//memset(_memory.real(ctx), 0, size);
 		}
 
 		~vStack() {
@@ -34,7 +35,7 @@ namespace jaether {
 
 		template<class T> vStack& push(vContext* ctx, const T& value) {
 			const size_t size = sizeof(vCOMMON);
-			vBYTE* ptr = &_memory(ctx, (size_t)_index);
+			vBYTE* ptr = &_memory(ctx, (size_t)_index, W::T);
 			char lastByte = ((char*)&value)[sizeof(T) - 1];
 			bool isNegative = lastByte < 0;
 			//memset(ptr, isNegative ? 0xFF : 0, size);
@@ -65,17 +66,6 @@ namespace jaether {
 				throw std::runtime_error("offset out of bounds");
 			}
 			return *(T*)&_memory( ctx,  _index - offset - sizeof(vCOMMON));
-		}
-
-		size_t purify(vContext* ctx, size_t start, size_t end) {
-			if (start > end) {
-				size_t cleaned = 0;
-				for (; end < start; end++, cleaned++) {
-					_memory(ctx, end) = 0;
-				}
-				return cleaned;
-			}
-			return 0;
 		}
 
 		size_t index() const {

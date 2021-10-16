@@ -52,12 +52,31 @@ namespace jaether {
 		void* start = _alloc->getBase();
 		size_t align = _alloc->getAlignment();
 		auto& segments = _alloc->getTouchedVSegments();
-		const size_t segmentSize = (1ULL << align) + ((1ULL << align) >> 1);
-		for (auto id : segments) {
-			sha256_update(sha, (const BYTE*)&id, sizeof(id));
+		if (segments.size() == 0) return;
+		size_t step = (1ULL << align) + (sizeof(unsigned int));
+		size_t reqMemory = segments.size() * step;
+#ifdef GREEDY_HASH
+		if (reqMemory > _secureMirror.size()) _secureMirror.resize(reqMemory);
+#endif
+		const size_t segmentSize = (1ULL << align);
+		char* secureStart = (char*)_secureMirror.data();
+		char* cursor = secureStart;
+		for (auto& id : segments) {
 			unsigned int offset = id << align;
+#ifdef GREEDY_HASH
+			memcpy(cursor, (const char*)&id, sizeof(id));
+			memcpy(cursor + sizeof(unsigned int), ((const BYTE*)start) + offset, segmentSize);
+#else
+			sha256_update(sha, (const BYTE*)&id, sizeof(id));
 			sha256_update(sha, ((const BYTE*)start) + offset, segmentSize);
+#endif
+			cursor += step;
 		}
+
+#ifdef GREEDY_HASH
+		sha256_update(sha, (const BYTE*)secureStart, reqMemory);
+#endif
+		_alloc->flushTouched();
 	}
 
 	void vContext::writeString(std::ostream& os, const std::string& str) {
@@ -128,9 +147,9 @@ namespace jaether {
 		sha256_final(sha, out);
 	}
 
-	void vContext::touchVirtual(void* memory) {
+	void vContext::touchVirtual(void* memory, size_t size) {
 		if (!_secure) return;
-		_alloc->touchVirtual(memory);
+		_alloc->touchVirtual(memory, size);
 	}
 
 	uintptr_t vContext::offset() const {

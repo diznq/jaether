@@ -14,7 +14,8 @@ namespace jaether {
 		vMemory(vContext* ctx, size_t size = sizeof(vCOMMON) * 65536) {
 			_memory = VMAKEARRAY(vCOMMON, ctx, size);
 			_size = size;
-			memset(_memory.real(ctx), 0, size);
+			//memset(_memory.real(ctx), 0, size);
+			ctx->setMemory(_memory.v(), 0, size);
 		}
 
 		~vMemory() {
@@ -24,7 +25,7 @@ namespace jaether {
 			_memory.release(ctx, true);
 		}
 
-		template<class T> vMemory& set(vContext* ctx, const size_t index, const T& value) {
+		template<class T> const vMemory& set(vContext* ctx, const size_t index, const T& value) const {
 			const size_t size = sizeof(vCOMMON);
 			assert(index < _size);
 			vBYTE* ptr = (vBYTE*)&_memory(ctx, index);

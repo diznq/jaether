@@ -34,14 +34,14 @@ namespace jaether {
 			value = VMAKE(vNATIVEARRAY, ctx, ctx, 5, (vUINT)(text.length())); // 5 = JCHAR
 			_obj = VMAKE(vOBJECT, ctx, ctx, klass);
 		}
-		_obj(ctx)->x.set<vLONG>(1090);
+		_obj(ctx, W::T)->x.set<vLONG>(1090);
 
 		for (size_t i = 0, j = text.length(); i < j; i++) {
 			value(ctx)->set<vJCHAR>(ctx, i, text[i]);
 		}
-		value(ctx)->x.set<vLONG>(1089);
-		value(ctx)->type = 8; // 8 = BYTE
-		value(ctx)->size <<= 1;
+		value(ctx, W::T)->x.set<vLONG>(1089);
+		value(ctx, W::T)->type = 8; // 8 = BYTE
+		value(ctx, W::T)->size <<= 1;
 		
 		JObject object(ctx, _obj);
 		JArray<vBYTE> arr(ctx, value);
@@ -53,7 +53,7 @@ namespace jaether {
 	std::string JString::str() const {
 		vBYTE coder = 1;
 		coder = (*this)["coder"].b;
-		vCOMMON& value = (*this)["value"];
+		const vCOMMON& value = (*this)["value"];
 		JArray<char> arr(_ctx, value);
 		if (coder == 0) {
 			return std::string(arr.data(), arr.data() + arr.length());

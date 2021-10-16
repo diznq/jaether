@@ -241,8 +241,8 @@ namespace jaether {
 		V<vATTRIBUTE> attributes;	// 32
 		V<vClass>	cls;	// 40
 		char reserve[8];
-		std::string getName(vContext* ctx);
-		std::string getDesc(vContext* ctx);
+		std::string getName(vContext* ctx) const;
+		std::string getDesc(vContext* ctx) const;
 	};
 
 	typedef vFIELD vMETHOD;
@@ -283,21 +283,20 @@ namespace jaether {
 			}
 		}
 
-		V<vNATIVEARRAY> clone(vContext* ctx) {
+		V<vNATIVEARRAY> clone(vContext* ctx) const {
 			V<vNATIVEARRAY> obj = VMAKE(vNATIVEARRAY, ctx, ctx, type, size);
-			obj(ctx)->cls = cls;
-			obj(ctx)->x = x;
-			//memcpy(obj(ctx)->data()(ctx), data()(ctx), (size_t)size * (size_t)unitSize(type));
+			obj(ctx, W::T)->cls = cls;
+			obj(ctx, W::T)->x = x;
 			ctx->moveMemory(obj(ctx)->data().v(), data().v(), (size_t)size * (size_t)unitSize(type));
 			return obj;
 		}
 
-		template<typename T> void set(vContext* ctx, size_t index, const T& value) {
+		template<typename T> void set(vContext* ctx, size_t index, const T& value) const {
 			size_t scaledIndex = index * unitSize(type);
 			if (index >= size) {
 				throw std::runtime_error("out of bounds");
 			}
-			vBYTE& base = data()(ctx, scaledIndex);
+			vBYTE& base = data()(ctx, scaledIndex, W::T);
 			*(T*)&base = value;
 			if (type == 1) {
 				vCOMMON* c = (vCOMMON*)&base;
@@ -305,12 +304,21 @@ namespace jaether {
 			}
 		}
 
-		template<typename T> T& get(vContext* ctx, size_t index) {
+		template<typename T> const T& get(vContext* ctx, size_t index) const {
 			size_t scaledIndex = index * unitSize(type);
 			if (index >= size) {
 				throw std::runtime_error("out of bounds");
 			}
-			vBYTE* base = data()(ctx) + scaledIndex;
+			const vBYTE* base = &data()(ctx, scaledIndex);
+			return *(const T*)base;
+		}
+
+		template<typename T> T& get(vContext* ctx, size_t index, W w) const {
+			size_t scaledIndex = index * unitSize(type);
+			if (index >= size) {
+				throw std::runtime_error("out of bounds");
+			}
+			vBYTE* base = &data()(ctx, scaledIndex, W::T);
 			return *(T*)base;
 		}
 

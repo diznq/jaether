@@ -17,6 +17,8 @@
 #define DPRINTF(...) /* */
 #endif
 
+//#define GREEDY_HASH
+
 namespace jaether {
 
 	template<class T> class V;
@@ -35,6 +37,7 @@ namespace jaether {
 		
 		std::map<std::string, vClass*> _classes;
 		std::map<std::string, std::any> _storage;
+		std::vector<unsigned char> _secureMirror;
 
 		void writeString(std::ostream& os, const std::string& str);
 		std::string readString(std::istream& is);
@@ -119,7 +122,7 @@ namespace jaether {
 			return _ops;
 		}
 
-		void touchVirtual(void* memory);
+		void touchVirtual(void* memory, size_t size);
 
 		inline uintptr_t resolve(uintptr_t addr) const {
 			return _alloc->resolve(addr);

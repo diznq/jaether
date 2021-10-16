@@ -102,15 +102,15 @@ namespace jaether {
 			bool rem = false;
 			if (TYPE[0] == JAETHER_ARR_TAG) {	// treat nativearray in special way
 				V<vNATIVEARRAY> arr((vNATIVEARRAY*)va);
-				vNATIVEARRAY* parr = arr.ptr(this);
+				vNATIVEARRAY* parr = arr.real(this, W::T);
 				//printf("Releasing array at #%u, type: %d, size: %u, origin: %d\n", candidate, parr->type, parr->size, parr->x.i);
-				collected += arr.ptr(this)->release(this);
-				collected += arr.release(this);
+				collected += parr->release(this);
+				collected += parr->release(this);
 				rem = true;
 			} else if (TYPE[0] == JAETHER_OBJ_TAG) {	// treat object special way
 				//printf("Releasing object at #%u\n", candidate);
 				V<vOBJECT> obj((vOBJECT*)va);
-				collected += obj.ptr(this)->release(this);
+				collected += obj.real(this, W::T)->release(this);
 				collected += obj.release(this);
 				rem = true;
 			}
@@ -137,27 +137,38 @@ namespace jaether {
 		return blocks << _align;
 	}
 
-	void Allocator::touchVirtual(void* mem) {
-		uintptr_t offset = (uintptr_t)mem;
-		unsigned int id = (unsigned int)(offset >> _align);
-		_touched.insert(id);
-		//_touched.insert(id + 1);
+	void Allocator::touchVirtual(void* mem, size_t size) {
+		const int MOD = (1 << _align) - 1;
+		const uintptr_t offset = (const uintptr_t)mem;
+		const unsigned int id = (const unsigned int)(offset >> _align);
+		size_t blocks = (size >> _align) + 1;
+		if ((size & MOD) == 0) blocks--;
+		for (size_t i = 0; i < blocks; i++) {
+			const unsigned int blk = id + (unsigned int)i;
+			/*if (blk == 0x0B56) {
+				
+			}*/
+			_touched.insert(blk);
+		}
 	}
 
 	void* Allocator::setMemory(void* VirtDest, int value, size_t len) {
 		vBYTE* dst = (vBYTE*)resolve((uintptr_t)VirtDest);
+		touchVirtual(VirtDest, len);
 		return memset(dst, value, len);
 	}
 
 	void* Allocator::copyMemory(void* VirtDest, const void* VirtSrc, size_t len, bool srcReal) {
 		vBYTE* dst = (vBYTE*)resolve((uintptr_t)VirtDest);
 		vBYTE* src = (vBYTE*)(srcReal ? (uintptr_t)VirtSrc : resolve((uintptr_t)VirtSrc));
+		touchVirtual(VirtDest, len);
 		return memcpy(dst, src, len);
 	}
 
 	void* Allocator::moveMemory(void* VirtDest, const void* VirtSrc, size_t len, bool srcReal) {
 		vBYTE* dst = (vBYTE*)resolve((uintptr_t)VirtDest);
 		vBYTE* src = (vBYTE*)(srcReal ? (uintptr_t)VirtSrc : resolve((uintptr_t)VirtSrc));
+		touchVirtual(VirtDest, len);
 		return memmove(dst, src, len);
 	}
 

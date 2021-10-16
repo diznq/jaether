@@ -20,11 +20,14 @@ namespace jaether {
 
 		vFrame(
 			vContext* ctx,
-			vMETHOD* method,
+			const vMETHOD* method,
 			const V<vClass>& classFile,
 			size_t maxStackItems = 64,
 			size_t maxLocals = 64
 		) {
+			//sizeof(_program);
+			uintptr_t self = (uintptr_t)this - (uintptr_t)ctx->getBase();
+			ctx->setMemory((vFrame*)self, 0, sizeof(vFrame));
 			_stack = VMAKE(vStack, ctx, ctx, maxStackItems * sizeof(vCOMMON));
 			_local = VMAKE(vMemory, ctx, ctx, maxLocals);
 			_pc = 0;
@@ -40,6 +43,8 @@ namespace jaether {
 				throw std::runtime_error("method has no code");
 			}
 			V<vUTF8BODY> desc = classFile(ctx)->toString(ctx, method->desc);
+
+
 			_returns = false;
 			if (desc.isValid()) {
 				size_t len = strlen((const char*)desc(ctx)->s.real(ctx));
@@ -52,18 +57,22 @@ namespace jaether {
 		}
 
 		void destroy(vContext* ctx) {
-			_stack(ctx)->destroy(ctx);
+			_stack(ctx, W::T)->destroy(ctx);
 			_stack.release(ctx);
-			_local(ctx)->destroy(ctx);
+			_local(ctx, W::T)->destroy(ctx);
 			_local.release(ctx);
 		}
 
-		vBYTE* fetch(vContext* ctx) {
-			return _program.code.real(ctx) + pc();
+		const vBYTE* fetch(vContext* ctx) const {
+			return &_program.code(ctx, (size_t)pc());
 		}
 
-		vULONG& pc() {
+		const vULONG& pc() const {
 			return _pc;
+		}
+
+		void setpc(vULONG value) {
+			_pc = value;
 		}
 
 		vULONG& incrpc(size_t step) {
