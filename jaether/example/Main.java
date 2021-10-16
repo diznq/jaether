@@ -7,6 +7,6 @@ class Main {
 
     public static void main(String[] args){
         Random random = new Random();
-        System.out.println(BigInteger.probablePrime(256, random).toString(10));
+        System.out.println(BigInteger.probablePrime(256, random).toString(16));
     }
 }

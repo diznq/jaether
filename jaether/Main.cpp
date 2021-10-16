@@ -7,21 +7,29 @@ int main(int argc, const char** argv) {
 	system("@chcp 65001>nul");
 #endif
 
-	printf("Start: ");
-	getchar();
-
 	const char* ClsPath = "example/Main";
 	const char* MethodPath = "main";
-	bool SecureContext = true;
+	bool SecureContext = false;
 	bool HotLoading = false;
 	bool FullInit = true;
+	
+	for (int i = 1; i < argc; i++) {
+		if (!strncmp(argv[i], "--", 2) && (i + 1) < argc) {
+			const char* K = argv[i];
+			const char* V = argv[i + 1];
+			i++;
+			if (!strcmp(K, "--class")) ClsPath = V;
+			else if (!strcmp(K, "--entry")) MethodPath = V;
+			else if (!strcmp(K, "--secure")) SecureContext = V[0] == '1';
+			else if (!strcmp(K, "--hot")) HotLoading = V[0] == '1';
+			else if (!strcmp(K, "--init")) FullInit = V[0] == '1';
+		}
+	}
+
 	if (SecureContext) HotLoading = true;
 	if (HotLoading && std::filesystem::exists("hotload/checkpoint.bin"))
 		FullInit = false;
 
-	if (argc >= 2) ClsPath = argv[1];
-	if (argc >= 3) MethodPath = argv[2];
-	if (argc >= 4) SecureContext = argv[3][0] == '1';
 
 	Allocator* allocator = new Allocator(8 * 1024 * 1024);
 	vContext* ctx = new vContext(allocator, FullInit, SecureContext);
