@@ -53,16 +53,16 @@ namespace jaether {
 
 		const vCOMMON& operator[](const char* idx) const {
 			if (isArray()) throw std::runtime_error("attempt to access member of an array");
-			vCOMMON* ptr = _obj(_ctx)->cls(_ctx)->getObjField(_ctx, _obj, idx);
+			V<vCOMMON> ptr = _obj(_ctx)->cls(_ctx)->getObjField(_ctx, _obj, idx);
 			if (!ptr) throw std::runtime_error("field not found");
-			return *ptr;
+			return *ptr(_ctx);
 		}
 
 		vCOMMON& operator[](const char* idx) {
 			if (isArray()) throw std::runtime_error("attempt to access member of an array");
-			vCOMMON* ptr = _obj(_ctx)->cls(_ctx)->getObjField(_ctx, _obj, idx);
+			V<vCOMMON> ptr = _obj(_ctx)->cls(_ctx)->getObjField(_ctx, _obj, idx);
 			if (!ptr) throw std::runtime_error("field not found");
-			return *ptr;
+			return *ptr(_ctx, W::T);
 		}
 
 		const vCOMMON& operator[](size_t idx) const {
@@ -228,9 +228,15 @@ namespace jaether {
 		}
 		
 		vFIELD& operator[](const char* name) {
-			vFIELD* fld = _klass(_ctx)->getField(_ctx, name);
+			V<vFIELD> fld = _klass(_ctx)->getField(_ctx, name);
 			if (!fld) throw std::runtime_error("static field not found");
-			return *fld;
+			return *fld(_ctx, W::T);
+		}
+
+		const vFIELD& operator[](const char* name) const {
+			V<vFIELD> fld = _klass(_ctx)->getField(_ctx, name);
+			if (!fld) throw std::runtime_error("static field not found");
+			return *fld(_ctx);
 		}
 		
 		const char* getName() {

@@ -89,20 +89,20 @@ namespace jaether {
 		void		readAttribute(vContext* ctx, std::ifstream& f, vATTRIBUTE& attr) const;
 		void		readField(vContext* ctx, std::ifstream& f, vFIELD& field) const;
 		
-		vATTRIBUTE* getAttribute(vContext* ctx, const vFIELD* field, const char* name) const;
-		vFIELD*		getField(vContext* ctx, const char* name) const;
-		const vMETHOD*	getMethod(vContext* ctx, const char* name, const char* desc = 0) const;
-		vCOMMON*	getObjField(vContext* ctx, V<vOBJECT> obj, const char* name) const;
-		vCOMMON*	getObjField(vContext* ctx, V<vOBJECTREF> objref, const char* name) const;
+		V<vATTRIBUTE> getAttribute(vContext* ctx, const vFIELD* field, const char* name) const;
+		V<vFIELD>	getField(vContext* ctx, const char* name) const;
+		V<vMETHOD>	getMethod(vContext* ctx, const char* name, const char* desc = 0) const;
+		V<vCOMMON>	getObjField(vContext* ctx, V<vOBJECT> obj, const char* name) const;
+		V<vCOMMON>	getObjField(vContext* ctx, V<vOBJECTREF> objref, const char* name) const;
 
 		bool		instanceOf(vContext* ctx, V<vClass> cls) const;
 
 		V<vUTF8BODY> toString(vContext* ctx, vUSHORT index, int selector = 0) const;
 		std::string toStdString(vContext* ctx, vUSHORT index, int selector = 0) const;
 		const char* toCString(vContext* ctx, vUSHORT index, int selector = 0) const;
-		CodeAttribute	getCode(vContext* ctx, const vMETHOD* method) const;
+		CodeAttribute	getCode(vContext* ctx, V<vMETHOD> method) const;
 		vOBJECTREF& getJavaClass(vContext* ctx, bool gc = false) const;
-		vUINT		argsCount(vContext* ctx, const vMETHOD* method) const;
+		vUINT		argsCount(vContext* ctx, V<vMETHOD> method) const;
 		vUINT		argsCount(const char* desc) const;
 
 		std::tuple<MethodResolveStatus, vCOMMON> invoke(

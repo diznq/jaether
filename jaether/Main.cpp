@@ -9,7 +9,7 @@ int main(int argc, const char** argv) {
 
 	const char* ClsPath = "example/Main";
 	const char* MethodPath = "main";
-	bool SecureContext = false;
+	bool SecureContext = true;
 	bool HotLoading = false;
 	bool FullInit = true;
 	

@@ -291,18 +291,18 @@ namespace jaether {
 		}
 	}
 
-	vATTRIBUTE* vClass::getAttribute(vContext* ctx, const vFIELD* field, const char* name) const {
+	V<vATTRIBUTE> vClass::getAttribute(vContext* ctx, const vFIELD* field, const char* name) const {
 		for (vUSHORT i = 0; i < field->attributeCount; i++) {
 			V<vUTF8BODY> str = toString(ctx, field->attributes(ctx, (size_t)i).name);
 			if (!str.isValid()) continue;
 			if (!strcmp((const char*)str(ctx)->s.real(ctx), name)) {
-				return &field->attributes(ctx, (size_t)i, W::T);
+				return field->attributes + (size_t)i;
 			}
 		}
 		return 0;
 	}
 
-	vFIELD* vClass::getField(vContext* ctx, const char* name) const {
+	V<vFIELD> vClass::getField(vContext* ctx, const char* name) const {
 		for (vUSHORT i = 0; i < _fieldCount; i++) {
 			const vFIELD& field = _fields(ctx, (size_t)i);
 			if ((field.access & 8) != 8) continue;	// static flag
@@ -310,7 +310,7 @@ namespace jaether {
 			V<vUTF8BODY> str = cls(ctx)->toString(ctx, field.name);
 			if (!str.isValid()) continue;
 			if (!strcmp((const char*)str(ctx)->s.real(ctx), name)) {
-				return &_fields(ctx, (size_t)i, W::T);
+				return _fields + (size_t)i;
 			}
 		}
 		if (_super) {
@@ -323,7 +323,7 @@ namespace jaether {
 		return 0;
 	}
 
-	const vMETHOD* vClass::getMethod(vContext* ctx, const char* name, const char* desc) const {
+	V<vMETHOD> vClass::getMethod(vContext* ctx, const char* name, const char* desc) const {
 		for (vUSHORT i = 0; i < _methodCount; i++) {
 			V<vUTF8BODY> str = toString(ctx, _methods(ctx, (size_t)i).name);
 			if (!str.isValid()) continue;
@@ -333,7 +333,7 @@ namespace jaether {
 					if (!descstr.isValid()) continue;
 					if (strcmp(desc, (const char*)descstr(ctx)->s.real(ctx))) continue;
 				}
-				return &_methods(ctx, (size_t)i);
+				return _methods + (size_t)i;
 			}
 		}
 		return 0;
@@ -389,13 +389,14 @@ namespace jaether {
 		return V<vUTF8BODY>::nullPtr();
 	}
 
-	CodeAttribute vClass::getCode(vContext* ctx, const vMETHOD* method) const {
+	CodeAttribute vClass::getCode(vContext* ctx, V<vMETHOD> method) const {
 		CodeAttribute ret;
 		memset(&ret, 0, sizeof(CodeAttribute));
 		ret.codeLength = V<vBYTE>::nullPtr();
 		if (!method) return ret;
-		vATTRIBUTE* attrib = getAttribute(ctx, method, "Code");
-		if (!attrib) return ret;
+		V<vATTRIBUTE> attrib_ = getAttribute(ctx, method(ctx), "Code");
+		if (!attrib_) return ret;
+		const vATTRIBUTE* attrib = attrib_(ctx);
 		if (attrib->length == 0) ret;
 		const vBYTE* data = attrib->info(ctx);
 		ret.attributeLength = readUI(data);
@@ -404,13 +405,13 @@ namespace jaether {
 		ret.codeLength = readUI(data + 4);
 		ret.code = attrib->info + (size_t)8;
 		ret.exceptionTableLength = readUSI(data + 8 + ret.codeLength);
-		ret.exceptionTable = (ExceptionTable*)(attrib->info.v() + (size_t)(10 + ret.codeLength));
+		ret.exceptionTable = (ExceptionTable*)(attrib->info.v() + (size_t)(10 + (size_t)ret.codeLength));
 		return ret;
 	}
 
-	vUINT vClass::argsCount(vContext* ctx, const vMETHOD* method) const {
+	vUINT vClass::argsCount(vContext* ctx, V<vMETHOD> method) const {
 		if (!method) return 0;
-		V<vUTF8BODY> desc = toString(ctx, method->desc);
+		V<vUTF8BODY> desc = toString(ctx, method(ctx)->desc);
 		if (!desc.isValid()) return 0;
 		const char* str = (const char*)desc(ctx)->s.real(ctx);
 		return argsCount(str);
@@ -442,7 +443,7 @@ namespace jaether {
 		return count;
 	}
 
-	vCOMMON* vClass::getObjField(vContext* ctx, V<vOBJECT> obj, const char* name) const {
+	V<vCOMMON> vClass::getObjField(vContext* ctx, V<vOBJECT> obj, const char* name) const {
 		//printf("This: %p\n", this);
 		for (vUSHORT k = 0, i = 0; k < _fieldCount; k++) {
 			auto& field = _fields(ctx, (size_t)k, W::T);
@@ -454,14 +455,14 @@ namespace jaether {
 			if (cls->TAG != JAETHER_CLASS_TAG) throw std::runtime_error("invalid class tag: " + std::to_string(cls->TAG));
 			const char* fieldName = (const char*)cls->toString(ctx, field.name)(ctx)->s.real(ctx);
 			if (!strcmp(fieldName, name)) {
-				return &obj(ctx)->fields()(ctx, i, W::T);
+				return obj(ctx)->fields() + (size_t)i;
 			}
 			i++;
 		}
-		return 0;
+		return V<vCOMMON>::nullPtr();
 	}
 
-	vCOMMON* vClass::getObjField(vContext* ctx, V<vOBJECTREF> objref, const char* name) const {
+	V<vCOMMON> vClass::getObjField(vContext* ctx, V<vOBJECTREF> objref, const char* name) const {
 		return getObjField(ctx, V<vOBJECT>((vOBJECT*)objref(ctx)->r.a), name);
 	}
 
@@ -511,8 +512,9 @@ namespace jaether {
 		const std::string& methodName,
 		const std::string& desc,
 		int nesting) const {
-		const vMETHOD* method = getMethod(ctx, methodName.c_str(), desc.c_str());
-		if (method) {
+		V<vMETHOD> method_ = getMethod(ctx, methodName.c_str(), desc.c_str());
+		if (method_) {
+			const vMETHOD* method = method_(ctx);
 			std::string npath = std::string(getName(ctx)) + "/" + method->getName(ctx) + ":" + method->getDesc(ctx);
 			auto nit = cpu->findNative(npath);
 			if (nit != cpu->getNatives().end()) {
@@ -520,8 +522,8 @@ namespace jaether {
 				cb(ctx, cpu, _stack, opcode);
 				return std::make_tuple(MethodResolveStatus::eMRS_Native, (vFrame*)0);
 			}
-			V<vFrame> nFrame = VMAKE(vFrame, ctx, ctx, method, self);
-			vUINT args = argsCount(ctx, method);
+			V<vFrame> nFrame = VMAKE(vFrame, ctx, ctx, method_, self);
+			vUINT args = argsCount(ctx, method_);
 			std::vector<vCOMMON> vargs;
 			for (vUINT i = 0; i < args; i++) {
 				vargs.push_back(_stack->pop<vCOMMON>(ctx));

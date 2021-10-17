@@ -145,9 +145,6 @@ namespace jaether {
 		if ((size & MOD) == 0) blocks--;
 		for (size_t i = 0; i < blocks; i++) {
 			const unsigned int blk = id + (unsigned int)i;
-			/*if (blk == 0x0B56) {
-				
-			}*/
 			_touched.insert(blk);
 		}
 	}

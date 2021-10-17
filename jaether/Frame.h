@@ -15,34 +15,36 @@ namespace jaether {
 		V<vMemory>	_local;
 		V<vClass>	_class;
 		V<vMETHOD>  _method;
-		vULONG		_pc;
-		bool		_returns;
+		vULONG		_pc = 0;
+		bool		_returns = false;
 
 		vFrame(
 			vContext* ctx,
-			const vMETHOD* method,
+			const V<vMETHOD>& method,
 			const V<vClass>& classFile,
 			size_t maxStackItems = 64,
 			size_t maxLocals = 64
 		) {
 			//sizeof(_program);
 			uintptr_t self = (uintptr_t)this - (uintptr_t)ctx->getBase();
-			ctx->setMemory((vFrame*)self, 0, sizeof(vFrame));
+			//ctx->setMemory((vFrame*)self, 0, sizeof(vFrame));
+			memset(this, 0, sizeof(vFrame));
 			_stack = VMAKE(vStack, ctx, ctx, maxStackItems * sizeof(vCOMMON));
 			_local = VMAKE(vMemory, ctx, ctx, maxLocals);
 			_pc = 0;
 			_class = classFile;
-			_method = (vMETHOD*)((uintptr_t)method - (uintptr_t)ctx->getAllocator()->getBase());
+			_method = method;
 			_program = classFile(ctx)->getCode(ctx, method);
+			const vMETHOD* pMethod = method(ctx);
 			if (!_program.code.isValid()) {
 				fprintf(stderr, "Method %s/%s:%s has no code\n",
 					classFile(ctx)->getName(ctx),
-					classFile(ctx)->toString(ctx, method->name)(ctx)->s(ctx),
-					classFile(ctx)->toString(ctx, method->desc)(ctx)->s(ctx)
+					classFile(ctx)->toString(ctx, pMethod->name)(ctx)->s(ctx),
+					classFile(ctx)->toString(ctx, pMethod->desc)(ctx)->s(ctx)
 				);
 				throw std::runtime_error("method has no code");
 			}
-			V<vUTF8BODY> desc = classFile(ctx)->toString(ctx, method->desc);
+			V<vUTF8BODY> desc = classFile(ctx)->toString(ctx, pMethod->desc);
 
 
 			_returns = false;

@@ -48,25 +48,25 @@ namespace jaether {
 	};
 
 	struct vREF {
-		vULONG a;
+		vULONG a = 0;
 	};
 
 	struct vCLASS {
-		vUSHORT clsIndex;
+		vUSHORT clsIndex = 0;
 	};
 
 	struct vMETHODREF {
-		vUSHORT clsIndex;
-		vUSHORT nameIndex;
+		vUSHORT clsIndex = 0;
+		vUSHORT nameIndex = 0;
 	};
 
 	struct vNAMEANDTYPE {
-		vUSHORT nameIndex;
-		vUSHORT descIndex;
+		vUSHORT nameIndex = 0;
+		vUSHORT descIndex = 0;
 	};
 
 	struct vUTF8BODY {
-		vUSHORT len;
+		vUSHORT len = 0;
 		V<vBYTE> s;
 	};
 
@@ -79,7 +79,7 @@ namespace jaether {
 	};
 
 	struct vSTRING {
-		vUSHORT strIndex;
+		vUSHORT strIndex = 0;
 	};
 
 	struct vUTF8 {
@@ -91,17 +91,17 @@ namespace jaether {
 	};
 
 	struct vINVOKEDYNAMIC {
-		vUSHORT bootstrapMethodAttrIndex;
-		vUSHORT nameIndex;
+		vUSHORT bootstrapMethodAttrIndex = 0;
+		vUSHORT nameIndex = 0;
 	};
 
 	struct vMETHODHANDLE {
-		vBYTE kind;
-		vUSHORT index;
+		vBYTE kind = 0;
+		vUSHORT index = 0;
 	};
 
 	struct vMETHODTYPE {
-		vUSHORT descIndex;
+		vUSHORT descIndex = 0;
 	};
 
 	namespace vTypes {
@@ -202,7 +202,7 @@ namespace jaether {
 			double d;
 			float f;
 		};
-		vBYTE type;
+		vBYTE type = 0;
 
 		template<class T> static vCOMMON create(const T& value) {
 			vCOMMON var;
@@ -226,21 +226,24 @@ namespace jaether {
 	};
 
 	struct vATTRIBUTE {
-		vUSHORT name;
-		vUINT length;
+		vUSHORT name = 0;
+		vUINT length = 0;
 		V<vClass> cls;
 		V<vBYTE> info;
 	};
 
 	struct vFIELD {
 		vCOMMON value;	// 16
-		vUSHORT access;	// 18
-		vUSHORT name;	// 20
-		vUSHORT desc;	// 22
-		vUSHORT attributeCount;	// 24
+		vUSHORT access = 0;	// 18
+		vUSHORT name = 0;	// 20
+		vUSHORT desc = 0;	// 22
+		vUSHORT attributeCount = 0;	// 24
 		V<vATTRIBUTE> attributes;	// 32
 		V<vClass>	cls;	// 40
 		char reserve[8];
+		vFIELD() {
+			memset(this, 0, sizeof(vFIELD));
+		}
 		std::string getName(vContext* ctx) const;
 		std::string getDesc(vContext* ctx) const;
 	};
@@ -254,8 +257,8 @@ namespace jaether {
 		V<vClass> cls;
 		vCOMMON x;
 
-		vUINT size;
-		vBYTE type;
+		vUINT size = 0;
+		vBYTE type = 0;
 
 		vNATIVEARRAY(vContext* ctx, vBYTE type, vUINT size);
 		static vUINT unitSize(vBYTE type) {

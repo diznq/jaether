@@ -76,6 +76,7 @@ namespace jaether {
 #ifdef GREEDY_HASH
 		sha256_update(sha, (const BYTE*)secureStart, reqMemory);
 #endif
+
 		_alloc->flushTouched();
 	}
 

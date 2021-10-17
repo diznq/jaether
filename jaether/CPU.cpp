@@ -26,7 +26,7 @@ namespace jaether {
 
 		if (!clsPtr->_initialized) {
 			clsPtr->_initialized = true;
-			const vMETHOD* clinit = clsPtr->getMethod(ctx, "<clinit>", "()V");
+			V<vMETHOD> clinit = clsPtr->getMethod(ctx, "<clinit>", "()V");
 			if (clinit) {
 				clsPtr->invoke(ctx, cls, cls, this, 0, invokestatic, "<clinit>", "()V", nesting);
 			} else {
@@ -210,9 +210,9 @@ namespace jaether {
 			if (frameChanged) {
 				const V<vFrame>& Frame = frames.top();
 				Stack_ = Frame(ctx)->_stack(ctx, W::T);
-				Local_ = Frame(ctx)->_local(ctx, W::T);
-				Class_ = Frame(ctx)->_class(ctx, W::T);
-				ConstPool_ = Frame(ctx)->_class(ctx)->_constPool(ctx, W::T);
+				Local_ = Frame(ctx)->_local(ctx);
+				Class_ = Frame(ctx)->_class(ctx);
+				ConstPool_ = Frame(ctx)->_class(ctx)->_constPool(ctx);
 				Frame_ = Frame(ctx, W::T);
 				if (!Frame_->_program.code.isValid()) {
 					return 0;
@@ -222,7 +222,7 @@ namespace jaether {
 			size_t startIndex = Stack_->index();
 			const vBYTE* ip = Frame_->fetch(ctx);
 			const vBYTE& opcode = *ip; ops++;
-			//RPRINTF("|Execute %s (%d)\n", Opcodes[opcode], opcode);
+			RPRINTF("|Execute %s (%d)\n", Opcodes[opcode], opcode);
 			switch (opcode) {
 			case nop:
 				fwd = 0; break;
@@ -1329,9 +1329,9 @@ namespace jaether {
 				
 				if (cls) {
 					const vClass* clsPtr = cls(ctx);
-					vFIELD* fld = clsPtr->getField(ctx, field.c_str());
+					V<vFIELD> fld = clsPtr->getField(ctx, field.c_str());
 					if (fld) {
-						Stack_->push<vCOMMON>(ctx, fld->value);
+						Stack_->push<vCOMMON>(ctx, fld(ctx)->value);
 						found = true;
 					}
 				}
@@ -1354,9 +1354,9 @@ namespace jaether {
 				bool found = false;
 				if (cls) {
 					const vClass* clsPtr = cls(ctx);
-					vFIELD* fld = clsPtr->getField(ctx, field.c_str());
+					V<vFIELD> fld = clsPtr->getField(ctx, field.c_str());
 					if (fld) {
-						fld->value = Stack_->pop<vCOMMON>(ctx);
+						fld(ctx, W::T)->value = Stack_->pop<vCOMMON>(ctx);
 						found = true;
 					}
 				}
@@ -1376,10 +1376,10 @@ namespace jaether {
 				if (obj(ctx)->TAG != JAETHER_OBJ_TAG) throw std::runtime_error("invalid object");
 				if (cls(ctx)->TAG != JAETHER_CLASS_TAG) throw std::runtime_error("invalid class");
 				const char* fieldName = (const char*)Class_->toString(ctx, op[3].mr.nameIndex)(ctx)->s(ctx);
-				vCOMMON* value = cls(ctx)->getObjField(ctx, obj, fieldName);
-				bool found = value != 0;
+				V<vCOMMON> value = cls(ctx)->getObjField(ctx, obj, fieldName);
+				bool found = value.isValid();
 				if (found) {
-					Stack_->push<vCOMMON>(ctx, *value);
+					Stack_->push<vCOMMON>(ctx, value(ctx, (size_t)0));
 				} else {
 					fprintf(stderr, "[vCPU::run/%s] Couldn't find field %s::%s (index: %d)\n",
 						Opcodes[opcode],
@@ -1403,10 +1403,10 @@ namespace jaether {
 				if (obj(ctx)->TAG != JAETHER_OBJ_TAG) throw std::runtime_error("invalid object");
 				if (cls(ctx)->TAG != JAETHER_CLASS_TAG) throw std::runtime_error("invalid class");
 				const char* fieldName = (const char*)Class_->toString(ctx, op[3].mr.nameIndex)(ctx)->s(ctx);
-				vCOMMON* value = cls(ctx)->getObjField(ctx, obj, fieldName);
-				bool found = value != 0;
+				V<vCOMMON> value = cls(ctx)->getObjField(ctx, obj, fieldName);
+				bool found = value.isValid();
 				if (found) {
-					*value = op[2];
+					*(value(ctx, W::T)) = op[2];
 				} else {
 					fprintf(stderr, "[vCPU::run/%s] Couldn't find field %s::%s (index: %d)\n",
 						Opcodes[opcode],
